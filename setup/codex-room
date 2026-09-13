@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+role="${1:?room role is required (lead|peer)}"
+shift
+case "$role" in
+  lead|peer) ;;
+  *) printf 'invalid room role: %s (expected lead|peer)\n' "$role" >&2; exit 2 ;;
+esac
+
+kit=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
+project_root=${SEATWORKS_PROJECT_ROOT:-$PWD}
+project_root=$(cd -- "$project_root" && pwd -P)
+runtime=$("$kit/setup/codex-room-sync" "$role" "$project_root")
+
+export CODEX_HOME="$runtime"
+codex_bin=${CODEX_BIN:-$(command -v codex)}
+cd -- "$project_root"
+exec "$codex_bin" "$@"

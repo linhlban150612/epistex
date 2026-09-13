@@ -1,0 +1,63 @@
+{
+  "_doc": [
+    "Merge hai entry vào .agents.providers; bỏ _doc và thay <KIT> bằng đường dẫn tuyệt đối.",
+    "Mặc định dùng workspace cwd; chỉ thêm SEATWORKS_PROJECT_ROOT khi cần cố định project.",
+    "Credential dùng chung từ ~/.codex hoặc SEATWORKS_CODEX_HOME."
+  ],
+  "codex-lead": {
+    "extends": "codex",
+    "label": "Codex Lead Seat",
+    "description": "Lead — framing, delegation, review and acceptance",
+    "command": [
+      "<KIT>/setup/codex-room",
+      "lead"
+    ],
+    "env": {},
+    "enabled": true,
+    "paseoTools": {
+      "enabled": true
+    },
+    "models": [
+      {
+        "id": "gpt-5.6-sol",
+        "label": "GPT-5.6 Sol",
+        "isDefault": true,
+        "thinkingOptions": [
+          {
+            "id": "low",
+            "label": "Low",
+            "isDefault": true
+          }
+        ]
+      }
+    ]
+  },
+  "codex-peer": {
+    "extends": "codex",
+    "label": "Codex Peer Seat",
+    "description": "Peer — implementation, evidence and handoff",
+    "command": [
+      "<KIT>/setup/codex-room",
+      "peer"
+    ],
+    "env": {},
+    "enabled": true,
+    "paseoTools": {
+      "enabled": false
+    },
+    "models": [
+      {
+        "id": "gpt-5.6-luna",
+        "label": "GPT-5.6 Luna",
+        "isDefault": true,
+        "thinkingOptions": [
+          {
+            "id": "low",
+            "label": "Low",
+            "isDefault": true
+          }
+        ]
+      }
+    ]
+  }
+}

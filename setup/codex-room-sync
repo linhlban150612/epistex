@@ -1,0 +1,152 @@
+#!/usr/bin/env python3
+"""Materialize an isolated, project-scoped CODEX_HOME for a Lead or Peer seat."""
+
+import datetime
+import hashlib
+import json
+import math
+import os
+import pathlib
+import sys
+import tempfile
+import tomllib
+
+ROLES = {"lead": "LEAD.md", "peer": "PEER.md"}
+SHARED_FILES = ("auth.json", "model-instructions.md", "hooks.json")
+SHARED_DIRS = ("skills", "plugins")
+
+
+def link(runtime: pathlib.Path, name: str, target: pathlib.Path) -> None:
+    destination = runtime / name
+    if not target.exists():
+        if destination.is_symlink():
+            destination.unlink()
+        return
+    if destination.is_symlink() and destination.resolve() == target.resolve():
+        return
+    if destination.exists() and not destination.is_symlink():
+        raise SystemExit(f"refusing to replace non-symlink: {destination}")
+    destination.unlink(missing_ok=True)
+    destination.symlink_to(target)
+
+
+def toml_value(value) -> str:
+    """Encode tomllib values; inline tables avoid table-ordering ambiguity."""
+    if isinstance(value, str):
+        # Keep non-BMP Unicode literal (JSON surrogate escapes are not valid TOML).
+        return json.dumps(value, ensure_ascii=False).replace("\x7f", "\\u007f")
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return repr(value)
+    if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
+        return value.isoformat()
+    if isinstance(value, list):
+        return "[" + ", ".join(toml_value(item) for item in value) + "]"
+    if isinstance(value, dict):
+        return "{ " + ", ".join(
+            f"{toml_value(key)} = {toml_value(item)}" for key, item in value.items()
+        ) + " }"
+    raise ValueError("unsupported TOML value type")
+
+
+def same_values(left, right) -> bool:
+    """Compare the complete round trip, including NaN and signed zero."""
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, dict):
+        return left.keys() == right.keys() and all(same_values(left[k], right[k]) for k in left)
+    if isinstance(left, list):
+        return len(left) == len(right) and all(same_values(a, b) for a, b in zip(left, right))
+    if isinstance(left, float):
+        return (math.isnan(left) and math.isnan(right)) or left.hex() == right.hex()
+    return left == right
+
+
+def render_config(text: str, role: str, prompt: pathlib.Path) -> str:
+    config = tomllib.loads(text)
+    config["model_instructions_file"] = str(prompt)
+    for table, flags in (("features", {"multi_agent": False, "multi_agent_v2": False}),
+                         ("agents", {"enabled": False})):
+        section = config.setdefault(table, {})
+        if not isinstance(section, dict):
+            raise ValueError(f"{table} must be a TOML table")
+        section.update(flags)
+    if role == "peer" and "mcp_servers" in config:
+        if not isinstance(config["mcp_servers"], dict):
+            raise ValueError("mcp_servers must be a TOML table")
+        config["mcp_servers"].pop("paseo", None)
+    rendered = "".join(f"{toml_value(key)} = {toml_value(value)}\n" for key, value in config.items())
+    if not same_values(config, tomllib.loads(rendered)):
+        raise ValueError("TOML round trip changed configuration values")
+    return rendered
+
+
+def preflight(runtime: pathlib.Path) -> None:
+    """Reject predictable destination conflicts before changing any runtime entry."""
+    if runtime.exists() and not runtime.is_dir():
+        raise SystemExit(f"runtime is not a directory: {runtime}")
+    config = runtime / "config.toml"
+    if config.is_symlink() or (config.exists() and not config.is_file()):
+        raise SystemExit(f"refusing non-regular runtime config: {config}")
+    for name in SHARED_FILES + SHARED_DIRS:
+        destination = runtime / name
+        if destination.exists() and not destination.is_symlink():
+            raise SystemExit(f"refusing to replace non-symlink: {destination}")
+
+
+def atomic_write(path: pathlib.Path, content: str) -> None:
+    fd, temporary = tempfile.mkstemp(prefix=f"{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            stream.write(content)
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def main() -> None:
+    if len(sys.argv) != 3 or sys.argv[1] not in ROLES:
+        raise SystemExit(f"usage: {sys.argv[0]} <lead|peer> <project-root>")
+
+    role = sys.argv[1]
+    project = pathlib.Path(sys.argv[2]).resolve(strict=True)
+    kit = pathlib.Path(__file__).resolve().parent.parent
+    prompt = kit / "agents" / ROLES[role]
+    if not prompt.is_file():
+        raise SystemExit(f"seat prompt not found: {prompt}")
+
+    default_home = pathlib.Path.home() / ".codex"
+    canonical = pathlib.Path(os.environ.get("SEATWORKS_CODEX_HOME", default_home)).expanduser().resolve(strict=True)
+    base_config = canonical / "config.toml"
+    if not base_config.is_file():
+        raise SystemExit(f"canonical Codex config not found: {base_config}")
+
+    project_id = hashlib.sha256(str(project).encode()).hexdigest()[:12]
+    runtime = pathlib.Path.home() / ".codex-runtime" / "seatworks" / project_id / role
+    for parent in runtime.parents:
+        if parent.is_symlink():
+            raise SystemExit(f"refusing symlinked runtime ancestor: {parent}")
+    if runtime.is_symlink():
+        raise SystemExit(f"refusing symlinked role runtime: {runtime}")
+    try:
+        config = render_config(base_config.read_text(encoding="utf-8"), role, prompt)
+    except ValueError:
+        # Parser exceptions may contain canonical configuration values.
+        raise SystemExit("invalid canonical TOML or unsupported configuration values") from None
+    preflight(runtime)
+    runtime.mkdir(parents=True, exist_ok=True)
+
+    for name in SHARED_FILES:
+        link(runtime, name, canonical / name)
+    for name in SHARED_DIRS:
+        link(runtime, name, canonical / name)
+
+    # Only this replacement is atomic; filesystem errors can leave partial link updates.
+    atomic_write(runtime / "config.toml", config)
+    print(runtime)
+
+
+if __name__ == "__main__":
+    main()

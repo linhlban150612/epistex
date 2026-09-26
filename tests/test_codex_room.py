@@ -69,6 +69,41 @@ class CodexRoomTest(unittest.TestCase):
         (self.bin / "codex").symlink_to(self.codex)
         self.assert_launch(self.run_room("peer"), "peer", project, [])
 
+    def test_explicit_resume_finds_runtime_created_from_another_cwd(self):
+        session_id = "12345678-1234-1234-1234-123456789abc"
+        old_project = self.root / "old launcher cwd"
+        old_project.mkdir()
+        old_id = hashlib.sha256(str(old_project).encode()).hexdigest()[:12]
+        runtime = self.root / ".codex-runtime" / "epistex" / old_id / "supervisor"
+        sessions = runtime / "sessions" / "2026" / "09"
+        sessions.mkdir(parents=True)
+        (sessions / f"rollout-2026-09-26T10-00-00-{session_id}.jsonl").write_text("fixture\n")
+
+        for args in (["resume", session_id], ["exec", "resume", session_id, "--json", "prompt"],
+                     ["e", "resume", session_id.upper()]):
+            with self.subTest(args=args):
+                result = self.run_room("supervisor", *args)
+                self.assertEqual(result.returncode, 23, result.stderr)
+                payload = json.loads(result.stdout)
+                self.assertEqual(payload["cwd"], str(self.project))
+                self.assertEqual(payload["home"], str(runtime))
+                self.assertEqual(payload["args"], args)
+
+    def test_resume_does_not_interpret_prompts_or_options_as_session_ids(self):
+        session_id = "12345678-1234-1234-1234-123456789abc"
+        for args in (["resume", "--last", session_id], ["resume", "named-session", session_id],
+                     ["exec", "--model", "resume", session_id]):
+            with self.subTest(args=args):
+                self.assert_launch(self.run_room("lead", *args), "lead", self.project, args)
+
+    def test_legacy_project_override_and_new_precedence(self):
+        legacy = self.root / "legacy project"
+        legacy.mkdir()
+        self.env["SEATWORKS_PROJECT_ROOT"] = str(legacy)
+        self.assert_launch(self.run_room("lead"), "lead", legacy, [])
+        self.env["EPISTEX_PROJECT_ROOT"] = str(self.project)
+        self.assert_launch(self.run_room("lead"), "lead", self.project, [])
+
     def test_invalid_or_missing_role_does_not_create_runtime(self):
         for args in ((), ("root",)):
             with self.subTest(args=args):

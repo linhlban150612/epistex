@@ -6,6 +6,18 @@
 sẽ làm việc. Paseo daemon phải chạy dưới đúng user sở hữu Codex home và project.
 Mặc định provider dùng working directory của workspace Paseo. Chỉ đặt
 `EPISTEX_PROJECT_ROOT` nếu muốn cố định provider vào một project; không giữ đường dẫn repo cũ.
+Wrapper giữ launcher/worktree CWD làm working directory của Codex, nhưng nhận diện project Git
+bằng shared Git directory nên các thư mục con và linked worktree dùng chung runtime. Ngoài Git,
+đường dẫn CWD tuyệt đối là project identity. Vì vậy CWD khác nhau ngoài Git không tự động cùng
+runtime. Với `codex resume <session-UUID>` hoặc `codex exec resume <session-UUID>` tường minh,
+wrapper tìm rollout hiện có theo UUID và role
+trong cả namespace `epistex` và `seatworks`, rồi dùng nguyên runtime đó; không copy session và
+không chọn nếu không tìm thấy hoặc có nhiều kết quả.
+Để tìm runtime khác project hiện tại, dùng đúng hai dạng trên: UUID ngay sau `resume`,
+không đặt options trước command/UUID; đặt options sau UUID. Alias `e resume <UUID>` cũng hỗ trợ.
+Runtime Git giữ hash đường dẫn main checkout (với `.git` thông thường). Session cũ được tạo
+từ thư mục con/worktree khác phải resume bằng UUID; picker, tên session, `--last` và app-server
+chỉ thấy runtime của project hiện tại. Wrapper không tìm ID bên trong RPC của app-server.
 
 ## 2. Kiểm tiền đề
 
@@ -19,6 +31,11 @@ paseo daemon status --json
 
 Codex home chuẩn mặc định là `~/.codex`. Nếu credential/config thật nằm nơi khác, khai biến
 `EPISTEX_CODEX_HOME` trong `env` của cả hai provider.
+Các cài đặt cũ có thể tiếp tục dùng `SEATWORKS_PROJECT_ROOT`, `SEATWORKS_CODEX_HOME` và
+`SEATWORKS_STATE_HOME`; biến `EPISTEX_*` tương ứng luôn ưu tiên. Runtime cũ dưới
+`~/.codex-runtime/seatworks` được dùng tại chỗ khi là kết quả duy nhất phù hợp; không có live
+migration và dữ liệu cũ không bị xóa. Nếu nhiều runtime cũ/mới cùng phù hợp, launch dừng để người
+vận hành xử lý thay vì chọn tùy ý.
 
 Linux Desktop: nếu `paseo` là symlink tới `/opt/Paseo/Paseo` và `paseo run` mở GUI,
 dùng `/opt/Paseo/resources/bin/paseo` cho các lệnh CLI bên dưới. Đây là launcher đi kèm

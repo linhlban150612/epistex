@@ -15,7 +15,8 @@ import tempfile
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-HOME = pathlib.Path(os.environ.get("EPISTEX_STATE_HOME", pathlib.Path.home() / ".local/share/epistex/desk"))
+HOME = pathlib.Path(os.environ.get("EPISTEX_STATE_HOME") or os.environ.get("SEATWORKS_STATE_HOME")
+                    or pathlib.Path.home() / ".local/share/epistex/desk")
 AGENTS = ("claude", "codex", "devin", "pi", "amp", "glm", "droid")
 
 
@@ -42,7 +43,8 @@ def save(path, value):
 
 
 def project_path(args):
-    root = pathlib.Path(args.project or os.environ.get("EPISTEX_PROJECT_ROOT", os.getcwd())).resolve(strict=True)
+    root = pathlib.Path(args.project or os.environ.get("EPISTEX_PROJECT_ROOT")
+                        or os.environ.get("SEATWORKS_PROJECT_ROOT") or os.getcwd()).resolve(strict=True)
     if not root.is_dir():
         raise ValueError("project must be a directory")
     return root

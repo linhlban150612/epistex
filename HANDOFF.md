@@ -2,6 +2,94 @@
 
 Date: 2026-09-26, Asia/Ho_Chi_Minh.
 
+## Current update: P1 code repairs, review and local commits
+
+Current conversation: https://ampcode.com/threads/T-01a0dc70-f18d-77e1-9315-045cdd4f8c4e
+
+Authorization followed https://ampcode.com/threads/T-01a0dc4a-5346-713f-bfe3-fb232042b563:
+fix P1 Epistex/Jev, then update this handoff, review and commit all code changes.
+This section supersedes the historical P1 status and delivery statements below.
+Older evidence is retained, not presented as fresh verification of live state.
+
+### Completed in this repair
+
+- **Epistex runtime selection:** Git root, subdirectories and linked worktrees now
+  share a project/role runtime. Normal `.git` layouts retain the old main-checkout
+  path hash. Non-Git projects remain absolute-path identified. Runtime identity
+  is separate from the configured launcher/worktree CWD passed to Codex.
+- **Explicit resume:** `codex-room <role> resume <UUID>` and
+  `codex-room <role> exec resume <UUID>` (also `e resume`) find existing rollouts
+  in both `epistex` and `seatworks` namespaces and reuse the original role runtime.
+  UUID must immediately follow `resume`; put options after UUID, not before the
+  command/UUID. Missing or ambiguous matches fail; no sessions are copied/deleted.
+- **Legacy compatibility:** `SEATWORKS_PROJECT_ROOT`, `SEATWORKS_CODEX_HOME` and
+  `SEATWORKS_STATE_HOME` remain supported, with nonempty `EPISTEX_*` settings taking
+  precedence. Unique matching legacy runtimes are reused in place, not bulk-migrated.
+  Coexisting old/new project-role runtimes fail as ambiguous on ordinary launch.
+- **Jev option identity:** selection uses the observed option index, not value-only
+  assignment, so duplicate values cannot select the earlier disabled option.
+- **Jev effective disabling:** observation and action use native `:disabled`,
+  including fieldset inheritance and the first-legend exception. A fieldset disabled
+  after observation prevents filling and emits no input/change events.
+- **Jev context:** full rendered body text is part of the shared page marker, stored
+  once per snapshot rather than copied into every element guard. A changed heading
+  outside the target parent and beyond 1,000 characters invalidates the old action.
+  `references/api.md` explicitly documents this conservative contract.
+- Updated `SETUP.md` with exact resume forms, compatibility behavior and limits.
+
+### Review and verification of this repair
+
+The coordinator reviewed all changed code/tests/docs in both checkouts. Integration
+review removed a CWD-dependent legacy fallback and stopped preferring one namespace
+when both exist. Final review found that scanning all arguments after `resume`
+could mistake prompts/option values for UUIDs; lookup now recognizes only the direct
+forms above. Regression cases cover `--last`, named-session prompts, uppercase UUIDs,
+the exec alias and unchanged argument forwarding. No new independent immutable-
+candidate review was performed; historical independent reviews below predate this repair.
+
+- Epistex: `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests`:
+  **48/48 passed** after final review (47 before the additional parser regression).
+  Disposable fixtures cover cross-CWD resume, Git subdirectory/worktree reuse,
+  repeatable legacy credentials/session preservation, new-variable precedence,
+  exact rollout filenames, role separation, missing sessions and ambiguity.
+  The wrapper fixture uses a fake Codex executable: this verifies runtime routing,
+  not successful live backend resume of the old Supervisor.
+- Jev: `npm test`: **36/36 passed** on Linux, including the real-Chrome E2E.
+  Chromium 146 exercised duplicate option selection, inherited disabling without
+  events, enabled first-legend input, and distant heading changes with zero clicks.
+  An additional standalone `node test/observed-e2e.js` run passed during integration.
+  Owned Chrome exit and temporary profile removal were reported by the E2E cleanup.
+- `bash -n setup/codex-room` and `git diff --check` passed. No UI appearance change
+  was made; verification used DOM state and event counts, not screenshots.
+
+### Delivery and work not done
+
+- Jev repair is committed locally on `epistex-p2` as
+  `4be05c038230a3c4c3a9dd360890f58317721011` in
+  `/home/linh/.paseo/worktrees/0rrjafnn/epistex-p2`.
+- The Epistex commit containing this update includes all runtime/compatibility code,
+  tests and setup documentation on local `main` in `/home/linh/work/paseo/epistex`.
+  Locate its exact identifier with `git log -1 -- HANDOFF.md`.
+- No push, merge, deploy, release, feature acceptance or lane closure is authorized
+  or performed. The `main` checkout at `/home/linh/work/chrome-cdp` was not updated.
+- **Live runtime recovery remains undone.** The wrapper cannot inspect session IDs
+  sent later through app-server RPC. Picker, named-session, `--last` and other CLI
+  argument layouts use the current project's runtime. Old sessions under another
+  directory hash require the explicit UUID form or a separately designed app-server
+  binding/recovery flow; the old Supervisor resume failure is not declared resolved.
+- No real runtime data, credentials or live ledger were migrated/copied/deleted.
+  No daemon/timer changes, live installers, L1 upgrade, Watcher retirement or agent
+  replacement were performed. Historical operational status below was not rechecked.
+- Jev's conservative text guard requires re-observation after any rendered body-text
+  change; it is not a guarantee against every DOM mutation or focus-handler side effect.
+- Remaining historical P2s stay open: ACP child-exit handling, systemd quoting,
+  controller-local ID collisions, focus-handler invalidation, Linux-only E2E and
+  cleanup fault paths. Fresh-ID negative select coverage, provenance verification,
+  uncertain-launch recovery, all-backend certification and cross-platform tests also
+  remain outstanding. No additional fixes or acceptance claims cover those areas.
+
+## Historical checkpoint (before the P1 repair above)
+
 This is a local checkpoint with known defects, not feature acceptance or a release.
 The Human requested a full review, a handoff of completed/outstanding work, and local
 commits. Do not infer permission to push, merge, deploy, accept a task, or close a lane.
@@ -77,10 +165,12 @@ The first repair copied role logic into both paths and was rejected in self-revi
 It was replaced by shared helpers. A subsequent fixture accidentally labeled the
 positive checkbox case; it was corrected before independent candidate review.
 
-## Full review findings: unresolved
+## Historical full review findings (current status above)
 
-All paths/line numbers refer to the checkpoint or exact Jev candidate above.
-These findings were reported, not silently fixed during the Human's review/commit request.
+All paths/line numbers refer to the historical checkpoint or Jev candidate in the
+historical repository table above.
+These findings were initially reported without fixes. The current update records the
+subsequent P1 repairs and limits; P2 findings remain outstanding.
 
 ### Epistex rollout
 
@@ -210,7 +300,7 @@ during that review. Obsolete-mail delivery is proven; a manual continuation plus
 delayed mail explains the sequence plausibly but is not a fully established causal trace.
 The desk refusal was task lifecycle/assignment-based, not a candidate-SHA comparison.
 
-## Work not done and safe continuation
+## Historical continuation plan (superseded where noted above)
 
 1. Resolve stable Codex runtime selection and migration without losing existing
    session data. Do not confuse launcher cwd, ledger root and per-thread worktree cwd.
@@ -225,5 +315,6 @@ The desk refusal was task lifecycle/assignment-based, not a candidate-SHA compar
 5. Re-run full suites, review an immutable candidate independently, and let the Lead
    make acceptance decisions. Human approval is still required for push/merge/deploy.
 
-No new fixes for the full-review findings, live runtime recovery, broad feature
-acceptance, all-backend certification, or cross-platform E2E verification were completed.
+At that historical checkpoint, no new fixes for the full-review findings, live runtime
+recovery, broad feature acceptance, all-backend certification, or cross-platform E2E
+verification had been completed. See the current update for subsequent P1 code repairs.

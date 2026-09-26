@@ -7,9 +7,11 @@ import json
 import math
 import os
 import pathlib
+import subprocess
 import sys
 import tempfile
 import tomllib
+import uuid
 
 ROLES = {role: role.upper() + ".md" for role in ("supervisor", "lead", "peer", "reviewer", "watcher")}
 SHARED_FILES = ("auth.json", "model-instructions.md", "hooks.json")
@@ -106,9 +108,54 @@ def atomic_write(path: pathlib.Path, content: str) -> None:
             os.unlink(temporary)
 
 
+def project_identity(project: pathlib.Path) -> pathlib.Path:
+    """Use Git's shared directory so subdirectories and linked worktrees agree."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(project), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            text=True, capture_output=True, check=False,
+        )
+    except FileNotFoundError:
+        return project
+    if result.returncode == 0 and result.stdout.strip():
+        common = pathlib.Path(result.stdout.strip()).resolve(strict=True)
+        # Preserve the old main-checkout hash while sharing it with worktrees.
+        return common.parent if common.name == ".git" else common
+    return project
+
+
+def runtime_for(project: pathlib.Path, role: str, session_id: str) -> pathlib.Path:
+    runtime_base = pathlib.Path.home() / ".codex-runtime"
+    namespaces = (runtime_base / "epistex", runtime_base / "seatworks")
+    if session_id:
+        try:
+            session_id = str(uuid.UUID(session_id))
+        except ValueError:
+            raise SystemExit("resume session ID must be a UUID") from None
+        matches = set()
+        for namespace in namespaces:
+            if not namespace.is_dir():
+                continue
+            for rollout in namespace.glob(f"*/{role}/sessions/**/rollout-*-{session_id}.jsonl"):
+                if rollout.is_file():
+                    matches.add(namespace / rollout.relative_to(namespace).parts[0] / role)
+        if len(matches) != 1:
+            detail = "not found" if not matches else "ambiguous"
+            raise SystemExit(f"explicit resume session runtime {detail}: {session_id}")
+        return matches.pop()
+
+    stable_id = hashlib.sha256(str(project_identity(project)).encode()).hexdigest()[:12]
+    preferred = namespaces[0] / stable_id / role
+    candidates = {namespace / stable_id / role for namespace in namespaces}
+    existing = {candidate for candidate in candidates if candidate.exists()}
+    if len(existing) > 1:
+        raise SystemExit(f"ambiguous existing role runtimes for project: {project}")
+    return existing.pop() if existing else preferred
+
+
 def main() -> None:
-    if len(sys.argv) != 3 or sys.argv[1] not in ROLES:
-        raise SystemExit(f"usage: {sys.argv[0]} <{'|'.join(ROLES)}> <project-root>")
+    if len(sys.argv) not in (3, 4) or sys.argv[1] not in ROLES:
+        raise SystemExit(f"usage: {sys.argv[0]} <{'|'.join(ROLES)}> <project-root> [resume-session-id]")
 
     role = sys.argv[1]
     project = pathlib.Path(sys.argv[2]).resolve(strict=True)
@@ -118,13 +165,13 @@ def main() -> None:
         raise SystemExit(f"seat prompt not found: {prompt}")
 
     default_home = pathlib.Path.home() / ".codex"
-    canonical = pathlib.Path(os.environ.get("EPISTEX_CODEX_HOME", default_home)).expanduser().resolve(strict=True)
+    canonical_setting = os.environ.get("EPISTEX_CODEX_HOME") or os.environ.get("SEATWORKS_CODEX_HOME")
+    canonical = pathlib.Path(canonical_setting or default_home).expanduser().resolve(strict=True)
     base_config = canonical / "config.toml"
     if not base_config.is_file():
         raise SystemExit(f"canonical Codex config not found: {base_config}")
 
-    project_id = hashlib.sha256(str(project).encode()).hexdigest()[:12]
-    runtime = pathlib.Path.home() / ".codex-runtime" / "epistex" / project_id / role
+    runtime = runtime_for(project, role, sys.argv[3] if len(sys.argv) == 4 else "")
     for parent in runtime.parents:
         if parent.is_symlink():
             raise SystemExit(f"refusing symlinked runtime ancestor: {parent}")

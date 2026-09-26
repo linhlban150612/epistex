@@ -43,11 +43,13 @@ command = "other"
     def tearDown(self) -> None:
         self.temporary.cleanup()
 
-    def sync(self, role: str) -> subprocess.CompletedProcess[str]:
+    def sync(self, role: str, session_id: str = "", extra_env=None, project=None) -> subprocess.CompletedProcess[str]:
         env = os.environ.copy()
         env.update(HOME=str(self.home), EPISTEX_CODEX_HOME=str(self.canonical))
+        if extra_env:
+            env.update(extra_env)
         return subprocess.run(
-            [str(SYNC), role, str(self.project)],
+            [str(SYNC), role, str(project or self.project), session_id],
             env=env,
             text=True,
             capture_output=True,
@@ -85,6 +87,94 @@ command = "other"
         repeated = self.sync("lead")
         self.assertEqual(repeated.returncode, 0, repeated.stderr)
         self.assertEqual(private_state.read_text(encoding="utf-8"), "keep\n")
+
+    def test_legacy_credentials_and_runtime_are_reused_repeatably(self) -> None:
+        legacy = self.home / "legacy-codex"
+        legacy.mkdir()
+        (legacy / "config.toml").write_text('model = "legacy"\n')
+        (legacy / "auth.json").write_text('{"legacy": true}\n')
+        project_id = hashlib.sha256(str(self.project).encode()).hexdigest()[:12]
+        runtime = self.home / ".codex-runtime" / "seatworks" / project_id / "lead"
+        (runtime / "sessions").mkdir(parents=True)
+        private = runtime / "sessions" / "keep.jsonl"
+        private.write_text("keep\n")
+        env = {"EPISTEX_CODEX_HOME": "", "SEATWORKS_CODEX_HOME": str(legacy)}
+
+        first = self.sync("lead", extra_env=env)
+        second = self.sync("lead", extra_env=env)
+
+        self.assertEqual(first.returncode, 0, first.stderr)
+        self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertEqual(first.stdout.strip(), str(runtime))
+        self.assertEqual(second.stdout.strip(), str(runtime))
+        self.assertEqual((runtime / "auth.json").resolve(), legacy / "auth.json")
+        self.assertEqual(private.read_text(), "keep\n")
+
+    def test_explicit_new_credential_setting_precedes_legacy(self) -> None:
+        legacy = self.home / "legacy-codex"
+        legacy.mkdir()
+        (legacy / "config.toml").write_text('model = "legacy"\n')
+        result = self.sync("lead", extra_env={"SEATWORKS_CODEX_HOME": str(legacy)})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.runtime("lead") / "auth.json").resolve(), self.canonical / "auth.json")
+
+    def test_git_root_subdirectory_and_linked_worktree_reuse_legacy_runtime(self):
+        subprocess.run(["git", "init", str(self.project)], check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(self.project), "-c", "user.name=Test",
+                        "-c", "user.email=test@example.com", "commit", "--allow-empty", "-m", "fixture"],
+                       check=True, capture_output=True)
+        worktree = self.project.parent / "linked"
+        subprocess.run(["git", "-C", str(self.project), "worktree", "add", "--detach", str(worktree)],
+                       check=True, capture_output=True)
+        subdirectory = self.project / "nested"
+        subdirectory.mkdir()
+        legacy = self.home / ".codex-runtime" / "seatworks" / self.runtime("lead").parent.name / "lead"
+        legacy.mkdir(parents=True)
+        (legacy / "private-state").write_text("preserved")
+        for project in (subdirectory, worktree, self.project, subdirectory):
+            result = self.sync("lead", project=project)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), str(legacy))
+        self.assertFalse(self.runtime("lead").exists())
+        self.assertEqual((legacy / "private-state").read_text(), "preserved")
+
+    def test_conflicting_namespaces_require_explicit_session(self):
+        current = self.runtime("lead")
+        legacy = self.home / ".codex-runtime" / "seatworks" / current.parent.name / "lead"
+        for runtime in (current, legacy):
+            runtime.mkdir(parents=True)
+        result = self.sync("lead")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("ambiguous", result.stderr)
+        self.assertEqual(list(current.iterdir()), [])
+        self.assertEqual(list(legacy.iterdir()), [])
+
+    def test_resume_requires_unique_exact_role_session_and_preserves_data(self):
+        session_id = "12345678-1234-1234-1234-123456789abc"
+        filename = f"rollout-2026-09-26T10-00-00-{session_id}.jsonl"
+        legacy = self.home / ".codex-runtime" / "seatworks" / "old-project" / "lead"
+        sessions = legacy / "sessions" / "2026" / "09"
+        sessions.mkdir(parents=True)
+        # A backup filename and another role must not count as a session match.
+        (sessions / (filename + ".bak")).write_text("backup")
+        result = self.sync("lead", session_id)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("not found", result.stderr)
+        (sessions / filename).write_text("session data")
+        for _ in range(2):
+            result = self.sync("lead", session_id)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), str(legacy))
+            self.assertEqual((sessions / filename).read_text(), "session data")
+        wrong_role = self.sync("peer", session_id)
+        self.assertIn("not found", wrong_role.stderr)
+        duplicate = self.runtime("lead") / "sessions"
+        duplicate.mkdir(parents=True)
+        (duplicate / filename).write_text("duplicate")
+        result = self.sync("lead", session_id)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("ambiguous", result.stderr)
+        self.assertFalse((self.runtime("lead") / "config.toml").exists())
 
     def test_other_roles_have_distinct_instructions_and_read_only_roles_omit_paseo_mcp(self) -> None:
         for role in ("supervisor", "reviewer", "watcher"):

@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+"""Start a role-configured agent; prime ACP agents at their first prompt."""
+
+import json
+import pathlib
+import shutil
+import subprocess
+import sys
+import threading
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROLES = ("supervisor", "lead", "peer", "reviewer", "watcher")
+ACP = {
+    "devin": ["devin", "acp"],
+    "amp": ["amp-acp"],
+    "glm": ["npx", "-y", "glm-acp-agent@1.3.0"],
+    "droid": ["npx", "-y", "droid@0.179.0", "exec", "--output-format", "acp-daemon"],
+}
+
+
+def prime(line: bytes, role: str, seen: set[str]) -> bytes:
+    try:
+        message = json.loads(line)
+    except (ValueError, UnicodeDecodeError):
+        return line
+    if not isinstance(message, dict) or message.get("method") != "session/prompt":
+        return line
+    params = message.get("params")
+    if not isinstance(params, dict) or not isinstance(params.get("sessionId"), str):
+        return line
+    session = params["sessionId"]
+    if session in seen:
+        return line
+    prompt = params.get("prompt")
+    if not isinstance(prompt, list):
+        return line
+    instructions = (ROOT / "agents" / f"{role.upper()}.md").read_text()
+    params["prompt"] = [{"type": "text", "text": "Role instructions for this session:\n" + instructions}, *prompt]
+    seen.add(session)
+    return (json.dumps(message, ensure_ascii=False) + "\n").encode()
+
+
+def main() -> int:
+    if len(sys.argv) < 3 or sys.argv[1] not in ROLES or sys.argv[2] not in (*ACP, "claude", "pi"):
+        raise SystemExit("usage: role-agent <supervisor|lead|peer|reviewer|watcher> <claude|pi|devin|amp|glm|droid>")
+    role, agent = sys.argv[1:3]
+    instructions = (ROOT / "agents" / f"{role.upper()}.md").read_text()
+    if agent == "claude":
+        command = ["claude", *sys.argv[3:]] if sys.argv[3:] == ["--version"] else ["claude", "--append-system-prompt", instructions, *sys.argv[3:]]
+    elif agent == "pi":
+        command = ["pi", "--append-system-prompt", str(ROOT / "agents" / f"{role.upper()}.md"), *sys.argv[3:]]
+    else:
+        command = [*ACP[agent], *sys.argv[3:]]
+    if shutil.which(command[0]) is None:
+        raise SystemExit(f"agent executable not found: {command[0]}")
+    if agent in ("claude", "pi"):
+        import os
+
+        os.execvp(command[0], command)
+    child = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+
+    def output() -> None:
+        assert child.stdout is not None
+        for line in child.stdout:
+            sys.stdout.buffer.write(line)
+            sys.stdout.buffer.flush()
+
+    forwarding = threading.Thread(target=output)
+    forwarding.start()
+    assert child.stdin is not None
+    seen: set[str] = set()
+    try:
+        for line in sys.stdin.buffer:
+            child.stdin.write(prime(line, role, seen))
+            child.stdin.flush()
+    except BrokenPipeError:
+        pass
+    finally:
+        child.stdin.close()
+    forwarding.join()
+    return child.wait()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

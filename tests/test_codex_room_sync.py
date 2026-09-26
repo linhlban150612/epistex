@@ -45,7 +45,7 @@ command = "other"
 
     def sync(self, role: str) -> subprocess.CompletedProcess[str]:
         env = os.environ.copy()
-        env.update(HOME=str(self.home), SEATWORKS_CODEX_HOME=str(self.canonical))
+        env.update(HOME=str(self.home), EPISTEX_CODEX_HOME=str(self.canonical))
         return subprocess.run(
             [str(SYNC), role, str(self.project)],
             env=env,
@@ -56,7 +56,7 @@ command = "other"
 
     def runtime(self, role: str) -> pathlib.Path:
         project_id = hashlib.sha256(str(self.project).encode()).hexdigest()[:12]
-        return self.home / ".codex-runtime" / "seatworks" / project_id / role
+        return self.home / ".codex-runtime" / "epistex" / project_id / role
 
     def test_roles_are_isolated_and_native_agents_are_disabled(self) -> None:
         lead = self.sync("lead")
@@ -85,6 +85,15 @@ command = "other"
         repeated = self.sync("lead")
         self.assertEqual(repeated.returncode, 0, repeated.stderr)
         self.assertEqual(private_state.read_text(encoding="utf-8"), "keep\n")
+
+    def test_other_roles_have_distinct_instructions_and_read_only_roles_omit_paseo_mcp(self) -> None:
+        for role in ("supervisor", "reviewer", "watcher"):
+            with self.subTest(role=role):
+                result = self.sync(role)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                config = tomllib.loads((self.runtime(role) / "config.toml").read_text())
+                self.assertEqual(config["model_instructions_file"], str(ROOT / "agents" / f"{role.upper()}.md"))
+                self.assertEqual("paseo" in config["mcp_servers"], role == "supervisor")
 
     def test_refuses_symlinked_role_runtime(self) -> None:
         runtime = self.runtime("peer")
@@ -207,6 +216,23 @@ command = "other"
         self.assertEqual(auth.readlink(), self.home / "old-auth")
         self.assertEqual((conflict / "keep").read_text(), "private")
         self.assertEqual(sorted(path.name for path in runtime.iterdir()), before_entries)
+
+    def test_restart_preserves_private_plugins_when_canonical_plugins_are_absent(self) -> None:
+        (self.canonical / "plugins").rmdir()
+        self.assertEqual(self.sync("supervisor").returncode, 0)
+        plugins = self.runtime("supervisor") / "plugins"
+        plugins.mkdir()
+        (plugins / "private-state").write_text("keep")
+        result = self.sync("supervisor")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(plugins.is_symlink())
+        self.assertEqual((plugins / "private-state").read_text(), "keep")
+
+        (self.canonical / "plugins").mkdir()
+        result = self.sync("supervisor")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("refusing to replace non-symlink", result.stderr)
+        self.assertEqual((plugins / "private-state").read_text(), "keep")
 
     def test_invalid_toml_does_not_create_runtime(self) -> None:
         (self.canonical / "config.toml").write_text('broken = [\n')

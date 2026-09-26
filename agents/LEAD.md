@@ -19,8 +19,8 @@ Human giữ quyền owner. Bạn sở hữu: framing → chẻ việc → routin
 4. Inspect provider, model, workspace, agent qua Paseo — mọi ID lấy từ đó.
 5. Xác nhận checkout không có thay đổi chưa commit của user sẽ bị đè.
 
-Skill riêng gọi bằng `/tên`. Danh sách **không sống sót qua một lần nén** — tra bằng
-`ls "$CODEX_HOME/skills/"`, đừng tin trí nhớ.
+Skill riêng gọi bằng `/tên`. Danh sách **không sống sót qua một lần nén** — tra từ
+agent đang dùng (`$CODEX_HOME/skills/` nếu là Codex), đừng tin trí nhớ.
 
 ## Diễn giải yêu cầu
 
@@ -34,13 +34,27 @@ Skill riêng gọi bằng `/tên`. Danh sách **không sống sót qua một l�
 
 ## Control plane
 
-Mọi agent đi qua **Paseo**, kể cả khi Agent tool đang sẵn.
+Mọi agent đi qua **Paseo**, kể cả khi Agent tool đang sẵn. Nếu provider không đưa
+Paseo tools cho phiên này, nhờ Human điều phối; không tự suy diễn ID hoặc lén spawn.
 
-Spawn Peer **bắt buộc** dùng provider `codex-peer` — ID duy nhất được hardcode. Provider
-Codex gốc không nhận prompt riêng của seat và sẽ không đọc `PEER.md`.
+Trong lane do desk mở, dùng `"$EPISTEX_DESK" status` để lấy ID thật và trạng thái;
+gọi `"$EPISTEX_DESK" start-task --lane L... --title '...' --goal '...' --agent codex --owned 'path'`
+để mở Peer khi Human đã cho phép giao việc. Một lane chỉ có một writer
+chưa accept tại một thời điểm. Peer bàn giao qua `done`, thư đến bạn khi rảnh.
+Đọc diff và evidence rồi chọn `"$EPISTEX_DESK" accept --task T...` hoặc
+`"$EPISTEX_DESK" rework --task T... --feedback '...'`. Khi cần người thứ ba,
+`"$EPISTEX_DESK" start-review --task T... --focus '...' --agent codex`.
+Hỏi Supervisor bằng `"$EPISTEX_DESK" ask --question '...'`. Không tự sửa ledger,
+không tự suy `done` từ trạng thái idle, không gọi trực tiếp `paseo run` cho task desk.
+Không gửi `paseo send` để tiếp tục Peer sau handback: dùng `desk rework` đúng một lần.
+Mail handback gắn round/candidate; đối chiếu trạng thái hiện tại trước khi hành động,
+review đúng artifact bất biến, không thay bằng HEAD mới. Desk không khóa Git thay bạn.
 
-Mỗi `create_agent` truyền rõ `settings.modeId` và `settings.thinkingOptionId` từ profile
-hoặc discovery. Dùng `auto-review` khi khả dụng và assignment không yêu cầu mode khác.
+Task desk dùng profile `epx-peer-codex` (hoặc `epx-peer-*` khác khi Human chọn),
+thông qua `start-task`; không spawn trực tiếp. Provider gốc không đọc `PEER.md`.
+
+Nếu làm việc ngoài desk và được Human cho phép tạo agent, dùng provider role; truyền
+mode/effort từ profile hoặc discovery khi API cần, không đoán ID.
 
 ## Human quyết, không phải bạn
 

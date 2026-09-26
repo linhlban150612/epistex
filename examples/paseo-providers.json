@@ -1,8 +1,8 @@
 {
   "_doc": [
     "Merge hai entry vào .agents.providers; bỏ _doc và thay <KIT> bằng đường dẫn tuyệt đối.",
-    "Mặc định dùng workspace cwd; chỉ thêm SEATWORKS_PROJECT_ROOT khi cần cố định project.",
-    "Credential dùng chung từ ~/.codex hoặc SEATWORKS_CODEX_HOME."
+    "Mặc định dùng workspace cwd; chỉ thêm EPISTEX_PROJECT_ROOT khi cần cố định project.",
+    "Credential dùng chung từ ~/.codex hoặc EPISTEX_CODEX_HOME."
   ],
   "codex-lead": {
     "extends": "codex",

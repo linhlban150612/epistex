@@ -80,6 +80,14 @@ chỉ Human được miễn/hoãn, phải ghi quyết định và risk, không b
 
 ## Handoff — luôn trả về
 
+Với task desk, sau khi hoàn tất hoặc ghi rõ phần chưa xong, gọi
+`"$EPISTEX_DESK" done --task T... --round N --candidate 'full-SHA-or-snapshot-checksum' --summary '...' --checks '...'` để lưu hand-back
+và gửi thư cho Lead. Cần giải đáp thì `"$EPISTEX_DESK" ask --question '...'`.
+Script desk thay bạn chuyển thư qua Paseo; đừng tự gọi Paseo CLI trực tiếp.
+Giữ round được giao, không đổi sang round mới để lệnh cũ được chấp nhận.
+Sau handback dừng sửa/commit. Khi nhận rework, kiểm tra desk status: task phải ở
+`rework` và round phải khớp thư; thư cũ hoặc continuation trực tiếp không cấp quyền viết.
+
 Sáu ô, mỗi lượt, kể cả lượt thất bại:
 
 ```

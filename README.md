@@ -24,7 +24,7 @@ nếu repository không cho phép commit process document.
 Paseo provider
   → setup/codex-room <lead|peer>
   → setup/codex-room-sync
-  → ~/.codex-runtime/seatworks/<project-id>/<role>/
+  → ~/.codex-runtime/epistex/<project-id>/<role>/
        config.toml       (bản runtime, prompt riêng theo role)
        auth.json         → ~/.codex/auth.json
        skills, plugins   → ~/.codex/{skills,plugins}
@@ -46,6 +46,45 @@ bash setup/setup-seats.sh
 paseo reload
 bash setup/setup-seats.sh --check
 ```
+
+## 35 standalone role profiles
+
+Without installing Seatworks, run `python3 setup/install-profiles.py`, then `paseo reload`,
+then `python3 setup/install-profiles.py --check`. This adds five roles (Supervisor, Lead,
+Peer, Reviewer, Watcher) across Claude, Codex, Devin, Pi, Amp, GLM and Droid, under
+`epx-<role>-<agent>` names. The installer preserves other providers and profiles and saves
+the original Paseo config to `~/.paseo/config.json.epistex-backup` on its first run.
+Codex uses project/role-isolated `CODEX_HOME` and native instructions; Claude and Pi
+receive native launch instructions. For Devin, Amp, GLM and Droid an ACP proxy prepends
+role instructions to the first prompt of each session. That is *not* a system prompt.
+The standalone desk below routes by role, but does not provide Seatworks' full gate,
+incident, merge, or permissions engine or an OS sandbox. Reviewer/Watcher are instructed
+to be read-only but cannot be relied on as a security boundary.
+Provider readiness only checks that the launcher exists: actual launches still require each
+agent's own login/API credentials, and Droid does not expose Paseo MCP tools.
+This setup does not touch Seatworks' source or state.
+
+### Desk workflow
+
+`python3 setup/install-patrol.py` installs and enables a **user-level systemd timer**
+that runs `setup/desk.py patrol` every 30 seconds. The desk stores its own private,
+locked, atomically written ledger and outbox under `~/.local/share/epistex/desk/`;
+it never writes workflow records into the product repository. Start a **Supervisor**
+profile in the project's root workspace and give it your intent. Its prompt instructs
+it to call `"$EPISTEX_DESK" join`, then `open-lane` once you authorize the work.
+The desk creates a Lead in a Paseo worktree; Lead uses `start-task` for one Peer at a
+time, Peer calls `done`, Lead may use `start-review`, then `accept` or `rework`.
+`ask`/`answer` route questions. Patrol delivers outbox mail only to idle agents,
+reports a Peer idle without a hand-back, and starts one Codex Watcher for each open lane;
+Watcher can `raise` an observation to Supervisor and Lead. `close-lane` marks a lane
+closed but **does not merge, land, push or deploy**. Human decides those actions.
+
+Inspect safely with `setup/desk.py status --project /absolute/project` and
+`systemctl --user status epistex-patrol.timer`. If a launch or mail delivery is
+marked **uncertain**, inspect Paseo manually; the desk never retries an uncertain
+side effect. The desk is for trusted agents under the same Unix user, not an access
+control boundary. Native Seatworks parallel lanes, automatic merges, sensor findings,
+and incident handling are deliberately not emulated.
 
 Prompt nằm tại `agents/LEAD.md` và `agents/PEER.md`; Codex nạp chúng bằng
 `model_instructions_file`. Cấu hình mặc định: Lead `gpt-5.6-sol/low`, Peer `gpt-5.6-luna/low`.

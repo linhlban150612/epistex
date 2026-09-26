@@ -5,7 +5,7 @@
 `<KIT>` là đường dẫn tuyệt đối tới thư mục `epistex`; `<PROJECT>` là repository mà hai seat
 sẽ làm việc. Paseo daemon phải chạy dưới đúng user sở hữu Codex home và project.
 Mặc định provider dùng working directory của workspace Paseo. Chỉ đặt
-`SEATWORKS_PROJECT_ROOT` nếu muốn cố định provider vào một project; không giữ đường dẫn repo cũ.
+`EPISTEX_PROJECT_ROOT` nếu muốn cố định provider vào một project; không giữ đường dẫn repo cũ.
 
 ## 2. Kiểm tiền đề
 
@@ -18,7 +18,7 @@ paseo daemon status --json
 ```
 
 Codex home chuẩn mặc định là `~/.codex`. Nếu credential/config thật nằm nơi khác, khai biến
-`SEATWORKS_CODEX_HOME` trong `env` của cả hai provider.
+`EPISTEX_CODEX_HOME` trong `env` của cả hai provider.
 
 Linux Desktop: nếu `paseo` là symlink tới `/opt/Paseo/Paseo` và `paseo run` mở GUI,
 dùng `/opt/Paseo/resources/bin/paseo` cho các lệnh CLI bên dưới. Đây là launcher đi kèm
@@ -41,7 +41,7 @@ Merge hai entry trong `examples/paseo-providers.json` vào `.agents.providers` c
 hiện có. Không thay cả file. Trước khi merge:
 
 - thay `<KIT>` bằng đường dẫn tuyệt đối tới `epistex`;
-- nếu cần cố định project, thêm `env.SEATWORKS_PROJECT_ROOT` bằng đường dẫn tuyệt đối;
+- nếu cần cố định project, thêm `env.EPISTEX_PROJECT_ROOT` bằng đường dẫn tuyệt đối;
 - xóa `_doc`;
 - xác nhận model ID bằng `paseo provider diagnostic codex --json` hoặc provider discovery.
 
@@ -93,7 +93,7 @@ Khởi động một agent `codex-peer`, yêu cầu nó in dòng đầu prompt r
 Kiểm thêm:
 
 ```bash
-find ~/.codex-runtime/seatworks -maxdepth 3 -name config.toml
+find ~/.codex-runtime/epistex -maxdepth 3 -name config.toml
 ```
 
 Hai role phải có runtime riêng. `auth.json`, `skills`, `plugins` là symlink; `config.toml` là

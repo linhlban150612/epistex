@@ -40,7 +40,7 @@ class CodexRoomTest(unittest.TestCase):
         )
         self.codex.chmod(0o755)
         self.env = {"PATH": str(self.bin), "HOME": str(self.root),
-                    "SEATWORKS_CODEX_HOME": str(self.canonical),
+                    "EPISTEX_CODEX_HOME": str(self.canonical),
                     "CODEX_BIN": str(self.codex), "PYTHONDONTWRITEBYTECODE": "1"}
 
     def run_room(self, *args):
@@ -51,7 +51,7 @@ class CodexRoomTest(unittest.TestCase):
         self.assertEqual(result.returncode, 23, result.stderr)
         payload = json.loads(result.stdout)
         project_id = hashlib.sha256(str(project).encode()).hexdigest()[:12]
-        runtime = self.root / ".codex-runtime" / "seatworks" / project_id / role
+        runtime = self.root / ".codex-runtime" / "epistex" / project_id / role
         self.assertEqual(payload, {"cwd": str(project), "home": str(runtime), "args": args})
         self.assertTrue((runtime / "config.toml").is_file())
 
@@ -64,7 +64,7 @@ class CodexRoomTest(unittest.TestCase):
     def test_project_override_and_default_codex_lookup(self):
         project = self.root / "other project"
         project.mkdir()
-        self.env["SEATWORKS_PROJECT_ROOT"] = str(project)
+        self.env["EPISTEX_PROJECT_ROOT"] = str(project)
         del self.env["CODEX_BIN"]
         (self.bin / "codex").symlink_to(self.codex)
         self.assert_launch(self.run_room("peer"), "peer", project, [])

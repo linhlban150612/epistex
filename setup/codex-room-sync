@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Materialize an isolated, project-scoped CODEX_HOME for a Lead or Peer seat."""
+"""Materialize an isolated, project-scoped CODEX_HOME for a role."""
 
 import datetime
 import hashlib
@@ -11,7 +11,7 @@ import sys
 import tempfile
 import tomllib
 
-ROLES = {"lead": "LEAD.md", "peer": "PEER.md"}
+ROLES = {role: role.upper() + ".md" for role in ("supervisor", "lead", "peer", "reviewer", "watcher")}
 SHARED_FILES = ("auth.json", "model-instructions.md", "hooks.json")
 SHARED_DIRS = ("skills", "plugins")
 
@@ -72,7 +72,7 @@ def render_config(text: str, role: str, prompt: pathlib.Path) -> str:
         if not isinstance(section, dict):
             raise ValueError(f"{table} must be a TOML table")
         section.update(flags)
-    if role == "peer" and "mcp_servers" in config:
+    if role in ("peer", "reviewer", "watcher") and "mcp_servers" in config:
         if not isinstance(config["mcp_servers"], dict):
             raise ValueError("mcp_servers must be a TOML table")
         config["mcp_servers"].pop("paseo", None)
@@ -82,7 +82,7 @@ def render_config(text: str, role: str, prompt: pathlib.Path) -> str:
     return rendered
 
 
-def preflight(runtime: pathlib.Path) -> None:
+def preflight(runtime: pathlib.Path, canonical: pathlib.Path) -> None:
     """Reject predictable destination conflicts before changing any runtime entry."""
     if runtime.exists() and not runtime.is_dir():
         raise SystemExit(f"runtime is not a directory: {runtime}")
@@ -91,7 +91,7 @@ def preflight(runtime: pathlib.Path) -> None:
         raise SystemExit(f"refusing non-regular runtime config: {config}")
     for name in SHARED_FILES + SHARED_DIRS:
         destination = runtime / name
-        if destination.exists() and not destination.is_symlink():
+        if (canonical / name).exists() and destination.exists() and not destination.is_symlink():
             raise SystemExit(f"refusing to replace non-symlink: {destination}")
 
 
@@ -108,7 +108,7 @@ def atomic_write(path: pathlib.Path, content: str) -> None:
 
 def main() -> None:
     if len(sys.argv) != 3 or sys.argv[1] not in ROLES:
-        raise SystemExit(f"usage: {sys.argv[0]} <lead|peer> <project-root>")
+        raise SystemExit(f"usage: {sys.argv[0]} <{'|'.join(ROLES)}> <project-root>")
 
     role = sys.argv[1]
     project = pathlib.Path(sys.argv[2]).resolve(strict=True)
@@ -118,13 +118,13 @@ def main() -> None:
         raise SystemExit(f"seat prompt not found: {prompt}")
 
     default_home = pathlib.Path.home() / ".codex"
-    canonical = pathlib.Path(os.environ.get("SEATWORKS_CODEX_HOME", default_home)).expanduser().resolve(strict=True)
+    canonical = pathlib.Path(os.environ.get("EPISTEX_CODEX_HOME", default_home)).expanduser().resolve(strict=True)
     base_config = canonical / "config.toml"
     if not base_config.is_file():
         raise SystemExit(f"canonical Codex config not found: {base_config}")
 
     project_id = hashlib.sha256(str(project).encode()).hexdigest()[:12]
-    runtime = pathlib.Path.home() / ".codex-runtime" / "seatworks" / project_id / role
+    runtime = pathlib.Path.home() / ".codex-runtime" / "epistex" / project_id / role
     for parent in runtime.parents:
         if parent.is_symlink():
             raise SystemExit(f"refusing symlinked runtime ancestor: {parent}")
@@ -135,7 +135,7 @@ def main() -> None:
     except ValueError:
         # Parser exceptions may contain canonical configuration values.
         raise SystemExit("invalid canonical TOML or unsupported configuration values") from None
-    preflight(runtime)
+    preflight(runtime, canonical)
     runtime.mkdir(parents=True, exist_ok=True)
 
     for name in SHARED_FILES:

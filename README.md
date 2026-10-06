@@ -233,10 +233,10 @@ git diff --check
 ```
 
 Tests dùng fixture/config/state tạm, không thay cho kiểm auth, model, backend launch,
-actual CWD hoặc live recovery. Các giới hạn còn biết: ACP proxy có thể chờ stdin sau
-khi child đã thoát, systemd path quoting, và thiếu recovery command chung cho uncertain
-outcomes. Xem [HANDOFF.md](HANDOFF.md) để biết evidence và việc còn lại ở checkpoint;
-thông tin live daemon/timer/ledger trong đó là lịch sử, cần inspect lại trước vận hành.
+actual CWD hoặc live recovery. `HANDOFF.md` ghi các giới hạn từng được quan sát, nhưng
+không xác nhận chúng còn tồn tại; kiểm tra code và fixture hiện hành trước khi dựa vào
+đó. Thông tin daemon/timer/ledger và kế hoạch lịch sử không phải trạng thái hiện tại;
+kiểm tra trạng thái live trước khi vận hành.
 
 | Đường dẫn | Vai trò |
 |---|---|
@@ -250,4 +250,4 @@ thông tin live daemon/timer/ledger trong đó là lịch sử, cần inspect l�
 | `SETUP.md` | Hướng dẫn chi tiết luồng hai seat và Codex runtime |
 | `examples/AGENTS_MD_SNIPPET.md`, `examples/WORKSPACE_PROTOCOL.md` | Template contract/policy cho repo đích |
 | `tests/` | Regression tests runtime, desk, profiles và two-seat checker |
-| `HANDOFF.md` | Checkpoint triển khai, review, evidence và hạn chế còn lại |
+| `HANDOFF.md` | Checkpoint lịch sử; không phải hướng dẫn vận hành hiện tại |

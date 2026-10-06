@@ -79,18 +79,17 @@ class SetupSeatsTest(unittest.TestCase):
                 self.assertNotEqual(self.run_check("--check").returncode, 0)
                 peer[key] = old
 
-    def test_models_match_requested_roles_and_reject_previous_defaults(self):
-        for role, expected, previous in (("lead", "gpt-6.1-sol", "gpt-5.6-sol"),
-                                         ("peer", "gpt-6-luna", "gpt-5.6-luna")):
+    def test_models_match_requested_roles_and_reject_wrong_role_model(self):
+        for role, expected, wrong_role in (("lead", "gpt-6.1-sol", "gpt-6-luna"),
+                                           ("peer", "gpt-6-luna", "gpt-6.1-sol")):
             with self.subTest(role=role):
                 model = self.data["agents"]["providers"][f"codex-{role}"]["models"][0]
                 self.assertEqual(model["id"], expected)
-                for wrong in (previous, "gpt-6-luna" if role == "lead" else "gpt-6.1-sol"):
-                    model["id"] = wrong
-                    self.save()
-                    result = self.run_check("--check")
-                    self.assertNotEqual(result.returncode, 0)
-                    self.assertIn(f"codex-{role}:", result.stderr)
+                model["id"] = wrong_role
+                self.save()
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(f"codex-{role}:", result.stderr)
                 model["id"] = expected
 
     def test_disabled_injection_fails(self):

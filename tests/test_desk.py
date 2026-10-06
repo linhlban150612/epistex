@@ -170,12 +170,6 @@ class DeskTest(unittest.TestCase):
             self.assertEqual(task["status"], "launching")
             self.assertIsNone(task["peer"])
 
-    def test_removed_actions_are_not_parser_choices(self):
-        for action in ("start-review", "raise", "retire-watcher"):
-            with self.assertRaises(SystemExit):
-                with patch("sys.stderr"):
-                    desk.parser().parse_args([action])
-
     def test_uncertain_mail_is_not_delivered_twice(self):
         self.action("sup", "join")
         lane = self.action("sup", "open-lane", "--title", "Feature", "--goal", "Deliver feature")

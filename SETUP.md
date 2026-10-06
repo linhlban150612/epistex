@@ -84,7 +84,7 @@ Không nhét policy riêng của repo vào provider Paseo hoặc prompt Peer.
 ## 6. Dựng và kiểm
 
 ```bash
-python3 -m unittest discover -s <KIT>/tests -v
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s <KIT>/tests
 bash <KIT>/setup/setup-seats.sh
 paseo reload
 bash <KIT>/setup/setup-seats.sh --check

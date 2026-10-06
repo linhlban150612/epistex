@@ -67,19 +67,20 @@ Supervisor quan sát qua Paseo; Lead chịu trách nhiệm về cấu trúc đi�
 rà soát và chấp thuận. Peer là người viết duy nhất. Supervisor mở Lead trong workspace
 của project, không tự tạo Peer.
 
-| Bước | Control plane / owner |
+| Bước | Cơ chế điều phối / người phụ trách |
 |---|---|
 | Khám phá | Supervisor dùng Paseo `list_workspaces`, `list_agents`, `list_providers`, `list_models` |
 | Giao việc | Supervisor mở Lead được Human cho phép bằng `create_agent(workspaceId=...)`; truyền agentId Supervisor trong initialPrompt |
 | Thực hiện | Lead xác định phạm vi và tạo Peer bằng Paseo; Peer là người viết duy nhất |
-| Handoff | Peer gửi đủ sáu cell trực tiếp cho Lead, kèm candidate identity |
-| Review | Lead đọc chính xác candidate và evidence; Human review khi risk cao |
-| Rework | Lead gửi đúng một `send_agent_prompt` nêu task, round, base SHA, candidate bị từ chối và feedback |
-| Acceptance | Lead quyết định; Supervisor không nhận thay |
-| Archive | Supervisor archive Lead khi Human xác nhận project đóng |
+| Bàn giao | Peer gửi đủ sáu mục trực tiếp cho Lead, kèm thông tin nhận diện candidate |
+| Rà soát | Lead đọc chính xác candidate và bằng chứng; Human rà soát khi rủi ro cao |
+| Làm lại | Lead gửi đúng một `send_agent_prompt` nêu task, lượt, base SHA, candidate bị từ chối và phản hồi |
+| Chấp thuận | Lead quyết định; Supervisor không quyết định thay |
+| Lưu trữ | Supervisor lưu trữ Lead khi Human xác nhận project đóng |
 
-Không có desk, registry, ledger, patrol, timer, schedule hay heartbeat. Paseo messages là
-đường giao tiếp; trạng thái idle/notification không chứng minh hoàn tất.
+Không có bàn điều phối, sổ đăng ký, sổ theo dõi, tuần tra, bộ hẹn giờ, lịch định kỳ hay
+nhịp báo hiệu. Tin nhắn Paseo là kênh giao tiếp; trạng thái nhàn rỗi/thông báo không
+chứng minh công việc đã hoàn tất.
 
 ## Codex runtime và resume
 

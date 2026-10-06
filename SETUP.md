@@ -1,4 +1,4 @@
-# SETUP — Codex Lead/Peer trên Paseo
+# SETUP — Paseo role seats
 
 ## 1. Đặt kit và project ở đường dẫn ổn định
 
@@ -30,7 +30,7 @@ paseo daemon status --json
 ```
 
 Codex home chuẩn mặc định là `~/.codex`. Nếu credential/config thật nằm nơi khác, khai biến
-`EPISTEX_CODEX_HOME` trong `env` của cả hai provider.
+`EPISTEX_CODEX_HOME` trong `env` của các Codex provider.
 Các cài đặt cũ có thể tiếp tục dùng `SEATWORKS_PROJECT_ROOT`, `SEATWORKS_CODEX_HOME` và
 `SEATWORKS_STATE_HOME`; biến `EPISTEX_*` tương ứng luôn ưu tiên. Runtime cũ dưới
 `~/.codex-runtime/seatworks` được dùng tại chỗ khi là kết quả duy nhất phù hợp; không có live
@@ -52,9 +52,9 @@ Trong `~/.paseo/config.json`, bảo đảm:
 Quyền theo role nằm ở provider: Lead đặt `paseoTools.enabled=true`, Peer đặt `false`. Không
 dùng `injectIntoProviders`; field đó không phải cơ chế policy provider hiện hành.
 
-## 4. Merge hai provider
+## 4. Merge provider seats
 
-Merge hai entry trong `examples/paseo-providers.json` vào `.agents.providers` của file Paseo
+Merge ba entry trong `examples/paseo-providers.json` vào `.agents.providers` của file Paseo
 hiện có. Không thay cả file. Trước khi merge:
 
 - thay `<KIT>` bằng đường dẫn tuyệt đối tới `epistex`;
@@ -138,7 +138,7 @@ Prompt trong kit có trần kỷ luật 16 KiB. Sửa xong chạy lại `setup-s
 ## 9. Hai seat Claude riêng
 
 Giữ nguyên contract/protocol và các bước backup, merge, MCP injection, reload, live verification
-ở trên. Không dùng `codex-room` cho Claude, không cần cài cả 21 standalone profile.
+ở trên. Không dùng `codex-room` cho Claude.
 Kiểm `claude --version`, `claude auth status` và `paseo provider models claude --json` trước.
 Merge hai provider vào `.agents.providers`, với cấu hình:
 
@@ -201,7 +201,7 @@ ACP proxy thêm role instructions vào prompt đầu tiên của mỗi session t
 không phải system prompt. Kiểm heading Lead/Peer từ nội dung session agent thực sự nhận,
 CWD thực tế và tool inventory: Lead phải gọi được một Paseo tool read-only; Peer không thấy
 Paseo tools. Không yêu cầu agent đọc file prompt rồi coi đó là proof injection.
-Lead điều phối bằng `amp-peer`, không dùng provider Amp gốc; không bật desk/patrol cho hai seat.
+Lead điều phối bằng `amp-peer`, không dùng provider Amp gốc.
 
 `setup-seats.sh --check` vẫn chỉ kiểm Codex. Kiểm riêng hai Amp provider và live launch;
 không thay global Amp config, credentials hoặc state để tạo role separation.
@@ -235,24 +235,31 @@ và stdin nguyên trạng, giữ CWD và auth home hiện có; không dùng ACP 
 Kiểm phiên thực tế: heading từ active instructions phải là `# Peer — independent co-worker`,
 `pwd` đúng workspace, model/effort đúng và không có Paseo tools trong inventory kể cả deferred
 discovery nếu có. Không đọc file role để thay bằng chứng injection. Diagnostic không thay thế
-live launch. `setup-seats.sh --check` vẫn chỉ kiểm Codex; kiểm riêng hai provider này.
-Chỉ dùng `pi-peer`/`omp-peer` để điều phối khi Human cho phép delegation. Không bật desk/patrol,
-không xóa session hay thay credentials; role/MCP separation không phải OS sandbox.
+live launch. `setup-seats.sh --check` kiểm Codex và Supervisor; kiểm riêng các provider này.
+Chỉ dùng `pi-peer`/`omp-peer` để điều phối khi Human cho phép delegation. Không xóa session hay thay credentials; role/MCP separation không phải OS sandbox.
 
-## 12. Devin Lead/Peer, GitHub Copilot Peer và Cursor Peer qua ACP
+## 12. Devin Lead/Peer, Supervisor, GitHub Copilot Peer và Cursor Peer qua ACP
+
+Supervisor là observer Paseo-only, cấu hình dưới provider `devin-supervisor` với command
+`["<KIT>/setup/role-agent","supervisor","devin"]`. Không pin CWD bằng env: workspace
+`~/work/SUPERVISOR` phải để trống; `agents/SUPERVISOR.md` xác nhận CWD chính xác rồi
+khám phá workspace/agent/provider/model qua Paseo. Supervisor mở Lead cross-workspace bằng
+`create_agent(workspaceId=...)`, đưa agentId của mình vào initialPrompt để Lead hỏi qua
+`send_agent_prompt`. Supervisor không tạo Peer và không nhận thay Lead.
 
 Backup và merge vào `.agents.providers`, không thay các backend gốc hay credential/config
 home của chúng. Kiểm executable, auth và discovery của `devin`, `copilot`, `cursor` trước.
-Giữ MCP injection bật ở daemon, nhưng chỉ Devin Lead được expose Paseo tools.
+Giữ MCP injection bật ở daemon; Supervisor và Devin Lead expose Paseo tools.
 
 | Provider | `command` (thay `<KIT>` bằng đường dẫn tuyệt đối) | Model ID | Thinking mặc định | Paseo tools |
 |---|---|---|---|---|
+| `devin-supervisor` | `["<KIT>/setup/role-agent","supervisor","devin"]` | `fusion-claude-fable-5-1-medium-sidekick-swe-2-medium` | `medium` | Bật |
 | `devin-lead` | `["<KIT>/setup/role-agent","lead","devin"]` | `fusion-claude-fable-5-1-medium-sidekick-swe-2-medium` | `medium` | Bật |
 | `devin-peer` | `["<KIT>/setup/role-agent","peer","devin"]` | `fusion-claude-opus-5-5-high-sidekick-swe-2-medium` | `high` | Tắt |
 | `copilot-peer` | `["<KIT>/setup/role-agent","peer","copilot"]` | `gpt-6-luna` | `medium` | Tắt |
 | `cursor-peer` | `["<KIT>/setup/role-agent","peer","cursor"]` | `composer-2.5[fast=true]` | Không có | Tắt |
 
-Cả bốn entry dùng `extends: "acp"`, `enabled: true`, `env: {}` và `paseoTools.enabled`
+Cả năm entry dùng `extends: "acp"`, `enabled: true`, `env: {}` và `paseoTools.enabled`
 theo bảng. Đặt `models: [{"id":"<MODEL>","label":"<LABEL>","isDefault":true}]`; với
 Devin/Copilot thêm `thinkingOptions: [{"id":"<EFFORT>","label":"<LABEL>","isDefault":true}]`
 vào model theo bảng. Không thêm thinking option cho Composer 2.5.
@@ -273,10 +280,9 @@ Cursor `agent` cho phiên smoke test; không suy ra mode ID `default` từ nhãn
 
 Kiểm heading role từ context agent thực sự nhận, CWD bằng `pwd`, model/effort và inventory
 kể cả deferred discovery nếu có. Devin Lead phải gọi thành công một Paseo MCP tool read-only;
-các Peer không thấy Paseo tools. Không dùng shell CLI thay bằng chứng MCP. Không bật desk,
-patrol hoặc delegation trong smoke test. Native tool/subagent của backend không đồng nghĩa
+các Peer không thấy Paseo tools. Không dùng shell CLI thay bằng chứng MCP. Không bật delegation trong smoke test. Native tool/subagent của backend không đồng nghĩa
 với Paseo MCP; role/tool visibility không phải OS sandbox. Checker Codex và diagnostic
-không thay thế live verification của bốn seat này.
+không thay thế live verification của các seat này.
 
 Nếu Cursor trả `Upgrade your plan to continue` sau khi metadata đã chọn đúng Composer,
 đó chưa phải phiên smoke test thành công. Giữ model yêu cầu, báo giới hạn tài khoản và kiểm

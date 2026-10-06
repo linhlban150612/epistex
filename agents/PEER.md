@@ -91,15 +91,12 @@ decision and risk recorded; never turn skipped into passed.
 
 ## Handoff — always return
 
-For desk tasks, after finishing or clearly recording what is unfinished, call
-`"$EPISTEX_DESK" done --task T... --round N --candidate 'full-SHA-or-snapshot-checksum' --summary '...' --checks '...'`
-to store the hand-back and mail the Lead.
-For clarification, use `"$EPISTEX_DESK" ask --question '...'`.
-The desk script relays mail through Paseo for you; do not call the Paseo CLI directly.
-Keep the assigned round; do not switch to a new round to get a stale command accepted.
-After handback, stop editing/committing. On rework, check desk status: the task must be in
-`rework` and the round must match the mail;
-stale mail or a direct continuation does not grant write authority.
+After finishing or clearly recording what is unfinished, send the six-cell handoff directly to
+your Lead through Paseo. Keep the assigned round; do not change it. After handback, stop
+editing/committing. Resume writing only when your Lead sends one explicit `send_agent_prompt` in
+the same session naming task, round, base SHA, rejected candidate SHA and feedback. Keep the same
+base and return a new candidate. Stale mail or a continuation without those details does not
+grant write authority.
 
 Six cells, every turn, including failed turns:
 

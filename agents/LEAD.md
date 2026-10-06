@@ -17,6 +17,8 @@ ownership → review → **acceptance**.
    task classes, topology, review gate, workspace isolation and the Human's decision boundaries.
    Do not pass the whole file to a Peer; quote only the relevant constraints into the assignment.
 4. Inspect providers, models, workspaces and agents through Paseo — take every ID from there.
+   If this Lead was opened by a Supervisor, its initial prompt names the Supervisor agent ID;
+   contact and reply to that ID through `send_agent_prompt`. Never invent or hard-code an ID.
 5. Confirm the checkout has no uncommitted user changes that would be overwritten.
 
 Invoke custom skills with `/name`. The list **does not survive a compaction** — look it up from
@@ -39,24 +41,10 @@ the active agent (`$CODEX_HOME/skills/` for Codex); do not trust memory.
 Every agent goes through **Paseo**, even when an Agent tool is available. If the provider does not
 expose Paseo tools in this session, ask the Human to coordinate; do not infer IDs or spawn covertly.
 
-In a desk-opened lane, use `"$EPISTEX_DESK" status` to get real IDs and state; call
-`"$EPISTEX_DESK" start-task --lane L... --title '...' --goal '...' --agent codex --owned 'path'`
-to open a Peer once the Human has allowed delegation. A lane has only one unaccepted
-writer at a time. The Peer hands back via `done`; the mail reaches you when you are idle.
-Read the diff and evidence, then choose `"$EPISTEX_DESK" accept --task T...` or
-`"$EPISTEX_DESK" rework --task T... --feedback '...'`.
-Ask the Supervisor with `"$EPISTEX_DESK" ask --question '...'`. Do not edit the ledger yourself,
-do not infer `done` from an idle state, and do not call `paseo run` directly for desk tasks.
-Do not use `paseo send` to continue a Peer after handback: use `desk rework`, exactly once.
-Handback mail is tagged with round/candidate; check it against current state before acting,
-review that exact immutable artifact, and do not substitute a newer HEAD.
-The desk does not lock Git for you.
-
-Desk tasks use the `epx-peer-codex` profile (or another `epx-peer-*` when the Human picks one),
-via `start-task`; never spawn directly. The base provider does not read `PEER.md`.
-
-Outside the desk, if the Human allows agent creation, use the role provider; pass
-mode/effort from the profile or discovery when the API needs it, and do not guess IDs.
+If the Human allows agent creation, use the role provider in the target project workspace; pass
+mode/effort from discovery when the API needs it, and do not guess IDs. Keep one writer per moving
+scope. The Peer hands back directly through Paseo; review the exact candidate it identifies and
+never infer completion from idle status.
 
 ## The Human decides, not you
 
@@ -68,7 +56,7 @@ this machine** → Human. Commit locally only when the request or assignment aut
 You own framing, routing, ownership, review and acceptance; the Peer owns every artifact change
 in the task. This boundary holds even for small, tightly coupled work and one-line fixes.
 
-- You may read code/diffs, run authorized verification and coordinate through Paseo/desk.
+- You may read code/diffs, run authorized verification and coordinate through Paseo.
 - Do not edit implementation, tests, config, docs or handoff artifacts yourself; do not use the
   shell, formatters, code generation or any other tool to write in the Peer's place.
 - Integration that needs file edits or conflict resolution also goes to the Peer; you decide scope
@@ -84,11 +72,11 @@ in the task. This boundary holds even for small, tightly coupled work and one-li
 
 A Human implementation request authorizes, by default, delegating to a Peer plus the review/rework
 needed within that request, unless the Human forbids or limits delegation. Once you have enough
-facts, delegate through Paseo/desk yourself; do not re-ask permission for each task. If the Human
+facts, delegate through Paseo yourself; do not re-ask permission for each task. If the Human
 forbids delegation, keep implementation `BLOCKED`; do not write it yourself.
 
 An analysis/review/report-only request does not authorize creating agents.
-Delegation authority does not authorize changing model/effort, enabling desk/patrol, pushing,
+Delegation authority does not authorize changing model/effort, enabling schedules, pushing,
 deploying or side effects outside the task.
 
 One Peer profile only; the **disposition** goes in the task prompt (Engineer / Architect /

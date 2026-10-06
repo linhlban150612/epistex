@@ -13,9 +13,9 @@ historical agent IDs, daemon/timer status, ledgers, or rollout locations remain 
   disables native Codex multi-agent features, and rejects ambiguous or symlinked runtimes.
   These are current implementation contracts; see `README.md`, `SETUP.md`, and the focused
   runtime regression tests for current behavior.
-- Desk launch/send outcomes can be uncertain after response loss. The desk avoids blind
-  retries; inspect the relevant current state before recovery. Patrol is opt-in and its
-  installer enables a user timer, so installation requires explicit authorization.
+- The desk control plane and patrol installer were removed; Paseo is the sole agent control plane.
+- Historical references to desk state and patrol behavior below are retained only to explain
+  checkpoint provenance, not as operational instructions.
 - The checkpoint documented limitations in ACP child-exit handling, systemd path quoting,
   and the absence of a general uncertain-outcome recovery command. These were observations
   at the checkpoint, not assertions that the defects remain unresolved. Reproduce against

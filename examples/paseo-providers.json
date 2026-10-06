@@ -1,7 +1,7 @@
 {
   "_doc": [
-    "Merge the two entries into .agents.providers; remove _doc and replace <KIT> with the absolute path.",
-    "By default, use the workspace cwd; add EPISTEX_PROJECT_ROOT only when the project needs to be pinned.",
+    "Merge the three entries into .agents.providers; remove _doc and replace <KIT> with the absolute path.",
+    "Lead/Peer use the project workspace. Supervisor uses ~/work/SUPERVISOR and must check its CWD.",
     "Credentials are shared from ~/.codex or EPISTEX_CODEX_HOME."
   ],
   "codex-lead": {
@@ -54,6 +54,35 @@
           {
             "id": "low",
             "label": "Low",
+            "isDefault": true
+          }
+        ]
+      }
+    ]
+  },
+  "devin-supervisor": {
+    "extends": "acp",
+    "label": "Devin Supervisor Seat",
+    "description": "Supervisor — Paseo-only cross-project observer",
+    "command": [
+      "<KIT>/setup/role-agent",
+      "supervisor",
+      "devin"
+    ],
+    "env": {},
+    "enabled": true,
+    "paseoTools": {
+      "enabled": true
+    },
+    "models": [
+      {
+        "id": "fusion-claude-fable-5-1-medium-sidekick-swe-2-medium",
+        "label": "Fusion (Claude Fable 5.1 Medium + SWE-2 Medium)",
+        "isDefault": true,
+        "thinkingOptions": [
+          {
+            "id": "medium",
+            "label": "Medium",
             "isDefault": true
           }
         ]

@@ -23,7 +23,7 @@ python3 -c 'import tomllib' 2>/dev/null || fail 'need Python 3.11+ (tomllib)'
 codex_bin=${CODEX_BIN:-codex}
 command -v "$codex_bin" >/dev/null || fail "CODEX_BIN executable not found: $codex_bin"
 
-for seat in LEAD PEER; do
+for seat in LEAD PEER SUPERVISOR; do
   prompt="$kit/agents/$seat.md"
   if [[ ! -f "$prompt" ]]; then
     fail "missing $prompt"
@@ -49,6 +49,15 @@ elif ! jq -e 'type == "object"' "$paseo_config" >/dev/null 2>&1; then
 else
   jq -e '.daemon.mcp.enabled != false and .daemon.mcp.injectIntoAgents == true' \
     "$paseo_config" >/dev/null || fail 'Paseo MCP injection is not enabled'
+  jq -e --arg command "$kit/setup/role-agent" '
+    .agents.providers["devin-supervisor"] |
+    .extends == "acp" and .enabled == true and
+    .command == [$command, "supervisor", "devin"] and .paseoTools.enabled == true and
+    ([.models[] | select(.isDefault == true)] | length) == 1 and
+    any(.models[]; .id == "fusion-claude-fable-5-1-medium-sidekick-swe-2-medium" and
+      .isDefault == true and
+      ([.thinkingOptions[] | select(.isDefault == true) | .id] == ["medium"]))
+  ' "$paseo_config" >/dev/null || fail 'devin-supervisor: wrong launcher, tools or model/effort'
   for seat in lead peer; do
     model=gpt-6.1-sol
     [[ "$seat" != peer ]] || model=gpt-6-luna

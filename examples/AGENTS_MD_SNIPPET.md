@@ -51,4 +51,4 @@ Add new documentation only when it belongs to no canonical document and cannot b
 - hard-to-reverse decisions:
 - external side effects:
 
-Do not copy a seat's persona or handoff schema here. Add only repository constraints; for a client that does not load seat prompts, include any necessary instructions under that client's own contract.
+Do not copy a seat's persona or handoff schema here. Add only repository constraints; for a client that does not load seat prompts, include any necessary instructions under that client's own contract. Paseo is the agent control plane; do not introduce a parallel desk, patrol, timers, schedules or heartbeats.

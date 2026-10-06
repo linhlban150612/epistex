@@ -31,6 +31,7 @@ class SetupSeatsTest(unittest.TestCase):
         providers.pop("_doc")
         for role in ("lead", "peer"):
             providers[f"codex-{role}"]["command"] = [str(ROOT / "setup" / "codex-room"), role]
+        providers["devin-supervisor"]["command"] = [str(ROOT / "setup" / "role-agent"), "supervisor", "devin"]
         self.data = {"daemon": {"mcp": {"injectIntoAgents": True}}, "agents": {"providers": providers}}
 
     def tearDown(self):
@@ -94,6 +95,17 @@ class SetupSeatsTest(unittest.TestCase):
 
     def test_disabled_injection_fails(self):
         self.data["daemon"]["mcp"]["enabled"] = False
+        self.save()
+        self.assertNotEqual(self.run_check("--check").returncode, 0)
+
+    def test_missing_or_wrong_supervisor_seat_fails(self):
+        supervisor = self.data["agents"]["providers"].pop("devin-supervisor")
+        self.save()
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("devin-supervisor", result.stderr)
+        self.data["agents"]["providers"]["devin-supervisor"] = supervisor
+        supervisor["paseoTools"]["enabled"] = False
         self.save()
         self.assertNotEqual(self.run_check("--check").returncode, 0)
 

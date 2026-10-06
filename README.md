@@ -1,13 +1,12 @@
 # Epistex — standalone agent roles trên Paseo
 
-Epistex là bộ prompt, launcher và CLI điều phối độc lập cho Paseo, không cần cài
-Seatworks. Kit cung cấp **3 role × 7 backend = 21 provider/profile** dưới tên
-`epx-<role>-<agent>`, cùng desk lưu assignment, handback và outbox ngoài product repo.
-Luồng hai seat `codex-lead` / `codex-peer` vẫn được hỗ trợ riêng.
+Epistex là bộ prompt và launcher role cho Paseo, không cần cài Seatworks. Kit cung cấp
+Lead/Peer Codex và Supervisor Devin ACP; Paseo là control plane duy nhất. Không còn
+desk, installer 21 provider, patrol hay profile `epx-*`.
 
 | Role | Trách nhiệm | Paseo MCP trong provider |
 |---|---|---|
-| Supervisor | Nhận intent từ Human, mở/đóng lane, nhận câu hỏi và cảnh báo | Bật |
+| Supervisor | Quan sát liên dự án, mở Lead và hỗ trợ Human; không nhận/đánh giá artifact | Bật |
 | Lead | Giao task, yêu cầu rework và quyết định acceptance | Bật |
 | Peer | Triển khai trong owned scope, kiểm chứng và bàn giao | Tắt |
 
@@ -15,7 +14,7 @@ Lead chỉ điều phối: yêu cầu triển khai của Human mặc định c�
 review/rework trong scope, trừ khi Human giới hạn delegation. Peer là writer duy nhất
 cho implementation, test, config, tài liệu và giải quyết conflict, kể cả việc một dòng.
 Lead đọc, kiểm chứng và accept/rework; Peer bị chặn thì Lead báo blocked, không tự viết thay.
-Yêu cầu read-only không tự cấp quyền tạo agent; delegation không cấp quyền bật desk/patrol,
+Yêu cầu read-only không tự cấp quyền tạo agent; delegation không cấp quyền bật automation,
 đổi model/effort, push hay deploy.
 
 Backend: **Claude, Codex, Devin, Pi, Amp, GLM, Droid**. Codex nạp prompt bằng
@@ -28,37 +27,28 @@ vòng đời proxy — **không phải system prompt**. Droid không hỗ trợ 
 Đây là phối hợp giữa các agent cùng Unix user, **không phải OS sandbox**. Read-only và
 owned scope là contract/prompt, không chặn shell tùy ý. Tắt MCP không ngăn tuyệt đối
 agent gọi CLI. Kit không triển khai đầy đủ gate, incident, merge hay permissions engine
-của Seatworks. Kiểm tra cấu hình thành công không chứng minh cả 21 profile launch được.
+của Seatworks. Kiểm tra cấu hình thành công không chứng minh mọi backend launch được.
 
-## Cài standalone profiles
+## Cài các seat Codex và Supervisor
 
 Cần Paseo CLI/daemon đã cấu hình, Python **3.11+**, executable và credentials của backend
 muốn dùng. Codex cần Bash và canonical `config.toml`; Git dùng để nhận diện chung root,
-subdirectory và linked worktree. Desk dùng `fcntl` (Unix); timer tùy chọn cần Linux user
-systemd và Node.js. GLM/Droid launcher dùng `npx` với phiên bản pin trong `setup/role-agent`.
+subdirectory và linked worktree.
 
 Chạy từ thư mục kit, sau khi cho phép thay đổi cấu hình Paseo:
 
 ```bash
-python3 setup/install-profiles.py
-paseo reload
-python3 setup/install-profiles.py --check
+bash setup/setup-seats.sh --check
 ```
 
-Installer đọc file config hiện có tại `~/.paseo/config.json` hoặc `PASEO_CONFIG`, giữ
-provider/profile không thuộc Epistex, cập nhật 21 entry và sao lưu lần đầu sang
-`<config-file>.epistex-backup`. Nó từ chối nếu config có plugin `seatworks-v2`, không
-gỡ plugin đó thay bạn. `--check` chỉ kiểm prompt/launcher và cấu hình khớp; không đăng
-nhập backend, thử model hay khởi động agent. Installer cũng không tự bật daemon MCP
-injection: cấu hình `daemon.mcp.enabled=true` và `daemon.mcp.injectIntoAgents=true`
-nếu cần Paseo tools. Provider chỉ bật tools cho Supervisor/Lead.
+Merge ba entry trong `examples/paseo-providers.json` vào `.agents.providers` của config
+hiện có; thay `<KIT>` bằng đường dẫn tuyệt đối và bỏ `_doc`. Đừng thay cả file config.
+Đặt MCP injection bật; provider bật tools cho Lead và Supervisor, tắt cho Peer.
+Supervisor chỉ chạy trong workspace rỗng `~/work/SUPERVISOR`; prompt kiểm tra CWD
+chính xác. Supervisor khám phá workspaces, agents, providers và models qua Paseo, không
+dùng registry.
 
-Mở profile `epx-supervisor-codex` (hoặc backend đã kiểm) trong workspace root của project.
-Installer cấp `EPISTEX_DESK` trỏ đến `setup/desk.py`; Supervisor dùng nó để `join` trước
-khi mở lane. Agent đang chạy không tự nhận cấu hình provider mới.
-
-**Chỉ cần hai Codex seat:** làm theo [SETUP.md](SETUP.md), merge hai entry từ
-`examples/paseo-providers.json`, rồi chạy:
+Lead/Peer Codex và runtime safeguards được mô tả trong [SETUP.md](SETUP.md). Chạy:
 
 ```bash
 bash setup/setup-seats.sh
@@ -66,94 +56,29 @@ paseo reload
 bash setup/setup-seats.sh --check
 ```
 
-`setup-seats.sh` không cài 21 profile và không tự sửa global config; nó kiểm hai provider
-và đặt executable bit khi không có `--check`. Checker cần thêm `jq`. Mẫu chọn Lead
-`gpt-6.1-sol/low`, Peer `gpt-6-luna/low`; standalone Codex Lead/Peer kế thừa các mẫu này,
-các role/backend khác không được kit pin cùng model. Desk chỉ nhận caller có provider
-`epx-*`, không nhận hai provider `codex-lead` / `codex-peer`.
+`setup-seats.sh` không tự sửa global config; nó kiểm ba seat và đặt executable bit khi
+không có `--check`. Checker cần thêm `jq`. Mẫu chọn Lead
+`gpt-6.1-sol/low`, Peer `gpt-6-luna/low`; Supervisor dùng Devin ACP model/effort đã chọn
+trong provider table. Không đưa policy riêng của project vào provider config.
 
-## Desk: assignment, handback và review
+## Luồng Paseo-only
 
-Supervisor mở lane; desk yêu cầu Paseo tạo Lead trong worktree mới. Peer
-được route đến workspace của lane. Desk kiểm provider, assignment và CWD của caller;
-không tìm thấy đúng một workspace phù hợp thì dừng thay vì đoán.
+Supervisor quan sát qua Paseo; Lead owns topology, routing, review và acceptance. Peer là
+writer duy nhất. Supervisor mở Lead trong workspace project, không tự tạo Peer.
 
-```text
-Human → Supervisor → open-lane → Lead → start-task → Peer
-                                  ↑                  │
-                                  └── done + evidence┘
-                                  │
-                                  ├─ rework → Peer (round mới)
-                                  └─ accept
-Supervisor → close-lane (không merge/push/deploy)
-```
-
-| Command | Caller / hiệu lực |
+| Bước | Control plane / owner |
 |---|---|
-| `join`, `open-lane` | Supervisor đăng ký project, mở lane; `--agent` chọn backend cho Lead |
-| `start-task` | Lead tạo một Peer; một task chưa kết thúc giữ writer slot của lane |
-| `done` | Peer hiện được giao bàn giao với `--task`, `--round`, `--candidate`, `--summary`, `--checks` |
-| `rework` | Lead tăng round, queue brief mới cho Peer |
-| `accept` | Lead nhận task đã bàn giao; Peer phải idle và được archive trước khi nhả writer slot |
-| `ask`, `answer` | Peer hỏi Lead; Lead hỏi Supervisor; đúng người nhận trả lời |
-| `close-lane` | Supervisor mở lane đóng nó khi không còn task chưa kết thúc; không merge/land/push/deploy |
-| `upgrade` | Supervisor giữ snapshot task legacy, gán round và quarantine pending mail thiếu scope; không resume work |
-| `status`, `patrol` | Inspect desk / thực hiện một lượt điều phối; không cần caller role |
+| Discovery | Supervisor dùng Paseo `list_workspaces`, `list_agents`, `list_providers`, `list_models` |
+| Assignment | Supervisor mở Lead được Human cho phép bằng `create_agent(workspaceId=...)`; truyền agentId Supervisor trong initialPrompt |
+| Execution | Lead xác định scope và tạo Peer bằng Paseo; Peer là writer duy nhất |
+| Handoff | Peer gửi đủ sáu cell trực tiếp cho Lead, kèm candidate identity |
+| Review | Lead đọc chính xác candidate và evidence; Human review khi risk cao |
+| Rework | Lead gửi đúng một `send_agent_prompt` nêu task, round, base SHA, candidate bị từ chối và feedback |
+| Acceptance | Lead quyết định; Supervisor không nhận thay |
+| Archive | Supervisor archive Lead khi Human xác nhận project đóng |
 
-Peer dừng ghi sau handback và chỉ tiếp tục theo round rework hiện tại. Desk kiểm
-identifier khớp, **không tự chứng minh
-commit/checksum tồn tại hay artifact bất biến**. Lead vẫn phải kiểm evidence; Human
-review đúng candidate khi risk cao, không có gate review trong code `accept`. Không có command `cut` hoặc command chung
-để reconcile `uncertain` / `accept_uncertain`, dù các state đó xuất hiện trong workflow.
-
-Ví dụ handback trong phiên Peer được desk giao (thay các placeholder):
-
-```bash
-"$EPISTEX_DESK" done --task T... --round 1 \
-  --candidate '<full-commit-SHA-or-snapshot-checksum>' \
-  --summary 'Implemented assigned change' --checks 'Tests and evidence'
-```
-
-Tra CLI mà không chạy workflow:
-
-```bash
-python3 setup/desk.py --help
-```
-
-## State, patrol và recovery
-
-Desk lưu ledger/outbox có lock và atomic file replacement tại
-`~/.local/share/epistex/desk/<project-path-hash>/ledger.json`. Hash desk dài 16 ký tự,
-theo đường dẫn project được chọn; **khác** hash runtime Codex 12 ký tự bên dưới.
-Không ghi workflow records vào product Git. `status` không gửi mail/launch agent,
-nhưng mở context ledger và có thể tạo/ghi lại file state:
-
-```bash
-python3 setup/desk.py status --project /absolute/project
-systemctl --user status epistex-patrol.timer
-```
-
-`patrol --project /absolute/project` xử lý một project; không có `--project` thì duyệt
-mọi ledger có project còn tồn tại. Patrol báo Lead lỗi/archived và báo
-Peer idle hoặc lỗi mà chưa handback, gửi mail chỉ khi người nhận idle và loại
-bỏ mail có scope task/round/candidate đã lỗi thời. Ledger legacy phải được Supervisor
-`upgrade` trước; patrol từ chối gửi mail khi chưa nâng cấp.
-
-**Chỉ chạy installer sau khi cho phép bật tự động hóa trên các ledger hiện có:**
-
-```bash
-python3 setup/install-patrol.py
-```
-
-Lệnh này ghi user service/timer, chạy `daemon-reload` và `enable --now`. Timer dùng
-`OnBootSec=30s` và `OnUnitInactiveSec=30s`; có thể chạy ngay khi bật nếu mốc boot đã qua,
-rồi lặp 30 giây sau khi service kết thúc. Đây không phải dry run.
-Installer lấy Paseo/Node từ PATH; cần đúng CLI, không phải launcher GUI. Không dùng
-đường dẫn có khoảng trắng cho installer hiện tại: systemd quoting còn là known issue.
-
-Launch/send bị mất response được đánh dấu uncertain, không tự retry side effect.
-Inspect Paseo trước khi xử lý; không sửa JSON hoặc launch lại mù. `upgrade` là recovery có side effect, không phải bước tự động khi đọc status.
-Không bật lại patrol trên lane cũ chỉ vì unit tests xanh.
+Không có desk, registry, ledger, patrol, timer, schedule hay heartbeat. Paseo messages là
+đường giao tiếp; trạng thái idle/notification không chứng minh hoàn tất.
 
 ## Codex runtime và resume
 
@@ -172,12 +97,6 @@ directory; layout `.git` thông thường giữ hash đường dẫn main checko
 (hoặc khi không có Git), identity theo đường dẫn tuyệt đối. `EPISTEX_PROJECT_ROOT`, nếu
 có, chọn **cả project lẫn CWD launch**; nếu không thì dùng launcher `$PWD`.
 
-**Giới hạn CWD cần kiểm khi chạy desk:** `desk.launch` truyền `EPISTEX_PROJECT_ROOT`
-bằng ledger root, trong khi lane có worktree riêng. Codex wrapper sẽ `cd` về override
-đó. Vì vậy workspace routing của desk không tự chứng minh actual Codex CWD đúng lane;
-kiểm phiên thực tế trước khi giao quyền ghi. Không coi runtime identity, ledger root
-và per-thread worktree CWD là cùng một thứ.
-
 Sync link tài nguyên dùng chung từ canonical home, parse/round-trip TOML, áp prompt
 và tắt `agents.enabled`, `features.multi_agent`, `features.multi_agent_v2`. Với
 Peer, nó loại MCP server tên `paseo` khỏi config runtime. Canonical
@@ -189,7 +108,6 @@ Resume theo UUID có thể tìm lại runtime cùng role trong cả namespace `e
 `seatworks`, không copy session:
 
 ```bash
-setup/codex-room supervisor resume '<session-UUID>'
 setup/codex-room peer exec resume '<session-UUID>' --json 'Continue the assigned task'
 ```
 
@@ -203,26 +121,23 @@ minh old Supervisor trong Paseo đã resume được.
 
 | Biến | Mặc định / mục đích |
 |---|---|
-| `EPISTEX_PROJECT_ROOT` | Launcher CWD cho Codex; project desk nếu không có `--project` |
+| `EPISTEX_PROJECT_ROOT` | Launcher CWD cho Codex khi project cần pin |
 | `EPISTEX_CODEX_HOME` | `~/.codex`; nguồn canonical config và tài nguyên dùng chung |
-| `EPISTEX_STATE_HOME` | `~/.local/share/epistex/desk`; nơi lưu desk state |
-| `EPISTEX_DESK` | Installer gán đường dẫn tuyệt đối đến `setup/desk.py` cho các profile |
 | `CODEX_BIN` | Executable Codex; mặc định lookup `codex` trên PATH |
-| `PASEO_BIN` | Executable Paseo mà desk gọi; mặc định `paseo` |
-| `PASEO_CONFIG` | File config dùng cho profile installer và two-seat checker |
-| `PASEO_HOME` | Two-seat checker dùng `<PASEO_HOME>/config.json` nếu không có `PASEO_CONFIG` |
+| `PASEO_CONFIG` | File config dùng cho seat checker |
+| `PASEO_HOME` | Seat checker dùng `<PASEO_HOME>/config.json` nếu không có `PASEO_CONFIG` |
 
-Ba biến `SEATWORKS_PROJECT_ROOT`, `SEATWORKS_CODEX_HOME`, `SEATWORKS_STATE_HOME` là
+Hai biến `SEATWORKS_PROJECT_ROOT`, `SEATWORKS_CODEX_HOME` là
 fallback cho biến `EPISTEX_*` tương ứng; giá trị mới không rỗng được ưu tiên. Runtime
 cũ dưới `.codex-runtime/seatworks` được dùng tại chỗ nếu duy nhất khớp project/role.
 Cả old/new runtime cùng tồn tại thì ordinary launch báo ambiguous. Không có bulk
-migration hay tự chuyển legacy desk state; không xóa/copy dữ liệu để chữa resume.
+migration; không xóa/copy dữ liệu để chữa resume.
 
 ## Policy, kiểm chứng và file chính
 
 Role prompts giữ hành vi ổn định; `AGENTS.md` của product repo giữ invariant chung;
 `WORKSPACE_PROTOCOL.md` là policy điều phối Lead đọc; task brief truyền constraint
-cụ thể cho Peer. Giữ log, receipt và ledger ngoài Git. Dùng các template trong
+cụ thể cho Peer. Giữ log và receipt ngoài Git. Dùng các template trong
 `examples/` theo hygiene của repo đích, không tự commit process documents vào mọi repo.
 
 ```bash
@@ -241,13 +156,10 @@ kiểm tra trạng thái live trước khi vận hành.
 | Đường dẫn | Vai trò |
 |---|---|
 | `agents/*.md` | Prompt Supervisor, Lead, Peer |
-| `setup/install-profiles.py` | Cài/kiểm 21 standalone provider và profile |
 | `setup/role-agent` | Native launcher Claude/Pi và ACP instruction proxy |
 | `setup/codex-room`, `setup/codex-room-sync` | Chọn runtime/resume và sinh Codex config |
-| `setup/desk.py` | Role routing, ledger, handback, outbox, patrol và recovery hẹp |
-| `setup/install-patrol.py` | Cài và bật user-systemd patrol timer |
-| `setup/setup-seats.sh`, `examples/paseo-providers.json` | Luồng hai Codex seat riêng |
-| `SETUP.md` | Hướng dẫn chi tiết luồng hai seat và Codex runtime |
+| `setup/setup-seats.sh`, `examples/paseo-providers.json` | Ba role seat và provider check |
+| `SETUP.md` | Hướng dẫn role seats và Codex runtime |
 | `examples/AGENTS_MD_SNIPPET.md`, `examples/WORKSPACE_PROTOCOL.md` | Template contract/policy cho repo đích |
-| `tests/` | Regression tests runtime, desk, profiles và two-seat checker |
+| `tests/` | Regression tests runtime, role launchers và seat checker |
 | `HANDOFF.md` | Checkpoint lịch sử; không phải hướng dẫn vận hành hiện tại |

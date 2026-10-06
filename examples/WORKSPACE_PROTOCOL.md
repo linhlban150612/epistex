@@ -88,4 +88,4 @@ those here.
 
 - Change policy only with causal evidence or changed repository architecture/risk.
 - The Human approves material authority changes; retain version history and review date.
-- Do not create evidence folders, review packets or status ledgers in Git solely for orchestration.
+- Do not create evidence folders or review packets in Git solely for orchestration. Paseo is the sole control plane; no desk, patrol, timers, schedules or heartbeats.

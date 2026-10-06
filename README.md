@@ -63,14 +63,15 @@ trong provider table. Không đưa policy riêng của project vào provider con
 
 ## Luồng Paseo-only
 
-Supervisor quan sát qua Paseo; Lead owns topology, routing, review và acceptance. Peer là
-writer duy nhất. Supervisor mở Lead trong workspace project, không tự tạo Peer.
+Supervisor quan sát qua Paseo; Lead chịu trách nhiệm về cấu trúc điều phối, định tuyến,
+rà soát và chấp thuận. Peer là người viết duy nhất. Supervisor mở Lead trong workspace
+của project, không tự tạo Peer.
 
 | Bước | Control plane / owner |
 |---|---|
-| Discovery | Supervisor dùng Paseo `list_workspaces`, `list_agents`, `list_providers`, `list_models` |
-| Assignment | Supervisor mở Lead được Human cho phép bằng `create_agent(workspaceId=...)`; truyền agentId Supervisor trong initialPrompt |
-| Execution | Lead xác định scope và tạo Peer bằng Paseo; Peer là writer duy nhất |
+| Khám phá | Supervisor dùng Paseo `list_workspaces`, `list_agents`, `list_providers`, `list_models` |
+| Giao việc | Supervisor mở Lead được Human cho phép bằng `create_agent(workspaceId=...)`; truyền agentId Supervisor trong initialPrompt |
+| Thực hiện | Lead xác định phạm vi và tạo Peer bằng Paseo; Peer là người viết duy nhất |
 | Handoff | Peer gửi đủ sáu cell trực tiếp cho Lead, kèm candidate identity |
 | Review | Lead đọc chính xác candidate và evidence; Human review khi risk cao |
 | Rework | Lead gửi đúng một `send_agent_prompt` nêu task, round, base SHA, candidate bị từ chối và feedback |

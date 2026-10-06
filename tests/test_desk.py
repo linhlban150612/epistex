@@ -68,13 +68,12 @@ class DeskTest(unittest.TestCase):
         self.assertIn("--new-workspace", self.runs[0]); self.assertEqual(lane["status"], "open")
         self.assertRaises(PermissionError, self.action, "sup", "start-task", "--lane", lane["id"], "--title", "Do", "--goal", "Implement")
         task = self.action(lead, "start-task", "--lane", lane["id"], "--title", "Do", "--goal", "Implement", "--owned", "src/")
+        self.assertIn("--workspace", self.runs[-1])
+        self.assertEqual(self.runs[-1][self.runs[-1].index("--workspace") + 1], "lane-workspace")
         peer = task["peer"]
         self.assertRaises(ValueError, self.action, lead, "start-task", "--lane", lane["id"], "--title", "Again", "--goal", "Overlap")
         self.assertRaises(ValueError, self.action, lead, "accept", "--task", task["id"])
         self.action(peer, "done", "--task", task["id"], "--summary", "Implemented", "--checks", "test passed")
-        review = self.action(lead, "start-review", "--task", task["id"], "--focus", "Check regression")
-        self.assertRaises(ValueError, self.action, lead, "accept", "--task", task["id"])
-        self.action(review["reviewer"], "done", "--task", task["id"], "--summary", "No findings", "--checks", "diff read")
         self.assertRaises(ValueError, self.action, lead, "accept", "--task", task["id"])
         self.agents[peer]["Status"] = "idle"
         self.action(lead, "accept", "--task", task["id"])
@@ -83,23 +82,6 @@ class DeskTest(unittest.TestCase):
             self.assertEqual(saved["tasks"][task["id"]]["status"], "accepted")
             self.assertEqual(saved["lanes"][lane["id"]]["status"], "closed")
             self.assertEqual(self.agents[peer]["Status"], "archived")
-
-    def test_patrol_starts_one_watcher_and_delivers_once_when_idle(self):
-        self.action("sup", "join")
-        lane = self.action("sup", "open-lane", "--title", "Feature", "--goal", "Deliver feature")
-        lead = lane["lead"]
-        self.action("sup", "patrol")
-        self.action("sup", "patrol")
-        with desk.ledger_for(self.root) as saved:
-            watcher = saved["lanes"][lane["id"]]["watcher"]
-            self.assertEqual(len([a for a in saved["agents"].values() if a["role"] == "watcher"]), 1)
-        self.action(lead, "start-task", "--lane", lane["id"], "--title", "Do", "--goal", "Implement")
-        self.action("sup", "patrol")
-        self.assertFalse(self.sent, "running agents must not receive a new turn")
-        self.agents[watcher]["Status"] = "idle"
-        self.action("sup", "patrol")
-        self.action("sup", "patrol")
-        self.assertEqual(len(self.sent), 1, "sent mail must not be replayed")
 
     def test_uncertain_launch_is_not_retried_by_patrol(self):
         self.action("sup", "join")
@@ -122,26 +104,6 @@ class DeskTest(unittest.TestCase):
         with desk.ledger_for(self.root) as saved:
             self.assertEqual(saved["agents"], {})
 
-    def test_uncertain_watcher_and_reviewer_are_not_launched_twice(self):
-        self.action("sup", "join")
-        lane = self.action("sup", "open-lane", "--title", "Feature", "--goal", "Deliver")
-        task = self.action(lane["lead"], "start-task", "--lane", lane["id"], "--title", "Do", "--goal", "Implement")
-        self.action(task["peer"], "done", "--task", task["id"], "--summary", "First", "--checks", "pass")
-        def lost_response(command, *args):
-            result = self.paseo(command, *args)
-            if command == "run":
-                raise RuntimeError("created externally, response lost")
-            return result
-        with patch.object(desk, "paseo", side_effect=lost_response):
-            self.action("sup", "patrol")
-            self.action("sup", "patrol")
-            self.assertEqual(len(self.runs), 3)
-            with self.assertRaises(RuntimeError):
-                self.action(lane["lead"], "start-review", "--task", task["id"], "--focus", "Inspect")
-            with self.assertRaises(ValueError):
-                self.action(lane["lead"], "start-review", "--task", task["id"], "--focus", "Inspect")
-            self.assertEqual(len(self.runs), 4)
-
     def test_upgrade_preserves_legacy_state_and_quarantines_mail(self):
         self.action("sup", "join")
         lane = self.action("sup", "open-lane", "--title", "Feature", "--goal", "Deliver")
@@ -161,38 +123,6 @@ class DeskTest(unittest.TestCase):
         self.action(task["peer"], "done", "--task", task["id"], "--summary", "First", "--checks", "pass")
         self.assertFalse(self.sent)
 
-    def test_retire_misplaced_watcher_then_patrol_replaces_it(self):
-        self.action("sup", "join")
-        lane = self.action("sup", "open-lane", "--title", "Feature", "--goal", "Deliver")
-        self.action("sup", "patrol")
-        with desk.ledger_for(self.root) as saved:
-            old = saved["lanes"][lane["id"]]["watcher"]
-        self.agents[old]["Cwd"] = str(self.root)
-        with self.assertRaises(ValueError):
-            self.action("sup", "retire-watcher", "--lane", lane["id"])
-        self.agents[old]["Status"] = "idle"
-        self.action("sup", "retire-watcher", "--lane", lane["id"])
-        self.assertEqual(self.agents[old]["Status"], "archived")
-        self.action("sup", "patrol")
-        with desk.ledger_for(self.root) as saved:
-            new = saved["lanes"][lane["id"]]["watcher"]
-        self.assertNotEqual(old, new)
-        self.action(new, "raise", "--text", "Workspace verified")
-
-    def test_watcher_alert_routes_to_supervisor_and_lead_without_veto(self):
-        self.action("sup", "join")
-        lane = self.action("sup", "open-lane", "--title", "Feature", "--goal", "Deliver feature")
-        self.action("sup", "patrol")
-        self.assertIn("--workspace", self.runs[-1])
-        self.assertEqual(self.runs[-1][self.runs[-1].index("--workspace") + 1], "lane-workspace")
-        with desk.ledger_for(self.root) as saved:
-            watcher = saved["lanes"][lane["id"]]["watcher"]
-        raised = self.action(watcher, "raise", "--text", "Peer appears blocked; observed idle")
-        self.assertEqual(raised["lane"], lane["id"])
-        with desk.ledger_for(self.root) as saved:
-            self.assertEqual(saved["lanes"][lane["id"]]["status"], "open")
-            self.assertEqual({letter["to"] for letter in saved["outbox"]}, {"sup", lane["lead"]})
-
     def test_delayed_rework_is_discarded_after_new_handback(self):
         self.action("sup", "join")
         lane = self.action("sup", "open-lane", "--title", "Feature", "--goal", "Deliver")
@@ -200,7 +130,6 @@ class DeskTest(unittest.TestCase):
         self.action(task["peer"], "done", "--task", task["id"], "--summary", "First", "--checks", "pass")
         self.action(lane["lead"], "rework", "--task", task["id"], "--feedback", "Fix")
         self.action(task["peer"], "done", "--task", task["id"], "--round", "2", "--candidate", "candidate-b", "--summary", "Second", "--checks", "pass")
-        self.action(lane["lead"], "start-review", "--task", task["id"], "--focus", "Inspect")
         self.agents[task["peer"]]["Status"] = "idle"
         self.agents[lane["lead"]]["Status"] = "idle"
         self.action("sup", "patrol")
@@ -225,39 +154,7 @@ class DeskTest(unittest.TestCase):
         with self.assertRaisesRegex(PermissionError, "round"):
             self.action(task["peer"], "done", "--task", task["id"], "--summary", "Late", "--checks", "pass")
 
-    def test_old_reviewer_and_wrong_candidate_cannot_finish_current_review(self):
-        self.action("sup", "join")
-        lane = self.action("sup", "open-lane", "--title", "Feature", "--goal", "Deliver")
-        task = self.action(lane["lead"], "start-task", "--lane", lane["id"], "--title", "Do", "--goal", "Implement")
-        self.action(task["peer"], "done", "--task", task["id"], "--summary", "First", "--checks", "pass")
-        first = self.action(lane["lead"], "start-review", "--task", task["id"], "--focus", "Inspect")
-        self.action(first["reviewer"], "done", "--task", task["id"], "--summary", "Findings", "--checks", "pass")
-        second = self.action(lane["lead"], "start-review", "--task", task["id"], "--focus", "Inspect again")
-        with self.assertRaises(PermissionError):
-            self.action(first["reviewer"], "done", "--task", task["id"], "--summary", "Late", "--checks", "pass")
-        with self.assertRaisesRegex(PermissionError, "candidate"):
-            self.action(second["reviewer"], "done", "--task", task["id"], "--candidate", "candidate-b", "--summary", "Wrong", "--checks", "pass")
-        result = self.action(second["reviewer"], "done", "--task", task["id"], "--summary", "Current", "--checks", "pass")
-        self.assertEqual(result["verdict"], "Current")
-        self.assertIn("candidate-a", self.runs[-1][-1])
-
-    def test_rework_supersedes_running_review_without_reusing_its_evidence(self):
-        self.action("sup", "join")
-        lane = self.action("sup", "open-lane", "--title", "Feature", "--goal", "Deliver")
-        task = self.action(lane["lead"], "start-task", "--lane", lane["id"], "--title", "Do", "--goal", "Implement")
-        self.action(task["peer"], "done", "--task", task["id"], "--summary", "First", "--checks", "pass")
-        first = self.action(lane["lead"], "start-review", "--task", task["id"], "--focus", "Inspect")
-        self.action(lane["lead"], "rework", "--task", task["id"], "--feedback", "Fix")
-        self.action(task["peer"], "done", "--task", task["id"], "--round", "2", "--candidate", "candidate-b", "--summary", "Second", "--checks", "pass")
-        self.action(lane["lead"], "start-review", "--task", task["id"], "--focus", "Inspect second")
-        with self.assertRaisesRegex(PermissionError, "round"):
-            self.action(first["reviewer"], "done", "--task", task["id"], "--summary", "Late", "--checks", "pass")
-        with desk.ledger_for(self.root) as saved:
-            current = saved["tasks"][task["id"]]
-            self.assertEqual(current["review_status"], "running")
-            self.assertEqual([h["candidate"] for h in current["handbacks"]], ["candidate-a", "candidate-b"])
-
-    def test_ambiguous_workspace_does_not_launch_a_watcher(self):
+    def test_ambiguous_workspace_does_not_launch_a_peer(self):
         self.action("sup", "join")
         lane = self.action("sup", "open-lane", "--title", "Feature", "--goal", "Deliver")
         def ambiguous(command, *args):
@@ -265,11 +162,19 @@ class DeskTest(unittest.TestCase):
                 return [{"workspaceId": "one", "cwd": lane["cwd"]}, {"workspaceId": "two", "cwd": lane["cwd"]}]
             return self.paseo(command, *args)
         with patch.object(desk, "paseo", side_effect=ambiguous):
-            self.action("sup", "patrol")
+            with self.assertRaisesRegex(RuntimeError, "ambiguous"):
+                self.action(lane["lead"], "start-task", "--lane", lane["id"], "--title", "Do", "--goal", "Implement")
         self.assertEqual(len(self.runs), 1)
         with desk.ledger_for(self.root) as saved:
-            self.assertIsNone(saved["lanes"][lane["id"]]["watcher"])
-            self.assertIn("ambiguous", saved["events"][-1]["reason"])
+            task = next(iter(saved["tasks"].values()))
+            self.assertEqual(task["status"], "launching")
+            self.assertIsNone(task["peer"])
+
+    def test_removed_actions_are_not_parser_choices(self):
+        for action in ("start-review", "raise", "retire-watcher"):
+            with self.assertRaises(SystemExit):
+                with patch("sys.stderr"):
+                    desk.parser().parse_args([action])
 
     def test_uncertain_mail_is_not_delivered_twice(self):
         self.action("sup", "join")

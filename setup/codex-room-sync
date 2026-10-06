@@ -13,7 +13,7 @@ import tempfile
 import tomllib
 import uuid
 
-ROLES = {role: role.upper() + ".md" for role in ("supervisor", "lead", "peer", "reviewer", "watcher")}
+ROLES = {role: role.upper() + ".md" for role in ("supervisor", "lead", "peer")}
 SHARED_FILES = ("auth.json", "model-instructions.md", "hooks.json")
 SHARED_DIRS = ("skills", "plugins")
 
@@ -74,7 +74,7 @@ def render_config(text: str, role: str, prompt: pathlib.Path) -> str:
         if not isinstance(section, dict):
             raise ValueError(f"{table} must be a TOML table")
         section.update(flags)
-    if role in ("peer", "reviewer", "watcher") and "mcp_servers" in config:
+    if role == "peer" and "mcp_servers" in config:
         if not isinstance(config["mcp_servers"], dict):
             raise ValueError("mcp_servers must be a TOML table")
         config["mcp_servers"].pop("paseo", None)

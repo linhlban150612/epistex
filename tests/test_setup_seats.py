@@ -49,7 +49,7 @@ class SetupSeatsTest(unittest.TestCase):
         result = self.run_check("--check")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.config.read_bytes(), before)
-        self.assertIn("chưa kiểm auth, daemon hoặc launch", result.stdout)
+        self.assertIn("auth, daemon and launch not checked", result.stdout)
 
     def test_default_codex_on_isolated_path(self):
         self.save()
@@ -78,6 +78,20 @@ class SetupSeatsTest(unittest.TestCase):
                 self.save()
                 self.assertNotEqual(self.run_check("--check").returncode, 0)
                 peer[key] = old
+
+    def test_models_match_requested_roles_and_reject_previous_defaults(self):
+        for role, expected, previous in (("lead", "gpt-6.1-sol", "gpt-5.6-sol"),
+                                         ("peer", "gpt-6-luna", "gpt-5.6-luna")):
+            with self.subTest(role=role):
+                model = self.data["agents"]["providers"][f"codex-{role}"]["models"][0]
+                self.assertEqual(model["id"], expected)
+                for wrong in (previous, "gpt-6-luna" if role == "lead" else "gpt-6.1-sol"):
+                    model["id"] = wrong
+                    self.save()
+                    result = self.run_check("--check")
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(f"codex-{role}:", result.stderr)
+                model["id"] = expected
 
     def test_disabled_injection_fails(self):
         self.data["daemon"]["mcp"]["enabled"] = False

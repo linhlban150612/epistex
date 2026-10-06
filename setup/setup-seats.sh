@@ -16,42 +16,42 @@ for arg in "$@"; do
 done
 
 for name in bash jq python3 dirname wc; do
-  command -v "$name" >/dev/null || fail "cần $name trên PATH"
+  command -v "$name" >/dev/null || fail "need $name on PATH"
 done
 (( errs == 0 )) || exit 1
-python3 -c 'import tomllib' 2>/dev/null || fail 'cần Python 3.11+ (tomllib)'
+python3 -c 'import tomllib' 2>/dev/null || fail 'need Python 3.11+ (tomllib)'
 codex_bin=${CODEX_BIN:-codex}
-command -v "$codex_bin" >/dev/null || fail "không tìm thấy executable CODEX_BIN: $codex_bin"
+command -v "$codex_bin" >/dev/null || fail "CODEX_BIN executable not found: $codex_bin"
 
 for seat in LEAD PEER; do
   prompt="$kit/agents/$seat.md"
   if [[ ! -f "$prompt" ]]; then
-    fail "thiếu $prompt"
+    fail "missing $prompt"
   elif (( $(wc -c < "$prompt") > 16384 )); then
-    fail "$prompt vượt 16 KiB"
+    fail "$prompt exceeds 16 KiB"
   fi
 done
 
 for name in codex-room codex-room-sync; do
   wrapper="$kit/setup/$name"
   if [[ ! -f "$wrapper" ]]; then
-    fail "thiếu $wrapper"
+    fail "missing $wrapper"
     continue
   fi
   if (( dry == 0 )); then chmod 755 "$wrapper"; fi
-  [[ -x "$wrapper" ]] || fail "$wrapper chưa executable"
+  [[ -x "$wrapper" ]] || fail "$wrapper is not executable"
 done
 
 if [[ ! -f "$paseo_config" ]]; then
-  fail "thiếu $paseo_config; merge examples/paseo-providers.json trước"
+  fail "missing $paseo_config; merge examples/paseo-providers.json first"
 elif ! jq -e 'type == "object"' "$paseo_config" >/dev/null 2>&1; then
-  fail "$paseo_config không phải JSON object hợp lệ"
+  fail "$paseo_config is not a valid JSON object"
 else
   jq -e '.daemon.mcp.enabled != false and .daemon.mcp.injectIntoAgents == true' \
-    "$paseo_config" >/dev/null || fail 'Paseo MCP injection chưa bật'
+    "$paseo_config" >/dev/null || fail 'Paseo MCP injection is not enabled'
   for seat in lead peer; do
-    model=gpt-5.6-sol
-    [[ "$seat" != peer ]] || model=gpt-5.6-luna
+    model=gpt-6.1-sol
+    [[ "$seat" != peer ]] || model=gpt-6-luna
     jq -e --arg key "codex-$seat" --arg role "$seat" \
       --arg command "$kit/setup/codex-room" --arg model "$model" '
       .agents.providers[$key] |
@@ -61,9 +61,9 @@ else
       ([.models[] | select(.isDefault == true)] | length) == 1 and
       any(.models[]; .id == $model and .isDefault == true and
         ([.thinkingOptions[] | select(.isDefault == true) | .id] == ["low"]))
-    ' "$paseo_config" >/dev/null || fail "codex-$seat: sai wrapper, quyền tools hoặc model/effort"
+    ' "$paseo_config" >/dev/null || fail "codex-$seat: wrong wrapper, tool permissions or model/effort"
   done
 fi
 
-(( errs == 0 )) || { printf '! %s lỗi — setup chưa sẵn sàng.\n' "$errs" >&2; exit 1; }
-printf '✓ kiểm tra tĩnh kit/provider hợp lệ; chưa kiểm auth, daemon hoặc launch\nSau khi đổi provider: dùng Paseo CLI để reload và kiểm launch theo SETUP.md\n'
+(( errs == 0 )) || { printf '! %s error(s) — setup is not ready.\n' "$errs" >&2; exit 1; }
+printf '✓ static kit/provider check passed; auth, daemon and launch not checked\nAfter changing providers: reload with the Paseo CLI and verify launch per SETUP.md\n'

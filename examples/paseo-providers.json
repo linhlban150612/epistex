@@ -1,8 +1,8 @@
 {
   "_doc": [
-    "Merge hai entry vào .agents.providers; bỏ _doc và thay <KIT> bằng đường dẫn tuyệt đối.",
-    "Mặc định dùng workspace cwd; chỉ thêm EPISTEX_PROJECT_ROOT khi cần cố định project.",
-    "Credential dùng chung từ ~/.codex hoặc EPISTEX_CODEX_HOME."
+    "Merge the two entries into .agents.providers; remove _doc and replace <KIT> with the absolute path.",
+    "By default, use the workspace cwd; add EPISTEX_PROJECT_ROOT only when the project needs to be pinned.",
+    "Credentials are shared from ~/.codex or EPISTEX_CODEX_HOME."
   ],
   "codex-lead": {
     "extends": "codex",
@@ -19,8 +19,8 @@
     },
     "models": [
       {
-        "id": "gpt-5.6-sol",
-        "label": "GPT-5.6 Sol",
+        "id": "gpt-6.1-sol",
+        "label": "GPT-6.1 Sol",
         "isDefault": true,
         "thinkingOptions": [
           {
@@ -47,8 +47,8 @@
     },
     "models": [
       {
-        "id": "gpt-5.6-luna",
-        "label": "GPT-5.6 Luna",
+        "id": "gpt-6-luna",
+        "label": "GPT-6 Luna",
         "isDefault": true,
         "thinkingOptions": [
           {

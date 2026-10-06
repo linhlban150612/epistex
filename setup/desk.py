@@ -71,10 +71,6 @@ def ledger_for(root):
 
 def event(data, kind, **fields):
     data["events"].append({"at": time.time(), "kind": kind, **fields})
-    lane_id = fields.get("lane") or data["tasks"].get(fields.get("task"), {}).get("lane")
-    watcher = data["lanes"].get(lane_id, {}).get("watcher")
-    if watcher and kind not in ("watcher.started", "watcher.raised", "lane.closed"):
-        queue(data, watcher, f"Event {kind} in {lane_id}: {fields}. Observe only; alert the Supervisor if warranted.")
 
 
 def caller(data, required=None):
@@ -83,7 +79,7 @@ def caller(data, required=None):
         raise PermissionError("PASEO_AGENT_ID is required; run from a Paseo agent")
     agent = paseo("inspect", agent_id, "--json")
     provider = agent["Provider"].split("/")[0]
-    if provider not in {f"epx-{role}-{backend}" for role in ("supervisor", "lead", "peer", "reviewer", "watcher") for backend in AGENTS}:
+    if provider not in {f"epx-{role}-{backend}" for role in ("supervisor", "lead", "peer") for backend in AGENTS}:
         raise PermissionError("caller does not have an Epistex role provider")
     role = provider.split("-")[1]
     if required and role != required:
@@ -157,9 +153,8 @@ def act(args, root, data):
     if args.action == "status":
         return {key: data[key] for key in ("project", "lanes", "tasks", "asks", "outbox", "agents")}
     agent_id, role, provider = caller(data, {"join": "supervisor", "open-lane": "supervisor",
-                                       "start-task": "lead", "start-review": "lead", "accept": "lead",
-                                       "rework": "lead", "close-lane": "supervisor", "upgrade": "supervisor",
-                                       "retire-watcher": "supervisor"}.get(args.action))
+                                       "start-task": "lead", "accept": "lead",
+                                       "rework": "lead", "close-lane": "supervisor", "upgrade": "supervisor"}.get(args.action))
     if args.action == "join":
         data["agents"].setdefault(agent_id, {"id": agent_id, "role": role, "provider": provider, "status": "ready"})
         event(data, "supervisor.joined", agent=agent_id)
@@ -171,7 +166,7 @@ def act(args, root, data):
         for task in data["tasks"].values():
             if "round" not in task:
                 task["legacy"] = copy.deepcopy(task)
-                task.update(round=1, reviewer=None, review_status="superseded")
+                task.update(round=1)
                 upgraded.append(task["id"])
         quarantined = []
         for letter in data["outbox"]:
@@ -182,31 +177,12 @@ def act(args, root, data):
             event(data, "ledger.upgraded", by=agent_id, tasks=upgraded, letters=quarantined)
         return {"upgraded": upgraded, "quarantined": quarantined,
                 "note": "No work was resumed. Brief active Peers with their round; handed-back legacy tasks need rework before candidate-bound review."}
-    if args.action == "retire-watcher":
-        lane = data["lanes"][args.lane]
-        if lane["opener"] != agent_id or lane["status"] != "open" or not lane.get("watcher"):
-            raise PermissionError("not the opener of an open lane with a Watcher")
-        watcher = lane["watcher"]
-        inspected = paseo("inspect", watcher, "--json")
-        if pathlib.Path(inspected["Cwd"]).resolve() == pathlib.Path(lane["cwd"]).resolve():
-            raise ValueError("Watcher already has the lane working copy")
-        if inspected["Status"] != "archived":
-            if inspected["Status"] != "idle":
-                raise ValueError("misplaced Watcher must be idle before retiring")
-            paseo("archive", watcher, "--json")
-        data["agents"][watcher]["status"] = "retired"
-        lane["watcher"] = None
-        for letter in data["outbox"]:
-            if letter["to"] == watcher and letter["status"] == "pending":
-                letter["status"] = "superseded"
-        event(data, "watcher.retired", lane=args.lane, watcher=watcher, by=agent_id)
-        return {"retired": watcher, "note": "A subsequent patrol will create the replacement in the lane workspace."}
     if args.action == "open-lane":
         if agent_id not in data["agents"]:
             raise PermissionError("join as Supervisor first")
         lane_id = next_id(data, "L")
         lane = {"id": lane_id, "title": args.title, "goal": args.goal, "status": "launching",
-                "opener": agent_id, "cwd": str(root), "lead": None, "watcher": None}
+                "opener": agent_id, "cwd": str(root), "lead": None}
         data["lanes"][lane_id] = lane
         prompt = f"You are Lead for {lane_id}: {args.goal}\nRun $EPISTEX_DESK status --project {root} and use its desk commands."
         lead = launch(data, root, "lead", args.agent, args.title, prompt, root, lane=lane_id, worktree=True)
@@ -225,7 +201,7 @@ def act(args, root, data):
             raise ValueError("one writer per lane: accept or cut the current task first")
         task_id = next_id(data, "T")
         task = {"id": task_id, "lane": args.lane, "title": args.title, "goal": args.goal,
-                "owned": args.owned, "status": "launching", "peer": None, "summary": None, "reviews": [], "round": 1, "handbacks": []}
+                "owned": args.owned, "status": "launching", "peer": None, "summary": None, "round": 1, "handbacks": []}
         data["tasks"][task_id] = task
         brief = f"Task {task_id} in lane {args.lane}, round 1. Goal: {args.goal}\nOwned paths: {', '.join(args.owned) or 'as explicitly agreed with Lead'}.\nWhen finished call $EPISTEX_DESK done --task {task_id} --round 1 --candidate <full-commit-SHA-or-snapshot-checksum> --summary ... --checks ... . Then stop writing; resume only for a current desk rework round."
         peer = launch(data, root, "peer", args.agent, args.title, brief, lane["cwd"], lane=args.lane, task=task_id)
@@ -240,42 +216,22 @@ def act(args, root, data):
             raise ValueError("handback requires an immutable candidate identifier")
         if role == "peer" and task["peer"] == agent_id and task["status"] in ("running", "rework"):
             task.update(status="done", summary=args.summary, checks=args.checks, candidate=args.candidate)
-        elif role == "reviewer" and agent_id == task.get("reviewer") and task.get("review_status") == "running" and task["status"] == "done":
-            if args.candidate != task.get("candidate"):
-                raise PermissionError("review candidate does not match the assigned handback")
-            task.update(review_status="done", verdict=args.summary, review_checks=args.checks)
         else:
             raise PermissionError("no active task assigned to this agent")
         task.setdefault("handbacks", []).append({"round": args.round, "candidate": args.candidate, "by": agent_id,
                                                  "role": role, "summary": args.summary, "checks": args.checks})
         scope = {"task": task["id"], "round": args.round, "status": "done", "candidate": args.candidate}
-        if role == "reviewer":
-            scope.update(reviewer=agent_id, review_status="done")
         queue(data, data["lanes"][task["lane"]]["lead"], f"{role.title()} hand-back on {task['id']} round {args.round}, candidate {args.candidate}: {args.summary}; checks: {args.checks}. Review evidence before acceptance.", scope)
         event(data, f"{role}.done", task=task["id"], by=agent_id, round=args.round, candidate=args.candidate)
         return task
-    if args.action in ("start-review", "accept", "rework"):
+    if args.action in ("accept", "rework"):
         task = data["tasks"][args.task]
         lane = data["lanes"][task["lane"]]
         if lane["lead"] != agent_id or lane["status"] != "open":
             raise PermissionError("not the active Lead for this task")
-        if args.action == "start-review":
-            if task["status"] != "done" or task.get("review_status") in ("running", "launching"):
-                raise ValueError("review requires a handed-back task and no active review")
-            if not task.get("candidate") or not task.get("round"):
-                raise ValueError("legacy handback has no bound candidate; request a new rework handback")
-            task["review_status"] = "launching"
-            prompt = f"Review task {task['id']}, round {task['round']}, immutable candidate {task['candidate']}: {args.focus}\nGoal: {task['goal']}\nRead only. Review the named artifact, not a moving HEAD; report any drift. Call $EPISTEX_DESK done --task {task['id']} --round {task['round']} --candidate {task['candidate']} --summary ... --checks ... to hand back findings."
-            reviewer = launch(data, root, "reviewer", args.agent, f"Review {task['title']}", prompt, lane["cwd"], lane=task["lane"], task=task["id"])
-            task["reviews"].append(reviewer)
-            task["reviewer"] = reviewer
-            task["review_status"] = "running"
-            task["review_idle_notified"] = False
-            event(data, "review.started", task=task["id"], reviewer=reviewer)
-            return {"reviewer": reviewer, "task": task["id"]}
         if args.action == "accept":
-            if task["status"] != "done" or task.get("review_status") in ("running", "launching"):
-                raise ValueError("task is not handed back or its review is still running")
+            if task["status"] != "done":
+                raise ValueError("task is not handed back")
             if paseo("inspect", task["peer"], "--json")["Status"] != "idle":
                 raise ValueError("Peer must finish its turn before acceptance can release the writer slot")
             # A completed Peer may be prompted again unless it is archived before another writer starts.
@@ -291,8 +247,6 @@ def act(args, root, data):
             raise ValueError("rework requires a handed-back task")
         task["status"] = "rework"
         task["round"] = task.get("round", 0) + 1
-        task["review_status"] = "superseded"
-        task["reviewer"] = None
         task["idle_notified"] = False
         queue(data, task["peer"], f"Rework {task['id']} round {task['round']}: {args.feedback}. Before writing, check desk status: only this current rework round authorizes work. Hand back with desk done --task {task['id']} --round {task['round']} --candidate <full-commit-SHA-or-snapshot-checksum> --summary ... --checks ...; then stop writing.",
               {"task": task["id"], "round": task["round"], "status": "rework"})
@@ -310,7 +264,7 @@ def act(args, root, data):
     if args.action == "ask":
         assigned = data["agents"].get(agent_id, {})
         lane = data["lanes"].get(assigned.get("lane"))
-        to = lane["lead"] if role in ("peer", "reviewer") and lane else lane["opener"] if role == "lead" and lane else None
+        to = lane["lead"] if role == "peer" and lane else lane["opener"] if role == "lead" and lane else None
         if not to:
             raise ValueError("no recipient in the ledger")
         ask_id = next_id(data, "Q")
@@ -324,17 +278,6 @@ def act(args, root, data):
         ask.update(status="answered", answer=args.text)
         queue(data, ask["from"], f"Answer {args.ask}: {args.text}")
         return ask
-    if args.action == "raise":
-        if role != "watcher":
-            raise PermissionError("only a Watcher can raise an observation")
-        lane_id = data["agents"].get(agent_id, {}).get("lane")
-        lane = data["lanes"].get(lane_id)
-        if not lane or lane["status"] != "open" or lane["watcher"] != agent_id:
-            raise PermissionError("Watcher is not assigned to an open lane")
-        queue(data, lane["opener"], f"Watcher observation on {lane_id}: {args.text}. Check evidence; this is not a veto.")
-        queue(data, lane["lead"], f"Watcher raised an observation on {lane_id} to Supervisor: {args.text}")
-        event(data, "watcher.raised", lane=lane_id, by=agent_id)
-        return {"lane": lane_id, "raised": args.text}
     raise ValueError("unknown action")
 
 
@@ -349,31 +292,6 @@ def patrol(root, data):
         if letter["status"] == "sending":
             letter["status"] = "uncertain"
     for lane in data["lanes"].values():
-        if lane["status"] == "open" and not lane["watcher"]:
-            if any(a.get("lane") == lane["id"] and a["role"] == "watcher" and a["status"] in ("launching", "uncertain")
-                   for a in data["agents"].values()):
-                continue
-            try:
-                watcher = launch(data, root, "watcher", "codex", f"Watch {lane['id']}",
-                                 f"Watch lane {lane['id']}. Observe only; report concerns to the Supervisor, not decisions. Use $EPISTEX_DESK status --project {root}.",
-                                 lane["cwd"], lane=lane["id"])
-                lane["watcher"] = watcher
-                event(data, "watcher.started", lane=lane["id"], watcher=watcher)
-            except RuntimeError as error:
-                event(data, "watcher.failed", lane=lane["id"], reason=str(error))
-        if lane["status"] == "closed" and lane.get("watcher"):
-            if not lane.get("watcher_closing"):
-                queue(data, lane["watcher"], f"Lane {lane['id']} closed. End observation.")
-                lane["watcher_closing"] = True
-            watcher = lane["watcher"]
-            if not any(letter["to"] == watcher and letter["status"] == "pending" for letter in data["outbox"]):
-                try:
-                    if paseo("inspect", watcher, "--json")["Status"] == "idle":
-                        paseo("archive", watcher, "--json")
-                        lane["watcher"] = None
-                        event(data, "watcher.archived", lane=lane["id"], watcher=watcher)
-                except Exception:
-                    pass
         if lane["status"] == "open" and lane.get("lead") and not lane.get("lead_failed_notified"):
             try:
                 state = paseo("inspect", lane["lead"], "--json")["Status"]
@@ -390,16 +308,6 @@ def patrol(root, data):
             if state in ("idle", "error"):
                 task["idle_notified"] = True
                 queue(data, data["lanes"][task["lane"]]["lead"], f"Peer {task['peer']} is {state} without desk done on {task['id']}. Inspect its work; do not infer acceptance.")
-        except Exception:
-            pass
-    for task in data["tasks"].values():
-        if task.get("review_status") != "running" or task.get("review_idle_notified"):
-            continue
-        try:
-            state = paseo("inspect", task["reviews"][-1], "--json")["Status"]
-            if state in ("idle", "error"):
-                task["review_idle_notified"] = True
-                queue(data, data["lanes"][task["lane"]]["lead"], f"Reviewer {task['reviews'][-1]} is {state} without desk done on {task['id']}. Check its record.")
         except Exception:
             pass
     for letter in data["outbox"]:
@@ -429,7 +337,7 @@ def patrol(root, data):
 
 def parser():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("action", choices=("join", "upgrade", "retire-watcher", "open-lane", "start-task", "done", "start-review", "accept", "rework", "close-lane", "ask", "answer", "raise", "status", "patrol"))
+    p.add_argument("action", choices=("join", "upgrade", "open-lane", "start-task", "done", "accept", "rework", "close-lane", "ask", "answer", "status", "patrol"))
     p.add_argument("--project")
     p.add_argument("--lane")
     p.add_argument("--task")
@@ -441,7 +349,6 @@ def parser():
     p.add_argument("--checks")
     p.add_argument("--round", type=int)
     p.add_argument("--candidate")
-    p.add_argument("--focus")
     p.add_argument("--feedback")
     p.add_argument("--question")
     p.add_argument("--ask")
@@ -452,9 +359,9 @@ def parser():
 def main():
     args = parser().parse_args()
     needed = {"open-lane": ("title", "goal"), "start-task": ("lane", "title", "goal"),
-              "done": ("task", "round", "candidate", "summary", "checks"), "start-review": ("task", "focus"),
+              "done": ("task", "round", "candidate", "summary", "checks"),
               "accept": ("task",), "rework": ("task", "feedback"), "close-lane": ("lane",),
-              "ask": ("question",), "answer": ("ask", "text"), "raise": ("text",), "retire-watcher": ("lane",)}
+              "ask": ("question",), "answer": ("ask", "text")}
     for key in needed.get(args.action, ()):
         if not getattr(args, key):
             raise ValueError(f"{args.action} requires --{key}")

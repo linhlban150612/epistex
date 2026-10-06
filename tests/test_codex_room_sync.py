@@ -177,7 +177,7 @@ command = "other"
         self.assertFalse((self.runtime("lead") / "config.toml").exists())
 
     def test_other_roles_have_distinct_instructions_and_read_only_roles_omit_paseo_mcp(self) -> None:
-        for role in ("supervisor", "reviewer", "watcher"):
+        for role in ("supervisor", "peer"):
             with self.subTest(role=role):
                 result = self.sync(role)
                 self.assertEqual(result.returncode, 0, result.stderr)

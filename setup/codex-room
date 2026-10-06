@@ -4,7 +4,7 @@ set -euo pipefail
 role="${1:?room role is required}"
 shift
 case "$role" in
-  supervisor|lead|peer|reviewer|watcher) ;;
+  supervisor|lead|peer) ;;
   *) printf 'invalid room role: %s\n' "$role" >&2; exit 2 ;;
 esac
 

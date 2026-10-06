@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install 35 independent Paseo role providers and launch profiles."""
+"""Install 21 independent Paseo role providers and launch profiles."""
 
 import json
 import os
@@ -9,7 +9,7 @@ import sys
 import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-ROLES = ("supervisor", "lead", "peer", "reviewer", "watcher")
+ROLES = ("supervisor", "lead", "peer")
 AGENTS = ("claude", "codex", "devin", "pi", "amp", "glm", "droid")
 BASE = {"claude": "claude", "codex": "codex", "devin": "acp", "pi": "pi",
         "amp": "acp", "glm": "acp", "droid": "acp"}
@@ -71,7 +71,7 @@ def main():
         if any(installed.get(key) != value or existing.get(key) != profile
                for (key, value), profile in zip(providers.items(), profiles)):
             raise SystemExit("Epistex providers or profiles missing or changed")
-        print("35 Epistex providers and profiles match; Seatworks is uninstalled")
+        print("21 Epistex providers and profiles match; Seatworks is uninstalled")
         return
     installed.update(providers)
     config["daemon"]["agentProfiles"] = [item for item in current if item["id"] not in providers] + profiles
@@ -88,7 +88,7 @@ def main():
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
-    print("Installed 35 Epistex providers and profiles; backup:", backup)
+    print("Installed 21 Epistex providers and profiles; backup:", backup)
 
 
 if __name__ == "__main__":

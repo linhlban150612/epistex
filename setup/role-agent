@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Start a role-configured agent; prime ACP agents at their first prompt."""
+"""Start a role-configured agent; inject Claude SDK and ACP instructions."""
 
 import json
 import pathlib
@@ -9,9 +9,11 @@ import sys
 import threading
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-ROLES = ("supervisor", "lead", "peer", "reviewer", "watcher")
+ROLES = ("supervisor", "lead", "peer")
 ACP = {
     "devin": ["devin", "acp"],
+    "copilot": ["copilot", "--acp"],
+    "cursor": ["cursor-agent", "acp"],
     "amp": ["amp-acp"],
     "glm": ["npx", "-y", "glm-acp-agent@1.3.0"],
     "droid": ["npx", "-y", "droid@0.179.0", "exec", "--output-format", "acp-daemon"],
@@ -40,20 +42,41 @@ def prime(line: bytes, role: str, seen: set[str]) -> bytes:
     return (json.dumps(message, ensure_ascii=False) + "\n").encode()
 
 
+def prime_claude(line: bytes, instructions: str) -> bytes:
+    try:
+        message = json.loads(line)
+    except (ValueError, UnicodeDecodeError):
+        return line
+    if not isinstance(message, dict) or message.get("type") != "control_request":
+        return line
+    request = message.get("request")
+    if not isinstance(request, dict) or request.get("subtype") != "initialize":
+        return line
+    existing = request.get("appendSystemPrompt") or ""
+    if not isinstance(existing, str):
+        raise ValueError("Claude initialize appendSystemPrompt must be a string")
+    request["appendSystemPrompt"] = existing + ("\n\n" if existing else "") + instructions
+    return (json.dumps(message, ensure_ascii=False) + "\n").encode()
+
+
 def main() -> int:
-    if len(sys.argv) < 3 or sys.argv[1] not in ROLES or sys.argv[2] not in (*ACP, "claude", "pi"):
-        raise SystemExit("usage: role-agent <supervisor|lead|peer|reviewer|watcher> <claude|pi|devin|amp|glm|droid>")
+    if len(sys.argv) < 3 or sys.argv[1] not in ROLES or sys.argv[2] not in (*ACP, "claude", "pi", "omp"):
+        raise SystemExit("usage: role-agent <supervisor|lead|peer> <claude|pi|omp|devin|copilot|cursor|amp|glm|droid>")
     role, agent = sys.argv[1:3]
     instructions = (ROOT / "agents" / f"{role.upper()}.md").read_text()
+    claude_stream = agent == "claude" and any(
+        flag == "--input-format" and value == "stream-json"
+        for flag, value in zip(sys.argv[3:], sys.argv[4:])
+    )
     if agent == "claude":
-        command = ["claude", *sys.argv[3:]] if sys.argv[3:] == ["--version"] else ["claude", "--append-system-prompt", instructions, *sys.argv[3:]]
-    elif agent == "pi":
-        command = ["pi", "--append-system-prompt", str(ROOT / "agents" / f"{role.upper()}.md"), *sys.argv[3:]]
+        command = ["claude", *sys.argv[3:]] if claude_stream or sys.argv[3:] == ["--version"] else ["claude", "--append-system-prompt", instructions, *sys.argv[3:]]
+    elif agent in ("pi", "omp"):
+        command = [agent, "--append-system-prompt", str(ROOT / "agents" / f"{role.upper()}.md"), *sys.argv[3:]]
     else:
         command = [*ACP[agent], *sys.argv[3:]]
     if shutil.which(command[0]) is None:
         raise SystemExit(f"agent executable not found: {command[0]}")
-    if agent in ("claude", "pi"):
+    if agent in ("pi", "omp") or (agent == "claude" and not claude_stream):
         import os
 
         os.execvp(command[0], command)
@@ -71,7 +94,7 @@ def main() -> int:
     seen: set[str] = set()
     try:
         for line in sys.stdin.buffer:
-            child.stdin.write(prime(line, role, seen))
+            child.stdin.write(prime_claude(line, instructions) if claude_stream else prime(line, role, seen))
             child.stdin.flush()
     except BrokenPipeError:
         pass

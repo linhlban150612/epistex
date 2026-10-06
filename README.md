@@ -1,27 +1,34 @@
 # Epistex — standalone agent roles trên Paseo
 
 Epistex là bộ prompt, launcher và CLI điều phối độc lập cho Paseo, không cần cài
-Seatworks. Kit cung cấp **5 role × 7 backend = 35 provider/profile** dưới tên
+Seatworks. Kit cung cấp **3 role × 7 backend = 21 provider/profile** dưới tên
 `epx-<role>-<agent>`, cùng desk lưu assignment, handback và outbox ngoài product repo.
 Luồng hai seat `codex-lead` / `codex-peer` vẫn được hỗ trợ riêng.
 
 | Role | Trách nhiệm | Paseo MCP trong provider |
 |---|---|---|
 | Supervisor | Nhận intent từ Human, mở/đóng lane, nhận câu hỏi và cảnh báo | Bật |
-| Lead | Giao task, chọn review, yêu cầu rework và quyết định acceptance | Bật |
+| Lead | Giao task, yêu cầu rework và quyết định acceptance | Bật |
 | Peer | Triển khai trong owned scope, kiểm chứng và bàn giao | Tắt |
-| Reviewer | Review candidate được giao, trả findings; không acceptance | Tắt |
-| Watcher | Quan sát lane, gửi evidence cho Supervisor và Lead | Tắt |
+
+Lead chỉ điều phối: yêu cầu triển khai của Human mặc định cấp quyền tự giao Peer và
+review/rework trong scope, trừ khi Human giới hạn delegation. Peer là writer duy nhất
+cho implementation, test, config, tài liệu và giải quyết conflict, kể cả việc một dòng.
+Lead đọc, kiểm chứng và accept/rework; Peer bị chặn thì Lead báo blocked, không tự viết thay.
+Yêu cầu read-only không tự cấp quyền tạo agent; delegation không cấp quyền bật desk/patrol,
+đổi model/effort, push hay deploy.
 
 Backend: **Claude, Codex, Devin, Pi, Amp, GLM, Droid**. Codex nạp prompt bằng
-`model_instructions_file`; Claude/Pi dùng native launch instructions. Devin/Amp/GLM/Droid
+`model_instructions_file`; Claude thêm role vào `appendSystemPrompt` của bản tin SDK
+`initialize` khi chạy stream-json, hoặc dùng `--append-system-prompt` ngoài SDK;
+Pi dùng native launch instructions. Devin/Amp/GLM/Droid
 đi qua ACP proxy, thêm role instructions vào prompt đầu tiên của mỗi session trong
 vòng đời proxy — **không phải system prompt**. Droid không hỗ trợ Paseo MCP qua cấu hình này.
 
 Đây là phối hợp giữa các agent cùng Unix user, **không phải OS sandbox**. Read-only và
 owned scope là contract/prompt, không chặn shell tùy ý. Tắt MCP không ngăn tuyệt đối
 agent gọi CLI. Kit không triển khai đầy đủ gate, incident, merge hay permissions engine
-của Seatworks. Kiểm tra cấu hình thành công không chứng minh cả 35 profile launch được.
+của Seatworks. Kiểm tra cấu hình thành công không chứng minh cả 21 profile launch được.
 
 ## Cài standalone profiles
 
@@ -39,7 +46,7 @@ python3 setup/install-profiles.py --check
 ```
 
 Installer đọc file config hiện có tại `~/.paseo/config.json` hoặc `PASEO_CONFIG`, giữ
-provider/profile không thuộc Epistex, cập nhật 35 entry và sao lưu lần đầu sang
+provider/profile không thuộc Epistex, cập nhật 21 entry và sao lưu lần đầu sang
 `<config-file>.epistex-backup`. Nó từ chối nếu config có plugin `seatworks-v2`, không
 gỡ plugin đó thay bạn. `--check` chỉ kiểm prompt/launcher và cấu hình khớp; không đăng
 nhập backend, thử model hay khởi động agent. Installer cũng không tự bật daemon MCP
@@ -59,15 +66,15 @@ paseo reload
 bash setup/setup-seats.sh --check
 ```
 
-`setup-seats.sh` không cài 35 profile và không tự sửa global config; nó kiểm hai provider
+`setup-seats.sh` không cài 21 profile và không tự sửa global config; nó kiểm hai provider
 và đặt executable bit khi không có `--check`. Checker cần thêm `jq`. Mẫu chọn Lead
-`gpt-5.6-sol/low`, Peer `gpt-5.6-luna/low`; standalone Codex Lead/Peer kế thừa các mẫu này,
+`gpt-6.1-sol/low`, Peer `gpt-6-luna/low`; standalone Codex Lead/Peer kế thừa các mẫu này,
 các role/backend khác không được kit pin cùng model. Desk chỉ nhận caller có provider
 `epx-*`, không nhận hai provider `codex-lead` / `codex-peer`.
 
 ## Desk: assignment, handback và review
 
-Supervisor mở lane; desk yêu cầu Paseo tạo Lead trong worktree mới. Peer/Reviewer/Watcher
+Supervisor mở lane; desk yêu cầu Paseo tạo Lead trong worktree mới. Peer
 được route đến workspace của lane. Desk kiểm provider, assignment và CWD của caller;
 không tìm thấy đúng một workspace phù hợp thì dừng thay vì đoán.
 
@@ -76,10 +83,8 @@ Human → Supervisor → open-lane → Lead → start-task → Peer
                                   ↑                  │
                                   └── done + evidence┘
                                   │
-                                  ├─ start-review → Reviewer → done
                                   ├─ rework → Peer (round mới)
                                   └─ accept
-Patrol → Watcher → raise → Supervisor + Lead
 Supervisor → close-lane (không merge/push/deploy)
 ```
 
@@ -87,21 +92,18 @@ Supervisor → close-lane (không merge/push/deploy)
 |---|---|
 | `join`, `open-lane` | Supervisor đăng ký project, mở lane; `--agent` chọn backend cho Lead |
 | `start-task` | Lead tạo một Peer; một task chưa kết thúc giữ writer slot của lane |
-| `done` | Peer hoặc Reviewer hiện được giao bàn giao với `--task`, `--round`, `--candidate`, `--summary`, `--checks` |
-| `start-review` | Lead tạo Reviewer cho round/candidate đã bàn giao; không review moving HEAD |
-| `rework` | Lead tăng round, supersede review cũ, queue brief mới cho Peer |
-| `accept` | Lead nhận task đã bàn giao, không còn review đang chạy; Peer phải idle và được archive trước khi nhả writer slot |
-| `ask`, `answer` | Peer/Reviewer hỏi Lead; Lead hỏi Supervisor; đúng người nhận trả lời |
-| `raise` | Watcher được giao gửi observation tới Supervisor và Lead; không có quyền veto |
+| `done` | Peer hiện được giao bàn giao với `--task`, `--round`, `--candidate`, `--summary`, `--checks` |
+| `rework` | Lead tăng round, queue brief mới cho Peer |
+| `accept` | Lead nhận task đã bàn giao; Peer phải idle và được archive trước khi nhả writer slot |
+| `ask`, `answer` | Peer hỏi Lead; Lead hỏi Supervisor; đúng người nhận trả lời |
 | `close-lane` | Supervisor mở lane đóng nó khi không còn task chưa kết thúc; không merge/land/push/deploy |
 | `upgrade` | Supervisor giữ snapshot task legacy, gán round và quarantine pending mail thiếu scope; không resume work |
-| `retire-watcher` | Supervisor mở lane retire Watcher sai CWD đang idle (hoặc đã archived); patrol sau mới tạo replacement |
 | `status`, `patrol` | Inspect desk / thực hiện một lượt điều phối; không cần caller role |
 
-Peer dừng ghi sau handback và chỉ tiếp tục theo round rework hiện tại. Reviewer phải
-trả đúng candidate của assignment. Desk kiểm identifier khớp, **không tự chứng minh
-commit/checksum tồn tại hay artifact bất biến**. Lead vẫn phải kiểm evidence; review
-không phải gate bắt buộc trong code `accept`. Không có command `cut` hoặc command chung
+Peer dừng ghi sau handback và chỉ tiếp tục theo round rework hiện tại. Desk kiểm
+identifier khớp, **không tự chứng minh
+commit/checksum tồn tại hay artifact bất biến**. Lead vẫn phải kiểm evidence; Human
+review đúng candidate khi risk cao, không có gate review trong code `accept`. Không có command `cut` hoặc command chung
 để reconcile `uncertain` / `accept_uncertain`, dù các state đó xuất hiện trong workflow.
 
 Ví dụ handback trong phiên Peer được desk giao (thay các placeholder):
@@ -132,8 +134,8 @@ systemctl --user status epistex-patrol.timer
 ```
 
 `patrol --project /absolute/project` xử lý một project; không có `--project` thì duyệt
-mọi ledger có project còn tồn tại. Patrol tạo một Codex Watcher cho mỗi lane mở, báo
-Peer/Reviewer idle hoặc lỗi mà chưa handback, gửi mail chỉ khi người nhận idle và loại
+mọi ledger có project còn tồn tại. Patrol báo Lead lỗi/archived và báo
+Peer idle hoặc lỗi mà chưa handback, gửi mail chỉ khi người nhận idle và loại
 bỏ mail có scope task/round/candidate đã lỗi thời. Ledger legacy phải được Supervisor
 `upgrade` trước; patrol từ chối gửi mail khi chưa nâng cấp.
 
@@ -150,8 +152,7 @@ Installer lấy Paseo/Node từ PATH; cần đúng CLI, không phải launcher G
 đường dẫn có khoảng trắng cho installer hiện tại: systemd quoting còn là known issue.
 
 Launch/send bị mất response được đánh dấu uncertain, không tự retry side effect.
-Inspect Paseo trước khi xử lý; không sửa JSON hoặc launch lại mù. `upgrade` và
-`retire-watcher` là recovery có side effect, không phải bước tự động khi đọc status.
+Inspect Paseo trước khi xử lý; không sửa JSON hoặc launch lại mù. `upgrade` là recovery có side effect, không phải bước tự động khi đọc status.
 Không bật lại patrol trên lane cũ chỉ vì unit tests xanh.
 
 ## Codex runtime và resume
@@ -179,7 +180,7 @@ và per-thread worktree CWD là cùng một thứ.
 
 Sync link tài nguyên dùng chung từ canonical home, parse/round-trip TOML, áp prompt
 và tắt `agents.enabled`, `features.multi_agent`, `features.multi_agent_v2`. Với
-Peer/Reviewer/Watcher, nó loại MCP server tên `paseo` khỏi config runtime. Canonical
+Peer, nó loại MCP server tên `paseo` khỏi config runtime. Canonical
 config không bị sửa. Sync giữ private sessions/logs/database, từ chối runtime hoặc
 ancestor symlink và preflight xung đột; **chỉ thay `config.toml` là atomic**, toàn bộ
 link update không phải transaction.
@@ -239,8 +240,8 @@ thông tin live daemon/timer/ledger trong đó là lịch sử, cần inspect l�
 
 | Đường dẫn | Vai trò |
 |---|---|
-| `agents/*.md` | Prompt Supervisor, Lead, Peer, Reviewer, Watcher |
-| `setup/install-profiles.py` | Cài/kiểm 35 standalone provider và profile |
+| `agents/*.md` | Prompt Supervisor, Lead, Peer |
+| `setup/install-profiles.py` | Cài/kiểm 21 standalone provider và profile |
 | `setup/role-agent` | Native launcher Claude/Pi và ACP instruction proxy |
 | `setup/codex-room`, `setup/codex-room-sync` | Chọn runtime/resume và sinh Codex config |
 | `setup/desk.py` | Role routing, ledger, handback, outbox, patrol và recovery hẹp |

@@ -1,9 +1,10 @@
 # Workspace Protocol
 
-> Policy điều phối riêng của một repository. Lead đọc trước khi route task; Peer không cần
-> đọc file này. Giữ policy theo risk của repo, không ghi task-specific file list hoặc model ID
-> có thể lỗi thời. Đây là policy vận hành, không mặc định là product artifact phải commit: nếu
-> repository cấm process document thì giữ file local/ignored hoặc ở nơi Human quản lý.
+> Repository-specific coordination policy. The Lead reads it before routing a task; Peers do
+> not need to read this file. Keep policy proportional to repository risks. Do not include
+> task-specific file lists or model IDs that may become stale. This is an operating policy,
+> not automatically a product artifact to commit. If the repository prohibits process documents,
+> keep this file local/ignored or in a location managed by the Human.
 
 ## Status
 
@@ -11,7 +12,7 @@
 - version: 1
 - last reviewed: YYYY-MM-DD
 - applies to: `<repository-root>`
-- readers: Lead; reviewer governance chỉ khi được giao audit/update
+- readers: Lead
 
 ## Project characteristics
 
@@ -19,62 +20,72 @@
 - dominant risks:
 - expensive-to-reverse decisions:
 - external side effects:
-- canonical docs (nếu có):
-- repository artifacts bị cấm commit:
+- canonical docs (if any):
+- repository artifacts that must not be committed:
 
 ## Authority
 
-Tham chiếu § Authority trong `AGENTS.md`; chỉ ghi quyết định điều phối bổ sung tại đây:
+Refer to Authority in `AGENTS.md`; record only additional coordination decisions here:
 
-- topology/reviewer cần Human duyệt:
+- An implementation request authorizes the Lead to assign a Peer and conduct review/rework
+  within scope, unless the Human limits delegation. A read-only request does not authorize
+  creating agents. If delegation is prohibited, implementation is blocked; the Lead does not
+  take over implementation.
+- topology requiring Human approval:
 
 ## Task classes
 
 ### Tiny / bounded
 
-- Một Engineer, hoặc Lead tự làm nếu tightly coupled.
-- Targeted verification; independent review là tùy chọn.
+- One Peer Engineer holds write authority, including tightly coupled work or a one-line fix.
+- Targeted verification; Human review is optional.
 
 ### Cross-module / lifecycle-sensitive
 
-- Architect read-only trước implementation khi foundation/ownership chưa rõ.
-- Một Engineer giữ một moving write scope; writer song song dùng worktree riêng.
-- Reviewer độc lập falsify đúng stable candidate khi risk yêu cầu.
+- Use a read-only Architect before implementation when foundation or ownership is unclear.
+- One Engineer holds each moving write scope; concurrent writers use separate worktrees.
+- Require Human review of the stable candidate when risk warrants it.
 
 ### Architecture lock-in
 
-- Các lượt tư vấn độc lập nhận brief trung lập và nêu reversal conditions.
-- Lead chốt một project verdict; Human quyết trade-off product/cost khó đảo ngược.
+- Obtain independent advice in neutral briefs and state reversal conditions.
+- The Lead makes one project-level decision (verdict); the Human decides difficult-to-reverse
+  product/cost tradeoffs.
 
 ## Ownership and workspace
 
-- vị trí/quy ước worktree riêng của repo:
+- The Lead coordinates, reads, verifies and accepts or requests rework. The Peer is the sole
+  writer for task artifacts, including tests/configuration/documentation and conflict resolution.
+  If the Peer is blocked, the Lead does not write in their place.
+- This is a role contract, not a filesystem sandbox.
+- repository-specific worktree location/convention:
 - integration owner:
 
 ## Routing
 
-- Discover provider/model đang khả dụng, không hard-code ID dễ lỗi thời.
-- Dùng model/effort Human đã chọn. Task risk chỉ là lý do đề xuất thay đổi; chỉ đổi sau khi
-  Human cho phép, discovery không tự cấp quyền đổi.
-- Paseo quản lý session, parentage, lifecycle và workspace; protocol này quản lý chiến thuật.
+- Discover currently available providers/models; do not hard-code model IDs that may become stale.
+- Use the model/effort selected by the Human. Task risk may justify proposing a change, but change
+  only with Human approval; discovery does not grant authority to switch.
+- Paseo manages sessions, parentage, lifecycle and workspace; this protocol governs tactics.
 
 ## Verification
 
-Lệnh và proof chuẩn nằm trong § Verification của `AGENTS.md`; không sao chép chúng ở đây.
+Canonical commands and proof requirements are in Verification of `AGENTS.md`; do not duplicate
+those here.
 
-- task class → nhóm check bắt buộc/tùy chọn trong `AGENTS.md`:
-- independent-review triggers bổ sung (ngoài gate mặc định của Lead):
-- điều phối lane test/port/DB giữa các agent:
+- task class: required/optional check groups in `AGENTS.md`:
+- additional Human-review triggers (beyond the Lead's default gate):
+- coordination of test/port/DB lanes among agents:
 
 ## Project-specific anti-patterns
 
 - signal:
 - evidence required:
 - allowed response:
-- điều kiện xem xét lại policy:
+- conditions for reconsidering this policy:
 
 ## Evolution
 
-- Chỉ đổi policy khi có causal evidence hoặc architecture/risk của repo thay đổi.
-- Human duyệt thay đổi authority quan trọng; giữ version history và ngày review.
-- Không sinh evidence folder, review packet hay status ledger trong Git chỉ để phục vụ orchestration.
+- Change policy only with causal evidence or changed repository architecture/risk.
+- The Human approves material authority changes; retain version history and review date.
+- Do not create evidence folders, review packets or status ledgers in Git solely for orchestration.

@@ -1,14 +1,15 @@
-# Snippet cho `AGENTS.md` của repo
+# Snippet for a repository's `AGENTS.md`
 
-> `AGENTS.md` là contract chung mà cả Lead và Peer đọc tại repo đích. Chỉ giữ điều khoản có
-> constraint thật; mỗi điều khoản nên có lý do tái hiện được và điều kiện để xem xét lại.
+> `AGENTS.md` is the shared contract that both Lead and Peer read in the target repository. Keep
+> only clauses with a real constraint; each clause should have a reproducible reason and a condition
+> for reconsidering it.
 
 ## Product boundary
 
 - application/domain core:
-- adapter/transport boundary (chỉ dịch protocol, không sở hữu workflow hoặc policy):
+- adapter/transport boundary (translate the protocol only; do not own workflow or policy):
 - execution/runtime boundary:
-- generated/runtime data phải nằm ngoài Git:
+- generated/runtime data must live outside Git:
 
 ## Canonical documentation
 
@@ -17,38 +18,37 @@
 - development / verification:
 - operations:
 
-Chỉ thêm tài liệu mới khi nó không thuộc tài liệu chuẩn nào và không thể đặt cạnh code mà nó mô tả.
+Add new documentation only when it belongs to no canonical document and cannot be placed beside the code it describes.
 
 ## Contract boundary
 
-- seam **đã chốt** (cứ dùng, không hỏi lại):
-- seam **phải quyết trước** khi có test đi qua; chưa quyết thì báo `BLOCKED`:
+- settled seam (use it without asking again):
+- seam that must be decided before a test crosses it; if undecided, report `BLOCKED`:
 
 ## Authority
 
-- được tự quyết thêm:
-- luôn phải hỏi Human:
-- ranh giới môi trường (port, DB, network, dữ liệu):
-- artifact được phép commit / phải giữ ngoài Git:
+- decisions you may make independently:
+- decisions that always require asking the Human:
+- environment boundaries (ports, DB, network, data):
+- artifacts allowed to be committed / required to stay outside Git:
 
 ## Verification
 
-- lệnh cho thay đổi thường:
-- lệnh trước khi Lead accept:
-- bằng chứng cho UX hoặc chất lượng chủ quan:
+- commands for routine changes:
+- commands before the Lead accepts:
+- evidence for UX or other subjective quality:
 
-## Ví dụ điều khoản có trigger review
+## Example clause with a review trigger
 
 ```md
-- Mọi thay đổi chạm `store/migrations/` phải có review độc lập.
-  Lý do: migration từng làm mất dữ liệu dev mà unit test không phát hiện.
-  Trigger review: gỡ khi CI chạy migration trên bản sao dữ liệu đại diện.
+- Any change touching `store/migrations/` requires Human review of the exact candidate.
+  Reason: a migration once destroyed development data without being detected by unit tests.
+  Review trigger: remove this requirement when CI runs migrations against a representative data copy.
 ```
 
-## Rủi ro riêng của repo
+## Repository-specific risks
 
-- quyết định khó đảo ngược:
-- external side effect:
+- hard-to-reverse decisions:
+- external side effects:
 
-Không sao chép persona hoặc schema handoff của seat vào đây. Chỉ bổ sung constraint của repo;
-với client không nạp prompt seat, thêm hướng dẫn cần thiết theo contract riêng của client đó.
+Do not copy a seat's persona or handoff schema here. Add only repository constraints; for a client that does not load seat prompts, include any necessary instructions under that client's own contract.

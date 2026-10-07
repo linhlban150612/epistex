@@ -6,11 +6,11 @@ There is no desk, 21-provider installer, patrol, or `epx-*` profile.
 
 | Role | Responsibility | Paseo MCP in provider |
 |---|---|---|
-| Supervisor | Cross-project observation, opening Leads, and helping the Human; does not receive or review artifacts | Enabled |
+| Supervisor | Cross-project observation, opening Leads, helping the Human, and event-triggered interventions (permissions, cancel, mode); writes, receives, and reviews no artifacts | Enabled |
 | Lead | Assigning tasks, requesting rework, and deciding acceptance | Enabled |
 | Peer | Implementing within owned scope, verification, and handoff | Disabled |
 
-Human implementation requests normally authorize the Lead to assign a Peer and review/rework
+Human implementation requests normally authorize the Lead to assign Peers and review/rework
 within scope, unless the Human limits delegation. The Peer is the sole writer for implementation,
 tests, config, documentation, and conflict resolution, including one-line changes. The Lead reads,
 verifies, and accepts or requests rework; if the Peer is blocked, the Lead reports blocked and does
@@ -65,9 +65,9 @@ Do not put project-specific policy in provider config.
 
 ## Paseo-only workflow
 
-Supervisor observes through Paseo; the Lead owns coordination structure, routing, review, and
-acceptance. The Peer is the sole writer. Supervisor opens a Lead in the project workspace and
-does not create a Peer.
+Supervisor observes through Paseo and acts only on events; the Lead owns coordination structure,
+routing, review, and acceptance. The Peer is the sole writer; there is no dedicated Reviewer agent.
+Supervisor opens a Lead in the project workspace and does not create a Peer.
 
 | Step | Coordination mechanism / owner |
 |---|---|
@@ -75,8 +75,10 @@ does not create a Peer.
 | Assignment | Supervisor opens a Human-authorized Lead with `create_agent(workspaceId=...)`; passes the Supervisor agentId in `initialPrompt` |
 | Implementation | Lead defines scope and creates a Peer through Paseo; Peer is the sole writer |
 | Handoff | Peer sends all six items directly to Lead, including candidate identification details |
-| Review | Lead reads the exact candidate and evidence; complex/review tasks use Dual-Lane review (two read-only Peers on different backends, Lead arbitrates); Human reviews when risk is high |
+| Review | Lead reads the exact candidate and evidence. Complex/review tasks use Dual-Lane review: two read-only Peers (`claude-peer` + `codex-peer`), same neutral brief, unaware of each other; shared findings are high-confidence, divergences get blind cross-critique (at most 2 rounds), Lead arbitrates, no third Peer. Human reviews when risk is high |
 | Rework | Lead sends exactly one `send_agent_prompt` specifying task, round, base SHA, rejected candidate, and feedback |
+| Intervention | Only on an event (notification, Lead question, Human request), Supervisor may use `list_pending_permissions`, `respond_to_permission`, `cancel_agent`, `set_agent_mode`, then tells the owning Lead |
+| Loops / reset | Loops are counted in events, never time. Lead proposes a context reset (archive the stuck agent; a new agent resumes from the frozen base/candidate SHA); only the Human confirms, via Supervisor |
 | Acceptance | Lead decides; Supervisor does not decide in their place |
 | Archiving | Supervisor archives the Lead when the Human confirms the project is closed |
 

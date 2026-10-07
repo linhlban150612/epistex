@@ -8,7 +8,10 @@ Supervisor là observer Paseo-only, cấu hình dưới provider `devin-supervis
 `~/work/SUPERVISOR` phải để trống; `agents/SUPERVISOR.md` xác nhận CWD chính xác rồi
 khám phá workspace/agent/provider/model qua Paseo. Supervisor mở Lead cross-workspace bằng
 `create_agent(workspaceId=...)`, đưa agentId của mình vào initialPrompt để Lead hỏi qua
-`send_agent_prompt`. Supervisor không tạo Peer và không nhận thay Lead.
+`send_agent_prompt`. Supervisor không tạo Peer, không ghi artifact và không nhận thay Lead.
+Chỉ khi có event (notification, câu hỏi của Lead, yêu cầu của Human) Supervisor mới được dùng
+`list_pending_permissions`, `respond_to_permission`, `cancel_agent`, `set_agent_mode`, rồi báo
+Lead sở hữu; không quét agent, không kiểm định kỳ.
 
 Backup và merge vào `.agents.providers`, không thay các backend gốc hay credential/config
 home của chúng. Kiểm executable, auth và discovery của `devin`, `copilot`, `cursor` trước.

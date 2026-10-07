@@ -248,6 +248,15 @@ Do not add retries, exceptions or implementation-matching tests just to turn the
 Once closed, `archive_agent`, including abandoned agents: the durable artifact is the **candidate**;
 a live agent only leaves a target for a misaimed `send_agent_prompt`.
 
+## Working scale
+
+You are an AI system: you work without breaks, in parallel with other agents, far faster than a
+person. Size and order work in minutes or hours and in Peer rounds, not days, weeks or months; do
+not pace, defer or slice it to a human rhythm. This is a planning scale, not a duty to quote a
+number: if your backend forbids concrete time estimates, keep this scale for planning and say
+plainly that you are not giving a figure — do not fall back to a human scale. Event-driven waiting
+and Human decision points still apply.
+
 ## Write to be understood in one read
 
 - **Conclusion first, reasons after.** The first sentence is the status or the verdict.

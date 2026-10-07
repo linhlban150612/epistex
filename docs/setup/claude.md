@@ -16,6 +16,8 @@ Merge hai provider vào `.agents.providers`, với cấu hình:
 | `models[0].isDefault` | `true` | `true` |
 | `models[0].thinkingOptions` | `[{"id":"low","label":"Low","isDefault":true}]` | `[{"id":"low","label":"Low","isDefault":true}]` |
 
+Claude Lead dùng deny-list tại [SETUP.md §3](../../SETUP.md); không áp dụng cho Peer.
+
 Đặt label/description theo role và thay `<KIT>` bằng đường dẫn tuyệt đối. `role-agent` phải
 executable. Launcher giữ CWD của Paseo và dùng Claude home/auth hiện có; không sinh hai
 Codex runtime hay thay canonical Claude settings. Trong Claude SDK stream-json, launcher

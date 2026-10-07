@@ -49,7 +49,8 @@ them for Peer. Supervisor runs only from the empty workspace `~/work/SUPERVISOR`
 checks the exact CWD. Supervisor discovers workspaces, agents, providers, and models through Paseo,
 not a registry.
 
-Lead/Peer Codex and runtime safeguards are described in [SETUP.md](SETUP.md). Run:
+Lead/Peer Codex and runtime safeguards are described in [SETUP.md](SETUP.md); seats on other
+backends, including the Devin Supervisor, are in [docs/setup/](docs/setup/) and linked from it. Run:
 
 ```bash
 bash setup/setup-seats.sh
@@ -74,7 +75,7 @@ does not create a Peer.
 | Assignment | Supervisor opens a Human-authorized Lead with `create_agent(workspaceId=...)`; passes the Supervisor agentId in `initialPrompt` |
 | Implementation | Lead defines scope and creates a Peer through Paseo; Peer is the sole writer |
 | Handoff | Peer sends all six items directly to Lead, including candidate identification details |
-| Review | Lead reads the exact candidate and evidence; Human reviews when risk is high |
+| Review | Lead reads the exact candidate and evidence; complex/review tasks use Dual-Lane review (two read-only Peers on different backends, Lead arbitrates); Human reviews when risk is high |
 | Rework | Lead sends exactly one `send_agent_prompt` specifying task, round, base SHA, rejected candidate, and feedback |
 | Acceptance | Lead decides; Supervisor does not decide in their place |
 | Archiving | Supervisor archives the Lead when the Human confirms the project is closed |
@@ -150,10 +151,23 @@ git diff --check
 ```
 
 Tests use fixtures and temporary config/state; they do not replace auth, model, backend launch,
-actual CWD, or live recovery checks. `HANDOFF.md` records limitations observed historically, but
-does not confirm they still exist; check current code and fixtures before relying on it. Historical
-daemon/timer/ledger information and plans do not describe current state; inspect live state before
-operating.
+actual CWD, or live recovery checks.
+
+### Cautions and known limitations
+
+- All roles run as the same Unix user; scope and tool visibility are not an OS sandbox (see above).
+- Paseo is the sole agent control plane and owns lifecycle and topology; the former desk control
+  plane and patrol installer were removed. Desk, patrol, daemon, timer, ledger, agent-ID and plan
+  details in Git history describe past state only; never treat them as instructions to inspect,
+  mutate, or recover retained external state. Inspect live state before operating.
+- The `setup/codex-room-sync` contracts above (preserve private runtime data and canonical config,
+  disable native multi-agent features, reject ambiguous or symlinked runtimes) are current
+  behaviour, covered by `tests/test_codex_room_sync.py` and `tests/test_codex_room.py`.
+- ACP child-exit handling was a reported limitation: `setup/role-agent` forwards stdin until EOF,
+  so a backend that exits early may surface only on the next input. Not re-reproduced; reproduce
+  against current code before relying on it.
+
+### Key files
 
 | Path | Role |
 |---|---|
@@ -161,7 +175,7 @@ operating.
 | `setup/role-agent` | Native Claude/Pi launcher and ACP instruction proxy |
 | `setup/codex-room`, `setup/codex-room-sync` | Select runtime/resume and generate Codex config |
 | `setup/setup-seats.sh`, `examples/paseo-providers.json` | Three role seats and provider check |
-| `SETUP.md` | Role-seat installation and Codex runtime guide |
+| `SETUP.md` | Setup entry point: common steps, Codex seats, live verification |
+| `docs/setup/*.md` | Backend-specific seats: Claude, Amp, Pi/OMP, Devin/Copilot/Cursor |
 | `examples/AGENTS_MD_SNIPPET.md`, `examples/WORKSPACE_PROTOCOL.md` | Contract/policy templates for target repos |
 | `tests/` | Runtime, role launcher, and seat-checker regression tests |
-| `HANDOFF.md` | Historical checkpoint; not current operating instructions |

@@ -52,6 +52,21 @@ Refer to Authority in `AGENTS.md`; record only additional coordination decisions
 - The Lead makes one project-level decision (verdict); the Human decides difficult-to-reverse
   product/cost tradeoffs.
 
+### Complex / review
+
+- Use when one reviewer's blind spot is costly: a large or cross-cutting candidate, a
+  security- or lifecycle-sensitive change, or a review whose conclusion drives a
+  hard-to-reverse decision.
+- Dual-Lane: the Lead opens two read-only Peers on different backends, `claude-peer` and
+  `codex-peer`, with the same neutral brief on the same frozen candidate; neither knows of
+  the other. If either backend is unavailable, the task is blocked; no substitute, no single lane.
+- Findings both lanes raise independently are high-confidence. Divergences go through blind
+  cross-critique framed as third-party, at most 2 rounds; the Lead remains the final arbiter.
+- No third Peer or tie-breaker. Dual-Lane does not replace Human review triggers. Creating the
+  two Peers needs agent-creation authority: an implementation request, or explicit Human
+  authorization for a read-only review.
+- repository-specific triggers for this class:
+
 ## Ownership and workspace
 
 - The Lead coordinates, reads, verifies and accepts or requests rework. The Peer is the sole

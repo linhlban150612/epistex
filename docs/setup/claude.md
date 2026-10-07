@@ -12,6 +12,8 @@ Merge hai provider vào `.agents.providers`, với cấu hình:
 | `enabled` | `true` | `true` |
 | `env` | `{}` | `{}` |
 | `paseoTools.enabled` | `true` | `false` |
+
+Claude Lead dùng deny-list tại [SETUP.md §3](../../SETUP.md#3-bat-injection-paseo-tools); không áp dụng cho Peer.
 | `models[0].id` | `claude-opus-5-5` | `claude-sonnet-5-5` |
 | `models[0].isDefault` | `true` | `true` |
 | `models[0].thinkingOptions` | `[{"id":"low","label":"Low","isDefault":true}]` | `[{"id":"low","label":"Low","isDefault":true}]` |

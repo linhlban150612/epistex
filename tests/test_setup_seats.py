@@ -8,6 +8,9 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "setup" / "setup-seats.sh"
+CATALOG = set("""archive_agent archive_workspace browser_back browser_click browser_close_tab browser_drag browser_evaluate browser_fill browser_forward browser_hover browser_keypress browser_list_tabs browser_logs browser_navigate browser_new_tab browser_reload browser_resize browser_screenshot browser_scroll browser_select browser_snapshot browser_type browser_upload browser_wait cancel_agent capture_terminal create_agent create_heartbeat create_schedule create_terminal create_workspace delete_heartbeat delete_schedule get_agent_activity get_agent_status inspect_provider inspect_schedule kill_agent kill_terminal list_agents list_models list_pending_permissions list_profiles list_providers list_schedules list_terminals list_workspace_scripts list_workspaces pause_schedule rename_workspace respond_to_permission resume_schedule run_schedule_once schedule_logs send_agent_prompt send_terminal_keys set_agent_mode start_workspace_script stop_workspace_script update_agent update_schedule""".split())
+KEEP = set("""list_agents list_workspaces list_providers list_models create_agent send_agent_prompt get_agent_activity get_agent_status cancel_agent archive_agent list_pending_permissions respond_to_permission set_agent_mode""".split())
+DENY = CATALOG - KEEP
 
 
 class SetupSeatsTest(unittest.TestCase):
@@ -51,6 +54,46 @@ class SetupSeatsTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.config.read_bytes(), before)
         self.assertIn("auth, daemon and launch not checked", result.stdout)
+
+    def test_catalog_partition_and_example_policy(self):
+        self.assertEqual((len(CATALOG), len(KEEP), len(DENY)), (61, 13, 48))
+        self.assertFalse(KEEP & DENY)
+        self.assertEqual(KEEP | DENY, CATALOG)
+        example = json.loads((ROOT / "examples" / "paseo-providers.json").read_text())
+        enabled = [p for p in example.values() if isinstance(p, dict) and p.get("paseoTools", {}).get("enabled") is True]
+        self.assertTrue(enabled)
+        self.assertTrue(all(set(p["paseoTools"]["disabledTools"]) == DENY for p in enabled))
+        import re
+        script = SCRIPT.read_text()
+        match = re.search(r"expected_deny='(\[.*?\])'", script)
+        self.assertIsNotNone(match, "checker deny-list constant not found")
+        self.assertEqual(set(json.loads(match.group(1))), DENY)
+
+    def test_enabled_provider_requires_exact_denylist(self):
+        self.save()
+        result = self.run_check("--check")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for edit, name in (
+            ("remove", "missing member"),
+            ("add", "keep member"),
+        ):
+            with self.subTest(name=name):
+                tools = self.data["agents"]["providers"]["codex-lead"]["paseoTools"]["disabledTools"]
+                if edit == "remove":
+                    tools.remove("create_heartbeat")
+                else:
+                    tools.append("list_agents")
+                self.save()
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("codex-lead", result.stderr)
+                # Restore from the canonical fixture before the next case.
+                self.data["agents"]["providers"]["codex-lead"]["paseoTools"]["disabledTools"] = sorted(DENY)
+        del self.data["agents"]["providers"]["codex-lead"]["paseoTools"]["disabledTools"]
+        self.save()
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("codex-lead", result.stderr)
 
     def test_default_codex_on_isolated_path(self):
         self.save()

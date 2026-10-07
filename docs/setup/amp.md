@@ -15,6 +15,8 @@ Merge hai provider vào `.agents.providers`, không thay provider `amp-acp` hi�
 | `enabled` | `true` | `true` |
 | `env` | `{}` | `{}` |
 | `paseoTools.enabled` | `true` | `false` |
+
+Amp Lead dùng deny-list tại [SETUP.md §3](../../SETUP.md#3-bat-injection-paseo-tools); không áp dụng cho Peer.
 | `models[0].id` | `medium` | `low` |
 | `models[0].label` | `Medium` | `Low` |
 | `models[0].isDefault` | `true` | `true` |

@@ -25,6 +25,8 @@ Giữ MCP injection bật ở daemon; Supervisor và Devin Lead expose Paseo too
 | `copilot-peer` | `["<KIT>/setup/role-agent","peer","copilot"]` | `gpt-6-luna` | `medium` | Tắt |
 | `cursor-peer` | `["<KIT>/setup/role-agent","peer","cursor"]` | `composer-2.5[fast=true]` | Không có | Tắt |
 
+Devin Lead và Supervisor dùng deny-list tại [SETUP.md §3](../../SETUP.md#3-bat-injection-paseo-tools).
+
 Cả năm entry dùng `extends: "acp"`, `enabled: true`, `env: {}` và `paseoTools.enabled`
 theo bảng. Đặt `models: [{"id":"<MODEL>","label":"<LABEL>","isDefault":true}]`; với
 Devin/Copilot thêm `thinkingOptions: [{"id":"<EFFORT>","label":"<LABEL>","isDefault":true}]`

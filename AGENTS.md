@@ -10,9 +10,11 @@
 
 ## Canonical documentation
 
-- `README.md`: product boundaries and supported workflows.
-- `SETUP.md`: role-seat installation and live verification.
-- `HANDOFF.md`: historical checkpoint and known limitations; inspect live state before relying on it.
+- `README.md`: product boundaries, supported workflows and known limitations; inspect live state
+  before relying on history.
+- `SETUP.md`: role-seat installation entry point and live verification.
+- `docs/setup/claude.md`, `docs/setup/amp.md`, `docs/setup/pi-omp.md`,
+  `docs/setup/devin-copilot-cursor.md`: backend-specific role-seat setup.
 
 ## Authority and repository hygiene
 

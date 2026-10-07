@@ -3,48 +3,14 @@
 Điểm vào chung: bước 1–8 cài hai seat Codex (Lead/Peer) và kiểm launch thật. Mỗi backend khác
 dùng lại các bước chung này, rồi theo file riêng:
 
+Chi tiết chọn project/runtime, tiền đề và kiểm cô lập nằm trong [hướng dẫn runtime Codex](docs/setup/codex-runtime.md) (các bước 1, 2, 7).
+
 | Backend | Hướng dẫn |
 |---|---|
 | Claude Lead/Peer | [docs/setup/claude.md](docs/setup/claude.md) |
 | Amp Lead/Peer qua ACP | [docs/setup/amp.md](docs/setup/amp.md) |
 | Pi Peer, OMP Peer | [docs/setup/pi-omp.md](docs/setup/pi-omp.md) |
 | Devin Supervisor/Lead/Peer, Copilot Peer, Cursor Peer qua ACP | [docs/setup/devin-copilot-cursor.md](docs/setup/devin-copilot-cursor.md) |
-
-## 1. Đặt kit và project ở đường dẫn ổn định
-
-`<KIT>` là đường dẫn tuyệt đối tới thư mục `epistex`; `<PROJECT>` là repository mà các seat làm
-việc. Paseo daemon phải chạy dưới đúng user sở hữu Codex home và project. Mặc định provider dùng
-working directory của workspace Paseo; chỉ đặt `EPISTEX_PROJECT_ROOT` để cố định provider vào một
-project, không giữ đường dẫn repo cũ. Codex chạy tại launcher/worktree CWD; thư mục con và linked
-worktree của cùng repo Git dùng chung runtime, còn ngoài Git mỗi CWD tuyệt đối là một project riêng.
-
-Session tạo từ thư mục con/worktree/project khác chỉ resume được bằng UUID tường minh
-(`codex resume <UUID>`, `codex exec resume <UUID>`, alias `e resume <UUID>`; options đặt sau UUID).
-Picker, tên session, `--last` và app-server chỉ thấy runtime của project hiện tại. Quy tắc chọn
-runtime theo UUID: [README.md § Codex runtime and resume](README.md#codex-runtime-and-resume).
-
-## 2. Kiểm tiền đề
-
-```bash
-bash --version
-python3 --version # cần 3.11+ để kiểm TOML
-jq --version
-codex --version
-paseo daemon status --json
-```
-
-Codex home chuẩn mặc định là `~/.codex`; nếu credential/config thật nằm nơi khác, khai
-`EPISTEX_CODEX_HOME` trong `env` của các Codex provider. Biến cũ `SEATWORKS_PROJECT_ROOT`,
-`SEATWORKS_CODEX_HOME` vẫn được đọc; biến `EPISTEX_*` tương ứng luôn ưu tiên. Runtime cũ dưới
-`~/.codex-runtime/seatworks` chỉ được dùng tại chỗ khi là kết quả duy nhất phù hợp; không có
-migration, dữ liệu cũ không bị xóa; nhiều runtime cũ/mới cùng phù hợp thì launch dừng.
-
-Dual-Lane review (task class complex/review) cần cả `claude-peer` lẫn `codex-peer`; cài thêm
-`claude-peer` theo [docs/setup/claude.md](docs/setup/claude.md). Thiếu một lane thì Lead báo
-`BLOCKED`, không chạy một lane hay đổi backend.
-
-Linux Desktop: nếu `paseo` là symlink tới `/opt/Paseo/Paseo` và `paseo run` mở GUI, dùng launcher
-đi kèm `/opt/Paseo/resources/bin/paseo` cho các lệnh CLI; không cần đổi symlink hay restart daemon.
 
 ## 3. Bật injection Paseo tools
 
@@ -105,25 +71,6 @@ sai model, effort hay quyền tools; nó cần Bash, jq, Python 3.11+, dirname, 
 `${CODEX_BIN:-codex}`, không cần Paseo trên PATH. `PASEO_HOME`/`PASEO_CONFIG` chọn config khác vị
 trí mặc định; nếu dùng `CODEX_BIN`, đặt cùng giá trị cho checker và các provider. Kết quả hợp lệ
 không chứng minh auth, daemon, model khả dụng hay launch thành công: đó là bước 2 và bước 7.
-
-## 7. Chứng minh cô lập
-
-Khởi động một agent `codex-peer`, yêu cầu nó in dòng đầu prompt role đang đọc; kết quả phải là
-`# Peer — independent co-worker`. Làm tương tự với `codex-lead`, kết quả bắt đầu bằng `# Lead`.
-Kiểm thêm `find ~/.codex-runtime/epistex -maxdepth 3 -name config.toml`.
-
-Hai role phải có runtime riêng. `auth.json`, `skills`, `plugins` là symlink; `config.toml` là bản
-generated riêng chứa `model_instructions_file` trỏ về prompt trong kit, với `[agents].enabled`,
-`[features].multi_agent` và `[features].multi_agent_v2` đều `false`: Paseo là chủ duy nhất của
-topology. TOML không hợp lệ hoặc sai kiểu bảng policy làm launch thất bại trước khi đổi runtime.
-Bản generated dùng inline tables, không giữ comment/format, giữ nguyên giá trị ngoài policy (kể cả
-chuỗi nhiều dòng); file canonical không bị sửa. Sync không xóa private state, từ chối runtime hoặc
-thư mục cha là symlink; chỉ thay `config.toml` là atomic, lỗi I/O hoặc thay đổi đồng thời có thể để
-lại một phần links đã đổi (chi tiết: [README.md](README.md#codex-runtime-and-resume)).
-
-Đây là tách state và quyền MCP, không phải sandbox chống agent độc hại: các role chạy cùng Unix
-user, chia sẻ skills/plugins và vẫn có shell. Peer bị cấm gọi Paseo theo prompt; việc ẩn Paseo MCP
-không ngăn tuyệt đối một shell gọi CLI.
 
 ## 8. Vận hành
 

@@ -1,5 +1,6 @@
 import json
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -63,7 +64,6 @@ class SetupSeatsTest(unittest.TestCase):
         enabled = [p for p in example.values() if isinstance(p, dict) and p.get("paseoTools", {}).get("enabled") is True]
         self.assertTrue(enabled)
         self.assertTrue(all(set(p["paseoTools"]["disabledTools"]) == DENY for p in enabled))
-        import re
         script = SCRIPT.read_text()
         match = re.search(r"expected_deny='(\[.*?\])'", script)
         self.assertIsNotNone(match, "checker deny-list constant not found")

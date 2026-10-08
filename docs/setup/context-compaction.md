@@ -9,7 +9,7 @@ with the Lead.
 | Agent (verified version) | Mechanism | Scope | Effective threshold | Status |
 |---|---|---|---|---|
 | Codex 0.161.0, all roles | `model_auto_compact_token_limit=100000` in generated room TOML | Project/role runtime only | 100,000 | Configured in sync; CLI update blocked by the no-`~/.codex`-writes constraint |
-| Claude 2.1.286, all enabled Claude seats + Peer | `CLAUDE_CODE_AUTO_COMPACT_WINDOW=100000` | Epistex role-provider env | 100k window; backend buffer may trigger earlier | Configured in example for Peer/Supervisor; live edit blocked by Peer seat policy |
+| Claude 2.1.294, all enabled Claude seats + Peer | `CLAUDE_CODE_AUTO_COMPACT_WINDOW=100000` | Epistex role-provider env | 100k window; backend buffer may trigger earlier | Configured in example for Peer/Supervisor and applied live on all three Claude seats; Paseo launch probe on 2.1.294 showed the env value `100000` in the Claude process |
 | Pi 1.1.0, Peer | `.pi/settings.json`, per-model `reserveTokens` | Checkout | 100,000 for the five sourced pins below | Configured; Haiku window unknown — skipped (default compaction) |
 | OMP 18.8.4, Peer | `.omp/config.yml`, `compaction.enabled=true`, `thresholdTokens=100000` | Checkout | 100,000 (clamped below model window) | Configured; use `/home/linhlb/.bun/bin/omp`, not stale `~/.local/bin/omp` |
 | Copilot 1.0.93, Peer | Proposed `COPILOT_BACKGROUND_COMPACTION_THRESHOLD=0.5` | Would be role-provider env | Not applied | Blocked: no installed-binary/help evidence for this variable; no env or checker requirement added |

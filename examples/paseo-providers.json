@@ -814,6 +814,40 @@
           "enabled": false
         },
         "enabled": true
+      },
+      "agy-peer": {
+        "extends": "acp",
+        "label": "Antigravity Peer Seat",
+        "description": "Peer — implementation, evidence and handoff",
+        "command": [
+          "<KIT>/setup/role-agent",
+          "peer",
+          "agy"
+        ],
+        "env": {
+          "AGY_EXTRA_ARGS": "--mode accept-edits"
+        },
+        "enabled": true,
+        "paseoTools": {
+          "enabled": false
+        },
+        "models": [
+          {
+            "id": "gemini-3.1-pro-high",
+            "label": "Gemini 3.1 Pro (High)",
+            "isDefault": true
+          },
+          {
+            "id": "gemini-3.8-flash-high",
+            "label": "Gemini 3.8 Flash (High)",
+            "isDefault": false
+          },
+          {
+            "id": "claude-opus-4-6-thinking",
+            "label": "Claude Opus 4.6 (Thinking)",
+            "isDefault": false
+          }
+        ]
       }
     }
   },
@@ -1103,6 +1137,27 @@
         "model": "claude-sonnet-5.5",
         "thinkingOptionId": "medium",
         "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "agy-peer--gemini-3.1-pro-high",
+        "name": "agy-peer · gemini-3.1-pro-high",
+        "provider": "agy-peer",
+        "model": "gemini-3.1-pro-high",
+        "notes": "Peer: Antigravity CLI via ACP. Orchestrator must copy provider and model into create_agent; thinking effort is baked into the model ID."
+      },
+      {
+        "id": "agy-peer--gemini-3.8-flash-high",
+        "name": "agy-peer · gemini-3.8-flash-high",
+        "provider": "agy-peer",
+        "model": "gemini-3.8-flash-high",
+        "notes": "Peer: Antigravity CLI via ACP. Orchestrator must copy provider and model into create_agent; thinking effort is baked into the model ID."
+      },
+      {
+        "id": "agy-peer--claude-opus-4-6-thinking",
+        "name": "agy-peer · claude-opus-4-6-thinking",
+        "provider": "agy-peer",
+        "model": "claude-opus-4-6-thinking",
+        "notes": "Peer: Antigravity CLI via ACP. Orchestrator must copy provider and model into create_agent; thinking effort is baked into the model ID."
       }
     ]
   }

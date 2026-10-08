@@ -151,11 +151,27 @@ else
         .thinkingOptionId == $effort)
     ' "$paseo_config" >/dev/null || fail "omp-peer: missing or wrong GPT-6 Luna $effort profile"
   done
+  jq -e --arg command "$kit/setup/role-agent" '
+    .agents.providers["agy-peer"] as $p |
+    $p.extends == "acp" and $p.enabled == true and
+    $p.label == "Antigravity Peer Seat" and
+    $p.command == [$command, "peer", "agy"] and
+    $p.paseoTools.enabled == false and
+    $p.env.AGY_EXTRA_ARGS == "--mode accept-edits" and
+    ([ $p.models[] | select(.id == "gemini-3.1-pro-high" and .isDefault == true) ] | length) == 1 and
+    ([ $p.models[].id ] | sort) == ["claude-opus-4-6-thinking", "gemini-3.1-pro-high", "gemini-3.8-flash-high"]
+  ' "$paseo_config" >/dev/null || fail 'agy-peer: wrong launcher, permissions or model pins'
+  for model in gemini-3.1-pro-high gemini-3.8-flash-high claude-opus-4-6-thinking; do
+    jq -e --arg model "$model" '
+      [.daemon.agentProfiles[]? | select(.id == ("agy-peer--" + $model))] |
+      length == 1 and all(.[]; .provider == "agy-peer" and .model == $model and (has("thinkingOptionId") | not))
+    ' "$paseo_config" >/dev/null || fail "agy-peer: missing or wrong $model profile"
+  done
   jq -e '
     [.daemon.agentProfiles[]? as $p |
       .agents.providers[$p.provider] as $seat |
       select(($seat | type) != "object" or $seat.enabled != true or
-        (($p.provider | test("^(codex|claude|amp|pi|omp|copilot)-")) | not) or
+        (($p.provider | test("^(codex|claude|amp|agy|pi|omp|copilot)-")) | not) or
         (([ $seat.models[]?.id ] | index($p.model)) == null) or
         (if any($seat.models[]?; .id == $p.model and has("thinkingOptions"))
          then (($p | has("thinkingOptionId")) | not) or

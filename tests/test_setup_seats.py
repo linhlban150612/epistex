@@ -44,6 +44,7 @@ class SetupSeatsTest(unittest.TestCase):
             providers[f"codex-{role}"]["command"] = [str(self.kit / "setup" / "codex-room"), role]
         providers["devin-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "devin"]
         providers["amp-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "amp"]
+        providers["agy-peer"]["command"] = [str(self.kit / "setup" / "role-agent"), "peer", "agy"]
         providers["claude-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "claude"]
         providers["codex-supervisor"]["command"] = [str(self.kit / "setup" / "codex-room"), "supervisor"]
         profiles = example["daemon"]["agentProfiles"]
@@ -143,12 +144,12 @@ class SetupSeatsTest(unittest.TestCase):
             if provider.get("paseoTools", {}).get("enabled") is True:
                 expected = DENY_SUPERVISOR if key.endswith("-supervisor") else DENY_LEAD
                 self.assertEqual(set(provider["paseoTools"]["disabledTools"]), expected, key)
-        self.assertEqual(len(example["daemon"]["agentProfiles"]), 36)
+        self.assertEqual(len(example["daemon"]["agentProfiles"]), 39)
         counts = Counter(p["provider"] for p in example["daemon"]["agentProfiles"])
         self.assertEqual(counts, Counter({"amp-peer": 1, "amp-supervisor": 2,
             "claude-peer": 2, "claude-supervisor": 1, "codex-peer": 2,
             "codex-supervisor": 2, "copilot-peer": 10, "omp-peer": 8,
-            "pi-peer": 8}))
+            "pi-peer": 8, "agy-peer": 3}))
         script = SCRIPT.read_text()
         match = re.search(r"expected_deny_lead='(\[.*?\])'", script)
         self.assertIsNotNone(match, "checker deny-list constant not found")
@@ -187,6 +188,24 @@ class SetupSeatsTest(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(f"omp-peer: missing or wrong GPT-6 Luna {effort} profile", result.stderr)
                 self.data["daemon"]["agentProfiles"].append(profile)
+
+    def test_agy_peer_requires_models_permissions_and_profiles(self):
+        provider = self.data["agents"]["providers"]["agy-peer"]
+        self.save()
+        result = self.run_check("--check")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        provider["env"]["AGY_EXTRA_ARGS"] = "--dangerously-skip-permissions"
+        self.save()
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("agy-peer: wrong launcher, permissions or model pins", result.stderr)
+        provider["env"]["AGY_EXTRA_ARGS"] = "--mode accept-edits"
+        profile = next(p for p in self.data["daemon"]["agentProfiles"] if p["id"] == "agy-peer--gemini-3.8-flash-high")
+        self.data["daemon"]["agentProfiles"].remove(profile)
+        self.save()
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("agy-peer: missing or wrong gemini-3.8-flash-high profile", result.stderr)
 
     def test_enabled_provider_requires_exact_denylist(self):
         self.save()

@@ -240,7 +240,7 @@ Before closing:
 - [ ] If a Review gate condition applies: the Human reviewed that exact candidate
 - [ ] Does the candidate introduce a new public symbol/contract, and **who** decides it
 - [ ] Every unresolved finding has one line in the accept summary
-- [ ] No forgotten temporary schedule/heartbeat left behind (`list_schedules`)
+- [ ] No temporary schedule/heartbeat created this round
 
 If a fix is needed, trace it to the layer that produced the deviation before patching the symptom.
 Do not add retries, exceptions or implementation-matching tests just to turn the signal green.

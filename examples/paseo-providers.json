@@ -1,191 +1,1088 @@
 {
   "_doc": [
-    "Merge the three entries into .agents.providers; remove _doc and replace <KIT> with the absolute path.",
+    "Merge the role-seat entries under agents.providers into the existing Paseo config; remove _doc and replace <KIT> with the absolute path.",
     "Lead/Peer use the project workspace. Supervisor uses ~/work/SUPERVISOR and must check its CWD.",
-    "Credentials are shared from ~/.codex or EPISTEX_CODEX_HOME."
+    "Credentials are shared from ~/.codex or EPISTEX_CODEX_HOME.",
+    "Profiles live under daemon.agentProfiles; see SETUP.md. Profiles contain model selection only, not role prompts."
   ],
-  "codex-lead": {
-    "extends": "codex",
-    "label": "Codex Lead Seat",
-    "description": "Lead \u2014 framing, delegation, review and acceptance",
-    "command": [
-      "<KIT>/setup/codex-room",
-      "lead"
-    ],
-    "env": {},
-    "enabled": true,
-    "paseoTools": {
-      "enabled": true,
-      "disabledTools": [
-        "archive_workspace",
-        "browser_back",
-        "browser_click",
-        "browser_close_tab",
-        "browser_drag",
-        "browser_evaluate",
-        "browser_fill",
-        "browser_forward",
-        "browser_hover",
-        "browser_keypress",
-        "browser_list_tabs",
-        "browser_logs",
-        "browser_navigate",
-        "browser_new_tab",
-        "browser_reload",
-        "browser_resize",
-        "browser_screenshot",
-        "browser_scroll",
-        "browser_select",
-        "browser_snapshot",
-        "browser_type",
-        "browser_upload",
-        "browser_wait",
-        "capture_terminal",
-        "create_heartbeat",
-        "create_schedule",
-        "create_terminal",
-        "create_workspace",
-        "delete_heartbeat",
-        "delete_schedule",
-        "inspect_provider",
-        "inspect_schedule",
-        "kill_agent",
-        "kill_terminal",
-        "list_profiles",
-        "list_schedules",
-        "list_terminals",
-        "list_workspace_scripts",
-        "pause_schedule",
-        "rename_workspace",
-        "resume_schedule",
-        "run_schedule_once",
-        "schedule_logs",
-        "send_terminal_keys",
-        "start_workspace_script",
-        "stop_workspace_script",
-        "update_agent",
-        "update_schedule"
-      ]
-    },
-    "models": [
-      {
-        "id": "gpt-6.1-sol",
-        "label": "GPT-6.1 Sol",
-        "isDefault": true,
-        "thinkingOptions": [
+  "agents": {
+    "providers": {
+      "codex-lead": {
+        "extends": "codex",
+        "label": "Codex Lead Seat",
+        "description": "Lead — framing, delegation, review and acceptance",
+        "command": [
+          "<KIT>/setup/codex-room",
+          "lead"
+        ],
+        "env": {},
+        "enabled": true,
+        "paseoTools": {
+          "enabled": true,
+          "disabledTools": [
+            "archive_workspace",
+            "browser_back",
+            "browser_click",
+            "browser_close_tab",
+            "browser_drag",
+            "browser_evaluate",
+            "browser_fill",
+            "browser_forward",
+            "browser_hover",
+            "browser_keypress",
+            "browser_list_tabs",
+            "browser_logs",
+            "browser_navigate",
+            "browser_new_tab",
+            "browser_reload",
+            "browser_resize",
+            "browser_screenshot",
+            "browser_scroll",
+            "browser_select",
+            "browser_snapshot",
+            "browser_type",
+            "browser_upload",
+            "browser_wait",
+            "capture_terminal",
+            "create_heartbeat",
+            "create_schedule",
+            "create_terminal",
+            "create_workspace",
+            "delete_heartbeat",
+            "delete_schedule",
+            "inspect_provider",
+            "inspect_schedule",
+            "kill_agent",
+            "kill_terminal",
+            "list_schedules",
+            "list_terminals",
+            "list_workspace_scripts",
+            "pause_schedule",
+            "rename_workspace",
+            "resume_schedule",
+            "run_schedule_once",
+            "schedule_logs",
+            "send_terminal_keys",
+            "start_workspace_script",
+            "stop_workspace_script",
+            "update_agent",
+            "update_schedule"
+          ]
+        },
+        "models": [
           {
-            "id": "low",
-            "label": "Low",
-            "isDefault": true
+            "id": "gpt-6.1-sol",
+            "label": "GPT-6.1 Sol",
+            "isDefault": true,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              }
+            ]
           }
         ]
-      }
-    ]
-  },
-  "codex-peer": {
-    "extends": "codex",
-    "label": "Codex Peer Seat",
-    "description": "Peer \u2014 implementation, evidence and handoff",
-    "command": [
-      "<KIT>/setup/codex-room",
-      "peer"
-    ],
-    "env": {},
-    "enabled": true,
-    "paseoTools": {
-      "enabled": false
-    },
-    "models": [
-      {
-        "id": "gpt-6-luna",
-        "label": "GPT-6 Luna",
-        "isDefault": true,
-        "thinkingOptions": [
+      },
+      "codex-peer": {
+        "extends": "codex",
+        "label": "Codex Peer Seat",
+        "description": "Peer — implementation, evidence and handoff",
+        "command": [
+          "<KIT>/setup/codex-room",
+          "peer"
+        ],
+        "env": {},
+        "enabled": true,
+        "paseoTools": {
+          "enabled": false
+        },
+        "models": [
           {
-            "id": "low",
-            "label": "Low",
-            "isDefault": true
+            "id": "gpt-6-luna",
+            "label": "GPT-6 Luna",
+            "isDefault": true,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "id": "gpt-6.1-sol",
+            "label": "GPT-6.1 Sol",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
           }
         ]
-      }
-    ]
-  },
-  "devin-supervisor": {
-    "extends": "acp",
-    "label": "Devin Supervisor Seat",
-    "description": "Supervisor \u2014 Paseo-only cross-project observer",
-    "command": [
-      "<KIT>/setup/role-agent",
-      "supervisor",
-      "devin"
-    ],
-    "env": {},
-    "enabled": true,
-    "paseoTools": {
-      "enabled": true,
-      "disabledTools": [
-        "archive_workspace",
-        "browser_back",
-        "browser_click",
-        "browser_close_tab",
-        "browser_drag",
-        "browser_evaluate",
-        "browser_fill",
-        "browser_forward",
-        "browser_hover",
-        "browser_keypress",
-        "browser_list_tabs",
-        "browser_logs",
-        "browser_navigate",
-        "browser_new_tab",
-        "browser_reload",
-        "browser_resize",
-        "browser_screenshot",
-        "browser_scroll",
-        "browser_select",
-        "browser_snapshot",
-        "browser_type",
-        "browser_upload",
-        "browser_wait",
-        "capture_terminal",
-        "create_heartbeat",
-        "create_schedule",
-        "create_terminal",
-        "create_workspace",
-        "delete_heartbeat",
-        "delete_schedule",
-        "inspect_provider",
-        "inspect_schedule",
-        "kill_agent",
-        "kill_terminal",
-        "list_profiles",
-        "list_schedules",
-        "list_terminals",
-        "list_workspace_scripts",
-        "pause_schedule",
-        "rename_workspace",
-        "resume_schedule",
-        "run_schedule_once",
-        "schedule_logs",
-        "send_terminal_keys",
-        "start_workspace_script",
-        "stop_workspace_script",
-        "update_agent",
-        "update_schedule"
-      ]
-    },
-    "models": [
-      {
-        "id": "fusion-claude-fable-5-1-medium-sidekick-swe-2-medium",
-        "label": "Fusion (Claude Fable 5.1 Medium + SWE-2 Medium)",
-        "isDefault": true,
-        "thinkingOptions": [
+      },
+      "devin-supervisor": {
+        "extends": "acp",
+        "label": "Devin Supervisor Seat",
+        "description": "Supervisor — Paseo-only cross-project observer",
+        "command": [
+          "<KIT>/setup/role-agent",
+          "supervisor",
+          "devin"
+        ],
+        "env": {},
+        "enabled": true,
+        "paseoTools": {
+          "enabled": true,
+          "disabledTools": [
+            "archive_workspace",
+            "browser_back",
+            "browser_click",
+            "browser_close_tab",
+            "browser_drag",
+            "browser_evaluate",
+            "browser_fill",
+            "browser_forward",
+            "browser_hover",
+            "browser_keypress",
+            "browser_list_tabs",
+            "browser_logs",
+            "browser_navigate",
+            "browser_new_tab",
+            "browser_reload",
+            "browser_resize",
+            "browser_screenshot",
+            "browser_scroll",
+            "browser_select",
+            "browser_snapshot",
+            "browser_type",
+            "browser_upload",
+            "browser_wait",
+            "capture_terminal",
+            "create_heartbeat",
+            "create_schedule",
+            "create_terminal",
+            "create_workspace",
+            "delete_heartbeat",
+            "delete_schedule",
+            "inspect_provider",
+            "inspect_schedule",
+            "kill_agent",
+            "kill_terminal",
+            "list_schedules",
+            "list_terminals",
+            "list_workspace_scripts",
+            "pause_schedule",
+            "rename_workspace",
+            "resume_schedule",
+            "run_schedule_once",
+            "schedule_logs",
+            "send_terminal_keys",
+            "start_workspace_script",
+            "stop_workspace_script",
+            "update_agent",
+            "update_schedule"
+          ]
+        },
+        "models": [
+          {
+            "id": "fusion-claude-fable-5-1-medium-sidekick-swe-2-medium",
+            "label": "Fusion (Claude Fable 5.1 Medium + SWE-2 Medium)",
+            "isDefault": true,
+            "thinkingOptions": [
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": true
+              }
+            ]
+          }
+        ]
+      },
+      "amp-supervisor": {
+        "extends": "acp",
+        "label": "Amp Supervisor Seat",
+        "description": "Supervisor — task orchestration; careful work",
+        "command": [
+          "<KIT>/setup/role-agent",
+          "supervisor",
+          "amp"
+        ],
+        "env": {},
+        "enabled": true,
+        "models": [
+          {
+            "id": "medium",
+            "label": "Medium",
+            "isDefault": true
+          },
+          {
+            "id": "high",
+            "label": "High",
+            "isDefault": false
+          }
+        ],
+        "paseoTools": {
+          "enabled": true,
+          "disabledTools": [
+            "archive_workspace",
+            "browser_back",
+            "browser_click",
+            "browser_close_tab",
+            "browser_drag",
+            "browser_evaluate",
+            "browser_fill",
+            "browser_forward",
+            "browser_hover",
+            "browser_keypress",
+            "browser_list_tabs",
+            "browser_logs",
+            "browser_navigate",
+            "browser_new_tab",
+            "browser_reload",
+            "browser_resize",
+            "browser_screenshot",
+            "browser_scroll",
+            "browser_select",
+            "browser_snapshot",
+            "browser_type",
+            "browser_upload",
+            "browser_wait",
+            "capture_terminal",
+            "create_heartbeat",
+            "create_schedule",
+            "create_terminal",
+            "create_workspace",
+            "delete_heartbeat",
+            "delete_schedule",
+            "inspect_provider",
+            "inspect_schedule",
+            "kill_agent",
+            "kill_terminal",
+            "list_schedules",
+            "list_terminals",
+            "list_workspace_scripts",
+            "pause_schedule",
+            "rename_workspace",
+            "resume_schedule",
+            "run_schedule_once",
+            "schedule_logs",
+            "send_terminal_keys",
+            "start_workspace_script",
+            "stop_workspace_script",
+            "update_agent",
+            "update_schedule"
+          ]
+        }
+      },
+      "claude-supervisor": {
+        "extends": "claude",
+        "label": "Claude Supervisor Seat",
+        "description": "Supervisor — task orchestration; careful work",
+        "command": [
+          "<KIT>/setup/role-agent",
+          "supervisor",
+          "claude"
+        ],
+        "env": {},
+        "enabled": true,
+        "models": [
+          {
+            "id": "claude-fable-5-1",
+            "label": "Fable 5.1",
+            "isDefault": true,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          }
+        ],
+        "paseoTools": {
+          "enabled": true,
+          "disabledTools": [
+            "archive_workspace",
+            "browser_back",
+            "browser_click",
+            "browser_close_tab",
+            "browser_drag",
+            "browser_evaluate",
+            "browser_fill",
+            "browser_forward",
+            "browser_hover",
+            "browser_keypress",
+            "browser_list_tabs",
+            "browser_logs",
+            "browser_navigate",
+            "browser_new_tab",
+            "browser_reload",
+            "browser_resize",
+            "browser_screenshot",
+            "browser_scroll",
+            "browser_select",
+            "browser_snapshot",
+            "browser_type",
+            "browser_upload",
+            "browser_wait",
+            "capture_terminal",
+            "create_heartbeat",
+            "create_schedule",
+            "create_terminal",
+            "create_workspace",
+            "delete_heartbeat",
+            "delete_schedule",
+            "inspect_provider",
+            "inspect_schedule",
+            "kill_agent",
+            "kill_terminal",
+            "list_schedules",
+            "list_terminals",
+            "list_workspace_scripts",
+            "pause_schedule",
+            "rename_workspace",
+            "resume_schedule",
+            "run_schedule_once",
+            "schedule_logs",
+            "send_terminal_keys",
+            "start_workspace_script",
+            "stop_workspace_script",
+            "update_agent",
+            "update_schedule"
+          ]
+        }
+      },
+      "codex-supervisor": {
+        "extends": "codex",
+        "label": "Codex Supervisor Seat",
+        "description": "Supervisor — task orchestration; careful work",
+        "command": [
+          "<KIT>/setup/codex-room",
+          "supervisor"
+        ],
+        "env": {},
+        "enabled": true,
+        "models": [
+          {
+            "id": "gpt-6-astra",
+            "label": "GPT-6 Astra",
+            "isDefault": true,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          }
+        ],
+        "paseoTools": {
+          "enabled": true,
+          "disabledTools": [
+            "archive_workspace",
+            "browser_back",
+            "browser_click",
+            "browser_close_tab",
+            "browser_drag",
+            "browser_evaluate",
+            "browser_fill",
+            "browser_forward",
+            "browser_hover",
+            "browser_keypress",
+            "browser_list_tabs",
+            "browser_logs",
+            "browser_navigate",
+            "browser_new_tab",
+            "browser_reload",
+            "browser_resize",
+            "browser_screenshot",
+            "browser_scroll",
+            "browser_select",
+            "browser_snapshot",
+            "browser_type",
+            "browser_upload",
+            "browser_wait",
+            "capture_terminal",
+            "create_heartbeat",
+            "create_schedule",
+            "create_terminal",
+            "create_workspace",
+            "delete_heartbeat",
+            "delete_schedule",
+            "inspect_provider",
+            "inspect_schedule",
+            "kill_agent",
+            "kill_terminal",
+            "list_schedules",
+            "list_terminals",
+            "list_workspace_scripts",
+            "pause_schedule",
+            "rename_workspace",
+            "resume_schedule",
+            "run_schedule_once",
+            "schedule_logs",
+            "send_terminal_keys",
+            "start_workspace_script",
+            "stop_workspace_script",
+            "update_agent",
+            "update_schedule"
+          ]
+        }
+      },
+      "amp-peer": {
+        "extends": "acp",
+        "label": "Amp Peer Seat",
+        "description": "Peer — implementation, evidence and handoff",
+        "command": [
+          "<KIT>/setup/role-agent",
+          "peer",
+          "amp"
+        ],
+        "env": {},
+        "models": [
           {
             "id": "medium",
             "label": "Medium",
             "isDefault": true
           }
-        ]
+        ],
+        "paseoTools": {
+          "enabled": false
+        },
+        "enabled": true
+      },
+      "claude-peer": {
+        "extends": "claude",
+        "label": "Claude Peer Seat",
+        "description": "Peer — implementation, evidence and handoff",
+        "command": [
+          "<KIT>/setup/role-agent",
+          "peer",
+          "claude"
+        ],
+        "env": {},
+        "models": [
+          {
+            "id": "claude-sonnet-5-5",
+            "label": "Sonnet 5.5",
+            "isDefault": true,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "id": "claude-opus-5-5",
+            "label": "Opus 5.5",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          }
+        ],
+        "paseoTools": {
+          "enabled": false
+        },
+        "enabled": true
+      },
+      "pi-peer": {
+        "extends": "pi",
+        "label": "Pi Peer Seat",
+        "description": "Peer — implementation, evidence and handoff",
+        "command": [
+          "<KIT>/setup/role-agent",
+          "peer",
+          "pi"
+        ],
+        "env": {},
+        "models": [
+          {
+            "id": "openrouter/deepseek/deepseek-v4.1-flash",
+            "label": "DeepSeek V4.1 Flash",
+            "isDefault": true,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "id": "github-copilot/gpt-6-luna",
+            "label": "GPT-6 Luna",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "openrouter/moonshotai/kimi-k3",
+            "label": "Kimi K3",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.3-flash",
+            "label": "GLM 5.3 Flash",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.3",
+            "label": "GLM 5.3",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "id": "openrouter/anthropic/claude-haiku-5.5",
+            "label": "Claude Haiku 5.5",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          }
+        ],
+        "paseoTools": {
+          "enabled": false
+        },
+        "enabled": true
+      },
+      "omp-peer": {
+        "extends": "omp",
+        "label": "OMP Peer Seat",
+        "description": "Peer — implementation, evidence and handoff",
+        "command": [
+          "<KIT>/setup/role-agent",
+          "peer",
+          "omp"
+        ],
+        "env": {},
+        "models": [
+          {
+            "id": "openrouter/deepseek/deepseek-v4.1-flash",
+            "label": "DeepSeek V4.1 Flash",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "id": "openrouter/moonshotai/kimi-k3",
+            "label": "Kimi K3",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.3-flash",
+            "label": "GLM 5.3 Flash",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.3",
+            "label": "GLM 5.3",
+            "isDefault": true,
+            "thinkingOptions": [
+              {
+                "id": "max",
+                "label": "Max",
+                "isDefault": true
+              },
+              {
+                "id": "low",
+                "label": "Low"
+              }
+            ]
+          },
+          {
+            "id": "openrouter/anthropic/claude-haiku-5.5",
+            "label": "Claude Haiku 5.5",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          }
+        ],
+        "paseoTools": {
+          "enabled": false
+        },
+        "enabled": true
+      },
+      "copilot-peer": {
+        "extends": "acp",
+        "label": "GitHub Copilot Peer Seat",
+        "description": "Peer — implementation, evidence and handoff",
+        "command": [
+          "<KIT>/setup/role-agent",
+          "peer",
+          "copilot"
+        ],
+        "env": {},
+        "models": [
+          {
+            "id": "gemini-3.8-flash",
+            "label": "gemini-3.8-flash",
+            "isDefault": true,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "kimi-k3",
+            "label": "kimi-k3",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "claude-haiku-5.5",
+            "label": "claude-haiku-5.5",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "grok-4.7",
+            "label": "grok-4.7",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "claude-sonnet-5.5",
+            "label": "claude-sonnet-5.5",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          }
+        ],
+        "paseoTools": {
+          "enabled": false
+        },
+        "enabled": true
+      }
+    }
+  },
+  "daemon": {
+    "agentProfiles": [
+      {
+        "id": "amp-peer--medium",
+        "name": "amp-peer · medium",
+        "provider": "amp-peer",
+        "model": "medium",
+        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "amp-supervisor--medium",
+        "name": "amp-supervisor · medium",
+        "provider": "amp-supervisor",
+        "model": "medium",
+        "notes": "Supervisor: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "amp-supervisor--high",
+        "name": "amp-supervisor · high",
+        "provider": "amp-supervisor",
+        "model": "high",
+        "notes": "Supervisor: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "codex-peer--gpt-6-1-sol--low",
+        "name": "codex-peer · gpt-6.1-sol · low",
+        "provider": "codex-peer",
+        "model": "gpt-6.1-sol",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "codex-peer--gpt-6-1-sol--medium",
+        "name": "codex-peer · gpt-6.1-sol · medium",
+        "provider": "codex-peer",
+        "model": "gpt-6.1-sol",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "codex-supervisor--gpt-6-astra--low",
+        "name": "codex-supervisor · gpt-6-astra · low",
+        "provider": "codex-supervisor",
+        "model": "gpt-6-astra",
+        "thinkingOptionId": "low",
+        "notes": "Supervisor: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "codex-supervisor--gpt-6-astra--medium",
+        "name": "codex-supervisor · gpt-6-astra · medium",
+        "provider": "codex-supervisor",
+        "model": "gpt-6-astra",
+        "thinkingOptionId": "medium",
+        "notes": "Supervisor: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "claude-peer--claude-opus-5-5--low",
+        "name": "claude-peer · claude-opus-5-5 · low",
+        "provider": "claude-peer",
+        "model": "claude-opus-5-5",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "claude-peer--claude-opus-5-5--medium",
+        "name": "claude-peer · claude-opus-5-5 · medium",
+        "provider": "claude-peer",
+        "model": "claude-opus-5-5",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "claude-supervisor--claude-fable-5-1--low",
+        "name": "claude-supervisor · claude-fable-5-1 · low",
+        "provider": "claude-supervisor",
+        "model": "claude-fable-5-1",
+        "thinkingOptionId": "low",
+        "notes": "Supervisor: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "claude-supervisor--claude-fable-5-1--medium",
+        "name": "claude-supervisor · claude-fable-5-1 · medium",
+        "provider": "claude-supervisor",
+        "model": "claude-fable-5-1",
+        "thinkingOptionId": "medium",
+        "notes": "Supervisor: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "pi-peer--openrouter-deepseek-deepseek-v4-1-flash--low",
+        "name": "pi-peer · openrouter/deepseek/deepseek-v4.1-flash · low",
+        "provider": "pi-peer",
+        "model": "openrouter/deepseek/deepseek-v4.1-flash",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "pi-peer--github-copilot-gpt-6-luna--low",
+        "name": "pi-peer · github-copilot/gpt-6-luna · low",
+        "provider": "pi-peer",
+        "model": "github-copilot/gpt-6-luna",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "pi-peer--github-copilot-gpt-6-luna--medium",
+        "name": "pi-peer · github-copilot/gpt-6-luna · medium",
+        "provider": "pi-peer",
+        "model": "github-copilot/gpt-6-luna",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "pi-peer--openrouter-moonshotai-kimi-k3--low",
+        "name": "pi-peer · openrouter/moonshotai/kimi-k3 · low",
+        "provider": "pi-peer",
+        "model": "openrouter/moonshotai/kimi-k3",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "pi-peer--openrouter-z-ai-glm-5-3-flash--low",
+        "name": "pi-peer · openrouter/z-ai/glm-5.3-flash · low",
+        "provider": "pi-peer",
+        "model": "openrouter/z-ai/glm-5.3-flash",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "pi-peer--openrouter-z-ai-glm-5-3--low",
+        "name": "pi-peer · openrouter/z-ai/glm-5.3 · low",
+        "provider": "pi-peer",
+        "model": "openrouter/z-ai/glm-5.3",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "pi-peer--openrouter-anthropic-claude-haiku-5-5--low",
+        "name": "pi-peer · openrouter/anthropic/claude-haiku-5.5 · low",
+        "provider": "pi-peer",
+        "model": "openrouter/anthropic/claude-haiku-5.5",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "pi-peer--openrouter-anthropic-claude-haiku-5-5--medium",
+        "name": "pi-peer · openrouter/anthropic/claude-haiku-5.5 · medium",
+        "provider": "pi-peer",
+        "model": "openrouter/anthropic/claude-haiku-5.5",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "omp-peer--openrouter-deepseek-deepseek-v4-1-flash--low",
+        "name": "omp-peer · openrouter/deepseek/deepseek-v4.1-flash · low",
+        "provider": "omp-peer",
+        "model": "openrouter/deepseek/deepseek-v4.1-flash",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "omp-peer--openrouter-moonshotai-kimi-k3--low",
+        "name": "omp-peer · openrouter/moonshotai/kimi-k3 · low",
+        "provider": "omp-peer",
+        "model": "openrouter/moonshotai/kimi-k3",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "omp-peer--openrouter-z-ai-glm-5-3-flash--low",
+        "name": "omp-peer · openrouter/z-ai/glm-5.3-flash · low",
+        "provider": "omp-peer",
+        "model": "openrouter/z-ai/glm-5.3-flash",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "omp-peer--openrouter-z-ai-glm-5-3--low",
+        "name": "omp-peer · openrouter/z-ai/glm-5.3 · low",
+        "provider": "omp-peer",
+        "model": "openrouter/z-ai/glm-5.3",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "omp-peer--openrouter-anthropic-claude-haiku-5-5--low",
+        "name": "omp-peer · openrouter/anthropic/claude-haiku-5.5 · low",
+        "provider": "omp-peer",
+        "model": "openrouter/anthropic/claude-haiku-5.5",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "omp-peer--openrouter-anthropic-claude-haiku-5-5--medium",
+        "name": "omp-peer · openrouter/anthropic/claude-haiku-5.5 · medium",
+        "provider": "omp-peer",
+        "model": "openrouter/anthropic/claude-haiku-5.5",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "copilot-peer--gemini-3-8-flash--low",
+        "name": "copilot-peer · gemini-3.8-flash · low",
+        "provider": "copilot-peer",
+        "model": "gemini-3.8-flash",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "copilot-peer--gemini-3-8-flash--medium",
+        "name": "copilot-peer · gemini-3.8-flash · medium",
+        "provider": "copilot-peer",
+        "model": "gemini-3.8-flash",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "copilot-peer--kimi-k3--low",
+        "name": "copilot-peer · kimi-k3 · low",
+        "provider": "copilot-peer",
+        "model": "kimi-k3",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "copilot-peer--kimi-k3--medium",
+        "name": "copilot-peer · kimi-k3 · medium",
+        "provider": "copilot-peer",
+        "model": "kimi-k3",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "copilot-peer--claude-haiku-5-5--low",
+        "name": "copilot-peer · claude-haiku-5.5 · low",
+        "provider": "copilot-peer",
+        "model": "claude-haiku-5.5",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "copilot-peer--claude-haiku-5-5--medium",
+        "name": "copilot-peer · claude-haiku-5.5 · medium",
+        "provider": "copilot-peer",
+        "model": "claude-haiku-5.5",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "copilot-peer--grok-4-7--low",
+        "name": "copilot-peer · grok-4.7 · low",
+        "provider": "copilot-peer",
+        "model": "grok-4.7",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "copilot-peer--grok-4-7--medium",
+        "name": "copilot-peer · grok-4.7 · medium",
+        "provider": "copilot-peer",
+        "model": "grok-4.7",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "copilot-peer--claude-sonnet-5-5--low",
+        "name": "copilot-peer · claude-sonnet-5.5 · low",
+        "provider": "copilot-peer",
+        "model": "claude-sonnet-5.5",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "copilot-peer--claude-sonnet-5-5--medium",
+        "name": "copilot-peer · claude-sonnet-5.5 · medium",
+        "provider": "copilot-peer",
+        "model": "claude-sonnet-5.5",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       }
     ]
   }

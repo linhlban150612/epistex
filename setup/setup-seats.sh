@@ -47,12 +47,12 @@ if [[ ! -f "$paseo_config" ]]; then
 elif ! jq -e 'type == "object"' "$paseo_config" >/dev/null 2>&1; then
   fail "$paseo_config is not a valid JSON object"
 else
-  expected_deny='["archive_workspace","browser_back","browser_click","browser_close_tab","browser_drag","browser_evaluate","browser_fill","browser_forward","browser_hover","browser_keypress","browser_list_tabs","browser_logs","browser_navigate","browser_new_tab","browser_reload","browser_resize","browser_screenshot","browser_scroll","browser_select","browser_snapshot","browser_type","browser_upload","browser_wait","capture_terminal","create_heartbeat","create_schedule","create_terminal","create_workspace","delete_heartbeat","delete_schedule","inspect_provider","inspect_schedule","kill_agent","kill_terminal","list_profiles","list_schedules","list_terminals","list_workspace_scripts","pause_schedule","rename_workspace","resume_schedule","run_schedule_once","schedule_logs","send_terminal_keys","start_workspace_script","stop_workspace_script","update_agent","update_schedule"]'
+  expected_deny='["archive_workspace","browser_back","browser_click","browser_close_tab","browser_drag","browser_evaluate","browser_fill","browser_forward","browser_hover","browser_keypress","browser_list_tabs","browser_logs","browser_navigate","browser_new_tab","browser_reload","browser_resize","browser_screenshot","browser_scroll","browser_select","browser_snapshot","browser_type","browser_upload","browser_wait","capture_terminal","create_heartbeat","create_schedule","create_terminal","create_workspace","delete_heartbeat","delete_schedule","inspect_provider","inspect_schedule","kill_agent","kill_terminal","list_schedules","list_terminals","list_workspace_scripts","pause_schedule","rename_workspace","resume_schedule","run_schedule_once","schedule_logs","send_terminal_keys","start_workspace_script","stop_workspace_script","update_agent","update_schedule"]'
 
   while IFS= read -r provider; do
     [[ -n "$provider" ]] || continue
     actual=$(jq -c --arg id "$provider" '.agents.providers[$id].paseoTools.disabledTools | if type == "array" and all(.[]; type == "string") then sort else null end' "$paseo_config")
-    [[ "$actual" == "$expected_deny" ]] || fail "$provider: paseoTools.disabledTools must exactly match the deny-list"
+    [[ "$actual" == "$(jq -c 'sort' <<<"$expected_deny")" ]] || fail "$provider: paseoTools.disabledTools must exactly match the deny-list"
   done < <(jq -r '.agents.providers | to_entries[] | select(.value.paseoTools.enabled == true) | .key' "$paseo_config")
   jq -e '.daemon.mcp.enabled != false and .daemon.mcp.injectIntoAgents == true' \
     "$paseo_config" >/dev/null || fail 'Paseo MCP injection is not enabled'
@@ -65,6 +65,24 @@ else
       .isDefault == true and
       ([.thinkingOptions[] | select(.isDefault == true) | .id] == ["medium"]))
   ' "$paseo_config" >/dev/null || fail 'devin-supervisor: wrong launcher, tools or model/effort'
+  for seat in amp-supervisor claude-supervisor codex-supervisor; do
+    case "$seat" in
+      amp-supervisor) command="$kit/setup/role-agent"; args='["supervisor","amp"]'; model=medium; effort= ;;
+      claude-supervisor) command="$kit/setup/role-agent"; args='["supervisor","claude"]'; model=claude-fable-5-1; effort=low ;;
+      codex-supervisor) command="$kit/setup/codex-room"; args='["supervisor"]'; model=gpt-6-astra; effort=low ;;
+    esac
+    jq -e --arg id "$seat" --arg command "$command" --argjson args "$args" --arg model "$model" --arg effort "$effort" '
+      .agents.providers[$id] | .enabled == true and
+      .command == ([$command] + $args) and
+      .paseoTools.enabled == true and
+      ([.models[] | select(.isDefault == true)] | length) == 1 and
+      any(.models[]; .id == $model and .isDefault == true and
+        (if has("thinkingOptions") then ([.thinkingOptions[] | select(.isDefault == true) | .id] == [$effort]) else $effort == "" end)) and
+      (if $id == "amp-supervisor" then ([.models[].id] | sort) == ["high","medium"] else true end) and
+      (if $id == "claude-supervisor" then any(.models[]; .id == $model and ([.thinkingOptions[].id] | sort) == ["low","medium"]) else true end) and
+      (if $id == "codex-supervisor" then any(.models[]; .id == $model and ([.thinkingOptions[].id] | sort) == ["low","medium"]) else true end)
+    ' "$paseo_config" >/dev/null || fail "$seat: wrong launcher, tools or model/effort"
+  done
   for seat in lead peer; do
     model=gpt-6.1-sol
     [[ "$seat" != peer ]] || model=gpt-6-luna
@@ -75,10 +93,24 @@ else
       .command == [$command, $role] and
       .paseoTools.enabled == ($role == "lead") and
       ([.models[] | select(.isDefault == true)] | length) == 1 and
-      any(.models[]; .id == $model and .isDefault == true and
-        ([.thinkingOptions[] | select(.isDefault == true) | .id] == ["low"]))
+      any(.models[]; .id == $model and .isDefault == ($role == "lead" or $model == "gpt-6-luna") and
+        (if $role == "lead" then ([.thinkingOptions[] | select(.isDefault == true) | .id] == ["low"])
+         else ([.thinkingOptions[].id] | sort) == ["low"] end)) and
+      (if $role == "peer" then any(.models[]; .id == "gpt-6.1-sol" and .isDefault != true and ([.thinkingOptions[].id] | sort) == ["low","medium"]) else true end)
     ' "$paseo_config" >/dev/null || fail "codex-$seat: wrong wrapper, tool permissions or model/effort"
   done
+  jq -e '
+    [.daemon.agentProfiles[]? as $p |
+      .agents.providers[$p.provider] as $seat |
+      select(($seat | type) != "object" or $seat.enabled != true or
+        (($p.provider | test("^(codex|claude|amp|pi|omp|copilot)-")) | not) or
+        (([ $seat.models[]?.id ] | index($p.model)) == null) or
+        (if any($seat.models[]?; .id == $p.model and has("thinkingOptions"))
+         then (($p | has("thinkingOptionId")) | not) or
+              (([ $seat.models[] | select(.id == $p.model) | .thinkingOptions[]?.id ] | index($p.thinkingOptionId)) == null)
+         else ($p | has("thinkingOptionId")) end)
+      )] | length == 0
+  ' "$paseo_config" >/dev/null || fail 'daemon.agentProfiles: invalid seat, model or thinking option'
 fi
 
 (( errs == 0 )) || { printf '! %s error(s) — setup is not ready.\n' "$errs" >&2; exit 1; }

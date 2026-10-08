@@ -19,11 +19,22 @@ Merge hai provider vào `.agents.providers`, không thay provider `amp-acp` hi�
 | `models[0].label` | `Medium` | `Low` |
 | `models[0].isDefault` | `true` | `true` |
 
+`amp-supervisor` dùng `role-agent supervisor amp`, model `medium`/`high`, tools bật; không có thinking options.
+
 Amp Lead dùng deny-list tại [SETUP.md §3](../../SETUP.md); không áp dụng cho Peer.
 
 `medium`/`low` ở đây là model ID mà Amp ACP expose qua Paseo, không phải thinking option
-riêng. Không thêm `thinkingOptions` giả. Chọn permission mode từ discovery (adapter hiện
-có `default` và `bypass`); dùng `default` cho smoke test. Thay `<KIT>` bằng đường dẫn tuyệt
+riêng. Không thêm `thinkingOptions` giả.
+
+Profile pins:
+
+| Seat | Model | Profile pins | Thinking options |
+|---|---|---|---|
+| `amp-peer` | `medium` | `amp-peer--medium` | Không có |
+| `amp-supervisor` | `medium`, `high` | `amp-supervisor--medium`, `amp-supervisor--high` | Không có |
+
+Chọn permission mode từ discovery (adapter hiện có `default` và `bypass`); dùng `default`
+cho smoke test. Thay `<KIT>` bằng đường dẫn tuyệt
 đối, giữ `role-agent` executable, rồi chạy `paseo reload` và tạo phiên mới.
 
 ACP proxy thêm role instructions vào prompt đầu tiên của mỗi session trong vòng đời proxy,
@@ -32,5 +43,5 @@ CWD thực tế và tool inventory: Lead phải gọi được một Paseo tool 
 Paseo tools. Không yêu cầu agent đọc file prompt rồi coi đó là proof injection.
 Lead điều phối bằng `amp-peer`, không dùng provider Amp gốc.
 
-`setup-seats.sh --check` vẫn chỉ kiểm Codex. Kiểm riêng hai Amp provider và live launch;
+`setup-seats.sh --check` xác nhận supervisor launcher, tools và pin model. Profile inventory gồm Amp Peer medium và Supervisor medium/high. Kiểm riêng hai Amp provider và live launch;
 không thay global Amp config, credentials hoặc state để tạo role separation.

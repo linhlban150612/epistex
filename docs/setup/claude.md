@@ -16,6 +16,13 @@ Merge hai provider vào `.agents.providers`, với cấu hình:
 | `models[0].isDefault` | `true` | `true` |
 | `models[0].thinkingOptions` | `[{"id":"low","label":"Low","isDefault":true}]` | `[{"id":"low","label":"Low","isDefault":true}]` |
 
+Profile pins:
+
+| Seat | Model | Thinking options |
+|---|---|---|
+| `claude-peer` | `claude-opus-5-5` | `low`, `medium` |
+| `claude-supervisor` | `claude-fable-5-1` | `low`, `medium` |
+
 Claude Lead dùng deny-list tại [SETUP.md §3](../../SETUP.md); không áp dụng cho Peer.
 
 Đặt label/description theo role và thay `<KIT>` bằng đường dẫn tuyệt đối. `role-agent` phải
@@ -32,6 +39,5 @@ thấy Paseo tools và gọi được một tool read-only; Peer phải có head
 `# Peer — independent co-worker` và không thấy Paseo tools kể cả qua deferred tool discovery.
 Lead điều phối Peer Claude bằng `claude-peer`, không dùng provider Claude gốc.
 
-`setup-seats.sh --check` chỉ kiểm hai Codex provider, không chứng minh Claude đã cài đúng.
-Kiểm riêng field hai Claude provider, chạy regression suite và launch cả hai role.
+`setup-seats.sh --check` kiểm các supervisor seat. Claude Peer profiles pin `claude-opus-5-5` ở low/medium; Supervisor profiles pin `claude-fable-5-1` ở low/medium. Kiểm field provider và chạy launch thật cho các role.
 Đây là role/MCP separation, không phải OS sandbox hay hai credential home cô lập.

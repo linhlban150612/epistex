@@ -1,31 +1,8 @@
-# Runtime, resume, and cross-workspace operating detail
+# Codex runtime, resume, and environment
 
-This guide holds the detailed runtime/resume and workflow material moved out of the
-README and SETUP entry points. Backend-specific setup remains in the linked
+This guide documents Codex runtime selection, resume behavior, environment compatibility, and
+project prerequisites. Backend-specific seat setup remains in the linked
 [backend guides](.).
-
-## Paseo-only workflow
-
-Supervisor observes through Paseo and acts only on events; the Lead owns coordination structure,
-routing, review, and acceptance. The Peer is the sole writer; there is no dedicated Reviewer agent.
-Supervisor opens a Lead in the project workspace and does not create a Peer.
-
-| Step | Coordination mechanism / owner |
-|---|---|
-| Discovery | Supervisor uses Paseo `list_workspaces`, `list_agents`, `list_providers`, `list_models` |
-| Assignment | Supervisor opens a Human-authorized Lead with `create_agent(workspaceId=...)`; passes the Supervisor agentId in `initialPrompt` |
-| Implementation | Lead defines scope and creates a Peer through Paseo; Peer is the sole writer |
-| Handoff | Peer sends all six items directly to Lead, including candidate identification details |
-| Review | Lead reads the exact candidate and evidence. Complex/review tasks use Dual-Lane review: two read-only Peers (`claude-peer` + `codex-peer`), same neutral brief, unaware of each other; shared findings are high-confidence, divergences get blind cross-critique (at most 2 rounds), Lead arbitrates, no third Peer. Human reviews when risk is high |
-| Rework | Lead sends exactly one `send_agent_prompt` specifying task, round, base SHA, rejected candidate, and feedback |
-| Intervention | Only on an event (notification, Lead question, Human request), Supervisor may use `list_pending_permissions`, `respond_to_permission`, `cancel_agent`, `set_agent_mode`, then tells the owning Lead |
-| Loops / reset | Loops are counted in events, never time. Lead proposes a context reset (archive the stuck agent; a new agent resumes from the frozen base/candidate SHA); only the Human confirms, via Supervisor |
-| Acceptance | Lead decides; Supervisor does not decide in their place |
-| Archiving | Supervisor archives the Lead when the Human confirms the project is closed |
-
-There is no coordination desk, registry, ledger, patrol, timer, recurring schedule, or heartbeat.
-Paseo messages are the communication channel; idle/notification status does not prove that work
-is complete.
 
 ## Codex runtime and resume
 
@@ -80,7 +57,7 @@ and new runtimes exist, ordinary launch reports ambiguity. There is no bulk migr
 delete/copy data to fix resume.
 
 
-## Relocated setup detail (original SETUP §§1–2, 7)
+## Project paths and runtime prerequisites
 
 ## 1. Đặt kit và project ở đường dẫn ổn định
 
@@ -117,26 +94,6 @@ Dual-Lane review (task class complex/review) cần cả `claude-peer` lẫn `cod
 
 Linux Desktop: nếu `paseo` là symlink tới `/opt/Paseo/Paseo` và `paseo run` mở GUI, dùng launcher
 đi kèm `/opt/Paseo/resources/bin/paseo` cho các lệnh CLI; không cần đổi symlink hay restart daemon.
-
-## 7. Chứng minh cô lập
-
-Khởi động một agent `codex-peer`, yêu cầu nó in dòng đầu prompt role đang đọc; kết quả phải là
-`# Peer — independent co-worker`. Làm tương tự với `codex-lead`, kết quả bắt đầu bằng `# Lead`.
-Kiểm thêm `find ~/.codex-runtime/epistex -maxdepth 3 -name config.toml`.
-
-Hai role phải có runtime riêng. `auth.json`, `skills`, `plugins` là symlink; `config.toml` là bản
-generated riêng chứa `model_instructions_file` trỏ về prompt trong kit, với `[agents].enabled`,
-`[features].multi_agent` và `[features].multi_agent_v2` đều `false`: Paseo là chủ duy nhất của
-topology. TOML không hợp lệ hoặc sai kiểu bảng policy làm launch thất bại trước khi đổi runtime.
-Bản generated dùng inline tables, không giữ comment/format, giữ nguyên giá trị ngoài policy (kể cả
-chuỗi nhiều dòng); file canonical không bị sửa. Sync không xóa private state, từ chối runtime hoặc
-thư mục cha là symlink; chỉ thay `config.toml` là atomic, lỗi I/O hoặc thay đổi đồng thời có thể để
-lại một phần links đã đổi (chi tiết: [Codex runtime and resume](#codex-runtime-and-resume)).
-
-Đây là tách state và quyền MCP, không phải sandbox chống agent độc hại: các role chạy cùng Unix
-user, chia sẻ skills/plugins và vẫn có shell. Peer bị cấm gọi Paseo theo prompt; việc ẩn Paseo MCP
-không ngăn tuyệt đối một shell gọi CLI.
-
 
 ### Key files
 

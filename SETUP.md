@@ -3,7 +3,8 @@
 Điểm vào chung: bước 1–8 cài hai seat Codex (Lead/Peer) và kiểm launch thật. Mỗi backend khác
 dùng lại các bước chung này, rồi theo file riêng:
 
-Chi tiết chọn project/runtime, tiền đề và kiểm cô lập nằm trong [hướng dẫn runtime Codex](docs/setup/codex-runtime.md) (các bước 1, 2, 7).
+Chi tiết chọn project/runtime và tiền đề: [hướng dẫn runtime Codex](docs/setup/codex-runtime.md)
+(các bước 1–2).
 
 | Backend | Hướng dẫn |
 |---|---|
@@ -11,6 +12,16 @@ Chi tiết chọn project/runtime, tiền đề và kiểm cô lập nằm trong
 | Amp Lead/Peer qua ACP | [docs/setup/amp.md](docs/setup/amp.md) |
 | Pi Peer, OMP Peer | [docs/setup/pi-omp.md](docs/setup/pi-omp.md) |
 | Devin Supervisor/Lead/Peer, Copilot Peer, Cursor Peer qua ACP | [docs/setup/devin-copilot-cursor.md](docs/setup/devin-copilot-cursor.md) |
+
+## 1. Đặt kit và project ở đường dẫn ổn định
+
+Đặt kit và project ở đường dẫn tuyệt đối, ổn định; Paseo daemon phải chạy dưới đúng user. Chi tiết
+project root và runtime: [Codex runtime](docs/setup/codex-runtime.md#project-paths-and-runtime-prerequisites).
+
+## 2. Kiểm tiền đề
+
+Xác nhận Bash, Python 3.11+, `jq`, Codex và Paseo daemon; kiểm credentials/backend theo
+[chi tiết tiền đề và tương thích](docs/setup/codex-runtime.md#project-paths-and-runtime-prerequisites).
 
 ## 3. Bật injection Paseo tools
 
@@ -71,6 +82,26 @@ sai model, effort hay quyền tools; nó cần Bash, jq, Python 3.11+, dirname, 
 `${CODEX_BIN:-codex}`, không cần Paseo trên PATH. `PASEO_HOME`/`PASEO_CONFIG` chọn config khác vị
 trí mặc định; nếu dùng `CODEX_BIN`, đặt cùng giá trị cho checker và các provider. Kết quả hợp lệ
 không chứng minh auth, daemon, model khả dụng hay launch thành công: đó là bước 2 và bước 7.
+
+## 7. Chứng minh cô lập
+
+Khởi động một agent `codex-peer`, yêu cầu nó in dòng đầu prompt role đang đọc; kết quả phải là
+`# Peer — independent co-worker`. Làm tương tự với `codex-lead`, kết quả bắt đầu bằng `# Lead`.
+Kiểm thêm `find ~/.codex-runtime/epistex -maxdepth 3 -name config.toml`.
+
+Hai role phải có runtime riêng. `auth.json`, `skills`, `plugins` là symlink; `config.toml` là bản
+generated riêng chứa `model_instructions_file` trỏ về prompt trong kit, với `[agents].enabled`,
+`[features].multi_agent` và `[features].multi_agent_v2` đều `false`: Paseo là chủ duy nhất của
+topology. TOML không hợp lệ hoặc sai kiểu bảng policy làm launch thất bại trước khi đổi runtime.
+Bản generated dùng inline tables, không giữ comment/format, giữ nguyên giá trị ngoài policy (kể cả
+chuỗi nhiều dòng); file canonical không bị sửa. Sync không xóa private state, từ chối runtime hoặc
+thư mục cha là symlink; chỉ thay `config.toml` là atomic, lỗi I/O hoặc thay đổi đồng thời có thể để
+lại một phần links đã đổi (chi tiết: [Codex runtime and resume](docs/setup/codex-runtime.md#codex-runtime-and-resume)).
+
+Đây là tách state và quyền MCP, không phải sandbox chống agent độc hại: các role chạy cùng Unix
+user, chia sẻ skills/plugins và vẫn có shell. Peer bị cấm gọi Paseo theo prompt; việc ẩn Paseo MCP
+không ngăn tuyệt đối một shell gọi CLI.
+
 
 ## 8. Vận hành
 

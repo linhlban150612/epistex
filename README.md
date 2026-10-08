@@ -32,44 +32,41 @@ that every backend can launch.
 
 ## Install the Codex seats and Supervisor
 
-Requires a configured Paseo CLI/daemon, Python **3.11+**, and the executable and credentials for
-the backend you want to use. Codex requires Bash and the canonical `config.toml`. Git is used to
-identify the common root, subdirectories, and linked worktrees.
+Requires a configured Paseo CLI/daemon, Python **3.11+**, Bash, Git, `jq`, Codex, and
+credentials for the selected backend. Preserve the existing Paseo/Codex configuration and
+runtime state; the kit is not an OS sandbox and configuration checks do not prove a live launch.
+Follow [SETUP.md](SETUP.md) for installation and live verification; backend-specific instructions
+are in [docs/setup/](docs/setup/).
 
-From the kit directory, after authorizing changes to Paseo configuration, run:
+## Paseo-only workflow
 
-```bash
-bash setup/setup-seats.sh --check
-```
+Supervisor observes through Paseo and acts only on events; the Lead owns coordination structure,
+routing, review, and acceptance. The Peer is the sole writer; there is no dedicated Reviewer agent.
+Supervisor opens a Lead in the project workspace and does not create a Peer.
 
-Merge the three entries in `examples/paseo-providers.json` into `.agents.providers` in the
-existing config; replace `<KIT>` with the absolute path and remove `_doc`. Do not replace the
-entire config file. Enable MCP injection; enable provider tools for Lead and Supervisor and disable
-them for Peer. Supervisor runs only from the empty workspace `~/work/SUPERVISOR`; its prompt
-checks the exact CWD. Supervisor discovers workspaces, agents, providers, and models through Paseo,
-not a registry.
+| Step | Coordination mechanism / owner |
+|---|---|
+| Discovery | Supervisor uses Paseo `list_workspaces`, `list_agents`, `list_providers`, `list_models` |
+| Assignment | Supervisor opens a Human-authorized Lead with `create_agent(workspaceId=...)`; passes the Supervisor agentId in `initialPrompt` |
+| Implementation | Lead defines scope and creates a Peer through Paseo; Peer is the sole writer |
+| Handoff | Peer sends all six items directly to Lead, including candidate identification details |
+| Review | Lead reads the exact candidate and evidence. Complex/review tasks use Dual-Lane review: two read-only Peers (`claude-peer` + `codex-peer`), same neutral brief, unaware of each other; shared findings are high-confidence, divergences get blind cross-critique (at most 2 rounds), Lead arbitrates, no third Peer. Human reviews when risk is high |
+| Rework | Lead sends exactly one `send_agent_prompt` specifying task, round, base SHA, rejected candidate, and feedback |
+| Intervention | Only on an event (notification, Lead question, Human request), Supervisor may use `list_pending_permissions`, `respond_to_permission`, `cancel_agent`, `set_agent_mode`, then tells the owning Lead |
+| Loops / reset | Loops are counted in events, never time. Lead proposes a context reset (archive the stuck agent; a new agent resumes from the frozen base/candidate SHA); only the Human confirms, via Supervisor |
+| Acceptance | Lead decides; Supervisor does not decide in their place |
+| Archiving | Supervisor archives the Lead when the Human confirms the project is closed |
 
-Lead/Peer Codex and runtime safeguards are described in [SETUP.md](SETUP.md) and the
-[runtime guide](docs/setup/codex-runtime.md); seats on other
-backends, including the Devin Supervisor, are in [docs/setup/](docs/setup/) and linked from it. Run:
+There is no coordination desk, registry, ledger, patrol, timer, recurring schedule, or heartbeat.
+Paseo messages are the communication channel; idle/notification status does not prove that work
+is complete.
 
-```bash
-bash setup/setup-seats.sh
-paseo reload
-bash setup/setup-seats.sh --check
-```
-
-`setup-seats.sh` does not edit global config; without `--check`, it checks the three seats and sets
-the executable bit. The checker also requires `jq`. The sample selects Lead `gpt-6.1-sol/low`,
-Peer `gpt-6-luna/low`; Supervisor uses the Devin ACP model/effort selected in the provider table.
-Do not put project-specific policy in provider config.
-
-## Paseo-only workflow and Codex runtime
+## Codex runtime and resume
 
 Detailed workflow ownership, runtime layout, resume selection, environment variables,
 Seatworks compatibility, and Codex isolation checks: [runtime and workflow guide](docs/setup/codex-runtime.md).
 
-## Policy, verification, and key files
+## Policy and verification
 
 Role prompts maintain stable behavior; the product repo's `AGENTS.md` holds shared invariants;
 `WORKSPACE_PROTOCOL.md` is the coordination policy read by the Lead; and the task brief passes
@@ -93,9 +90,9 @@ actual CWD, or live recovery checks.
   plane and patrol installer were removed. Desk, patrol, daemon, timer, ledger, agent-ID and plan
   details in Git history describe past state only; never treat them as instructions to inspect,
   mutate, or recover retained external state. Inspect live state before operating.
-- The `setup/codex-room-sync` contracts above (preserve private runtime data and canonical config,
-  disable native multi-agent features, reject ambiguous or symlinked runtimes) are current
-  behaviour, covered by `tests/test_codex_room_sync.py` and `tests/test_codex_room.py`.
+- `setup/codex-room-sync` preserves private runtime data and canonical config, disables native
+  multi-agent features, and rejects ambiguous or symlinked runtimes. These contracts are covered by
+  `tests/test_codex_room_sync.py` and `tests/test_codex_room.py`; see the [runtime guide](docs/setup/codex-runtime.md).
 - ACP child-exit handling was a reported limitation: `setup/role-agent` forwards stdin until EOF,
   so a backend that exits early may surface only on the next input. Not re-reproduced; reproduce
   against current code before relying on it.

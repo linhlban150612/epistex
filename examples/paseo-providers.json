@@ -634,6 +634,23 @@
             ]
           },
           {
+            "id": "github-copilot/gpt-6-luna",
+            "label": "GPT-6 Luna",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
             "id": "openrouter/moonshotai/kimi-k3",
             "label": "Kimi K3",
             "isDefault": false,
@@ -950,6 +967,22 @@
         "model": "openrouter/deepseek/deepseek-v4.1-flash",
         "thinkingOptionId": "low",
         "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "omp-peer--github-copilot-gpt-6-luna--low",
+        "name": "omp-peer · github-copilot/gpt-6-luna · low",
+        "provider": "omp-peer",
+        "model": "github-copilot/gpt-6-luna",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent. OMP 18.8.4 resolves github-copilot/gpt-6-luna to gpt-5.6-luna (272k) — observed in probe 2026-10-08; re-verify after OMP updates"
+      },
+      {
+        "id": "omp-peer--github-copilot-gpt-6-luna--medium",
+        "name": "omp-peer · github-copilot/gpt-6-luna · medium",
+        "provider": "omp-peer",
+        "model": "github-copilot/gpt-6-luna",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent. OMP 18.8.4 resolves github-copilot/gpt-6-luna to gpt-5.6-luna (272k) — observed in probe 2026-10-08; re-verify after OMP updates"
       },
       {
         "id": "omp-peer--openrouter-moonshotai-kimi-k3--low",

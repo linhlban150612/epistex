@@ -143,17 +143,50 @@ class SetupSeatsTest(unittest.TestCase):
             if provider.get("paseoTools", {}).get("enabled") is True:
                 expected = DENY_SUPERVISOR if key.endswith("-supervisor") else DENY_LEAD
                 self.assertEqual(set(provider["paseoTools"]["disabledTools"]), expected, key)
-        self.assertEqual(len(example["daemon"]["agentProfiles"]), 34)
+        self.assertEqual(len(example["daemon"]["agentProfiles"]), 36)
         counts = Counter(p["provider"] for p in example["daemon"]["agentProfiles"])
         self.assertEqual(counts, Counter({"amp-peer": 1, "amp-supervisor": 2,
             "claude-peer": 2, "claude-supervisor": 1, "codex-peer": 2,
-            "codex-supervisor": 2, "copilot-peer": 10, "omp-peer": 6,
+            "codex-supervisor": 2, "copilot-peer": 10, "omp-peer": 8,
             "pi-peer": 8}))
         script = SCRIPT.read_text()
         match = re.search(r"expected_deny_lead='(\[.*?\])'", script)
         self.assertIsNotNone(match, "checker deny-list constant not found")
         self.assertEqual(set(json.loads(match.group(1))), DENY_LEAD)
         self.assertEqual(set(json.loads(match.group(1))) - {"create_workspace"}, DENY_SUPERVISOR)
+
+    def test_omp_luna_cell_and_profiles(self):
+        providers = self.data["agents"]["providers"]
+        model = "github-copilot/gpt-6-luna"
+        cell = next(m for m in providers["omp-peer"]["models"] if m["id"] == model)
+        self.assertEqual(cell, next(m for m in providers["pi-peer"]["models"] if m["id"] == model))
+        self.assertFalse(cell["isDefault"])
+        self.assertEqual(cell["thinkingOptions"], [
+            {"id": "low", "label": "Low", "isDefault": True},
+            {"id": "medium", "label": "Medium", "isDefault": False}])
+        self.save()
+        result = self.run_check("--check")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        cell["thinkingOptions"][0]["isDefault"] = False
+        self.save()
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("omp-peer: wrong GPT-6 Luna", result.stderr)
+
+    def test_omp_luna_profiles_required(self):
+        for effort in ("low", "medium"):
+            with self.subTest(effort=effort):
+                profile = next(p for p in self.data["daemon"]["agentProfiles"]
+                               if p["id"] == f"omp-peer--github-copilot-gpt-6-luna--{effort}")
+                self.assertEqual(profile["provider"], "omp-peer")
+                self.assertEqual(profile["model"], "github-copilot/gpt-6-luna")
+                self.assertEqual(profile["thinkingOptionId"], effort)
+                self.data["daemon"]["agentProfiles"].remove(profile)
+                self.save()
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(f"omp-peer: missing or wrong GPT-6 Luna {effort} profile", result.stderr)
+                self.data["daemon"]["agentProfiles"].append(profile)
 
     def test_enabled_provider_requires_exact_denylist(self):
         self.save()

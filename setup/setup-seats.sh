@@ -133,6 +133,25 @@ else
     ' "$paseo_config" >/dev/null || fail "codex-$seat: wrong wrapper, tool permissions or model/effort"
   done
   jq -e '
+    .agents.providers["omp-peer"].models |
+    [ .[] | select(.id == "github-copilot/gpt-6-luna") ] == [{
+      "id": "github-copilot/gpt-6-luna", "label": "GPT-6 Luna", "isDefault": false,
+      "thinkingOptions": [
+        {"id": "low", "label": "Low", "isDefault": true},
+        {"id": "medium", "label": "Medium", "isDefault": false}
+      ]
+    }]
+  ' "$paseo_config" >/dev/null || fail 'omp-peer: wrong GPT-6 Luna model/effort pin'
+  for effort in low medium; do
+    jq -e --arg effort "$effort" '
+      [.daemon.agentProfiles[]? |
+        select(.id == ("omp-peer--github-copilot-gpt-6-luna--" + $effort))] |
+      length == 1 and all(.[];
+        .provider == "omp-peer" and .model == "github-copilot/gpt-6-luna" and
+        .thinkingOptionId == $effort)
+    ' "$paseo_config" >/dev/null || fail "omp-peer: missing or wrong GPT-6 Luna $effort profile"
+  done
+  jq -e '
     [.daemon.agentProfiles[]? as $p |
       .agents.providers[$p.provider] as $seat |
       select(($seat | type) != "object" or $seat.enabled != true or

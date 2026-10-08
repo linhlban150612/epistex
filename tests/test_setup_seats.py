@@ -69,10 +69,10 @@ class SetupSeatsTest(unittest.TestCase):
         enabled = [p for p in example["agents"]["providers"].values() if p.get("paseoTools", {}).get("enabled") is True]
         self.assertTrue(enabled)
         self.assertTrue(all(set(p["paseoTools"]["disabledTools"]) == DENY for p in enabled))
-        self.assertEqual(len(example["daemon"]["agentProfiles"]), 35)
+        self.assertEqual(len(example["daemon"]["agentProfiles"]), 34)
         counts = Counter(p["provider"] for p in example["daemon"]["agentProfiles"])
         self.assertEqual(counts, Counter({"amp-peer": 1, "amp-supervisor": 2,
-            "claude-peer": 2, "claude-supervisor": 2, "codex-peer": 2,
+            "claude-peer": 2, "claude-supervisor": 1, "codex-peer": 2,
             "codex-supervisor": 2, "copilot-peer": 10, "omp-peer": 6,
             "pi-peer": 8}))
         script = SCRIPT.read_text()

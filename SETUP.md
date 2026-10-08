@@ -34,13 +34,14 @@ Trong `~/.paseo/config.json`, bảo đảm:
 Quyền theo role nằm ở provider: Lead đặt `paseoTools.enabled=true`, Peer đặt `false`. Không
 dùng `injectIntoProviders`; field đó không phải cơ chế policy provider hiện hành.
 
-### Chính sách 14 Paseo tools cho Lead/Supervisor
+### Chính sách Paseo tools cho Lead và Supervisor
 
-Provider bật Paseo dùng `paseoTools.disabledTools` để chặn catalog, giữ đúng 14 tool: `list_agents`,
+Lead dùng `paseoTools.disabledTools` để chặn catalog, giữ đúng 14 tool: `list_agents`,
 `list_workspaces`, `list_providers`, `list_models`, `list_profiles`, `create_agent`, `send_agent_prompt`,
 `get_agent_activity`, `get_agent_status`, `cancel_agent`, `archive_agent`,
-`list_pending_permissions`, `respond_to_permission`, `set_agent_mode`. Các nhóm bị chặn: 11
-schedule/heartbeat, 22 browser, 5 terminal, 9 workspace/agent/provider (xem danh sách trong
+`list_pending_permissions`, `respond_to_permission`, `set_agent_mode`. Supervisor giữ thêm `create_workspace` (15 tool được giữ; 46 bị chặn), còn Lead giữ 14 tool (47 bị chặn).
+Các nhóm bị chặn ở Lead: 11 schedule/heartbeat, 22 browser, 5 terminal, 9 workspace/agent/provider;
+ở Supervisor nhóm workspace/agent/provider còn 8 (xem danh sách trong
 [ví dụ provider](examples/paseo-providers.json)). Cần Paseo 0.11.1; daemon và CLI cùng phiên bản.
 `speak` không thể bị chặn và nằm ngoài catalog. Test pin catalog 61 tên để buộc review khi nâng
 cấp Paseo. Script `--check` xác nhận deny-list chính xác trên mọi provider đang bật.

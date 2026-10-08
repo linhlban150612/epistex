@@ -47,10 +47,16 @@ if [[ ! -f "$paseo_config" ]]; then
 elif ! jq -e 'type == "object"' "$paseo_config" >/dev/null 2>&1; then
   fail "$paseo_config is not a valid JSON object"
 else
-  expected_deny='["archive_workspace","browser_back","browser_click","browser_close_tab","browser_drag","browser_evaluate","browser_fill","browser_forward","browser_hover","browser_keypress","browser_list_tabs","browser_logs","browser_navigate","browser_new_tab","browser_reload","browser_resize","browser_screenshot","browser_scroll","browser_select","browser_snapshot","browser_type","browser_upload","browser_wait","capture_terminal","create_heartbeat","create_schedule","create_terminal","create_workspace","delete_heartbeat","delete_schedule","inspect_provider","inspect_schedule","kill_agent","kill_terminal","list_schedules","list_terminals","list_workspace_scripts","pause_schedule","rename_workspace","resume_schedule","run_schedule_once","schedule_logs","send_terminal_keys","start_workspace_script","stop_workspace_script","update_agent","update_schedule"]'
+  expected_deny_lead='["archive_workspace","browser_back","browser_click","browser_close_tab","browser_drag","browser_evaluate","browser_fill","browser_forward","browser_hover","browser_keypress","browser_list_tabs","browser_logs","browser_navigate","browser_new_tab","browser_reload","browser_resize","browser_screenshot","browser_scroll","browser_select","browser_snapshot","browser_type","browser_upload","browser_wait","capture_terminal","create_heartbeat","create_schedule","create_terminal","create_workspace","delete_heartbeat","delete_schedule","inspect_provider","inspect_schedule","kill_agent","kill_terminal","list_schedules","list_terminals","list_workspace_scripts","pause_schedule","rename_workspace","resume_schedule","run_schedule_once","schedule_logs","send_terminal_keys","start_workspace_script","stop_workspace_script","update_agent","update_schedule"]'
+  expected_deny_supervisor=$(jq -c 'map(select(. != "create_workspace"))' <<<"$expected_deny_lead")
 
   while IFS= read -r provider; do
     [[ -n "$provider" ]] || continue
+    case "$provider" in
+      *-lead|codex-lead) expected_deny=$expected_deny_lead ;;
+      *-supervisor) expected_deny=$expected_deny_supervisor ;;
+      *) fail "$provider: enabled Paseo seat must be a Lead or Supervisor"; continue ;;
+    esac
     actual=$(jq -c --arg id "$provider" '.agents.providers[$id].paseoTools.disabledTools | if type == "array" and all(.[]; type == "string") then sort else null end' "$paseo_config")
     [[ "$actual" == "$(jq -c 'sort' <<<"$expected_deny")" ]] || fail "$provider: paseoTools.disabledTools must exactly match the deny-list"
   done < <(jq -r '.agents.providers | to_entries[] | select(.value.paseoTools.enabled == true) | .key' "$paseo_config")

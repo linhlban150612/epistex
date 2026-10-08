@@ -85,6 +85,9 @@ actual CWD, or live recovery checks.
 
 ### Cautions and known limitations
 
+- Context compaction is backend-dependent; some seats remain unconfigured and Devin is user-wide,
+  not workspace-scoped. See [context compaction](docs/setup/context-compaction.md).
+
 - All roles run as the same Unix user; scope and tool visibility are not an OS sandbox (see above).
 - Paseo is the sole agent control plane and owns lifecycle and topology; the former desk control
   plane and patrol installer were removed. Desk, patrol, daemon, timer, ledger, agent-ID and plan

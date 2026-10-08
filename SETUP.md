@@ -13,6 +13,8 @@ Chi tiết chọn project/runtime và tiền đề: [hướng dẫn runtime Code
 | Pi Peer, OMP Peer | [docs/setup/pi-omp.md](docs/setup/pi-omp.md) |
 | Devin Supervisor/Lead/Peer, Copilot Peer, Cursor Peer qua ACP | [docs/setup/devin-copilot-cursor.md](docs/setup/devin-copilot-cursor.md) |
 
+Context compaction và giới hạn từng backend: [context-compaction.md](docs/setup/context-compaction.md).
+
 ## 1. Đặt kit và project ở đường dẫn ổn định
 
 Đặt kit và project ở đường dẫn tuyệt đối, ổn định; Paseo daemon phải chạy dưới đúng user. Chi tiết
@@ -88,7 +90,7 @@ bash <KIT>/setup/setup-seats.sh --check
 
 Script không tự sửa global config; lượt không có `--check` chỉ đặt executable bit (cần chmod),
 runtime được chuẩn bị khi Paseo khởi động seat. `--check` thất bại nếu config/provider thiếu hoặc
-sai model, effort hay quyền tools; nó cần Bash, jq, Python 3.11+, dirname, wc và
+sai model, effort hay quyền tools; nó cần Bash, jq, Python 3.11+, dirname, wc, grep và
 `${CODEX_BIN:-codex}`, không cần Paseo trên PATH. `PASEO_HOME`/`PASEO_CONFIG` chọn config khác vị
 trí mặc định; nếu dùng `CODEX_BIN`, đặt cùng giá trị cho checker và các provider. Kết quả hợp lệ
 không chứng minh auth, daemon, model khả dụng hay launch thành công: đó là bước 2 và bước 7.

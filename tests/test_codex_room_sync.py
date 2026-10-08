@@ -60,6 +60,18 @@ command = "other"
         project_id = hashlib.sha256(str(self.project).encode()).hexdigest()[:12]
         return self.home / ".codex-runtime" / "epistex" / project_id / role
 
+    def test_auto_compaction_is_room_only_for_every_role(self) -> None:
+        canonical = self.canonical / "config.toml"
+        canonical.write_text("model_auto_compact_token_limit = 250000\n" + canonical.read_text())
+        before = canonical.read_bytes()
+        for role in ("peer", "lead", "supervisor"):
+            with self.subTest(role=role):
+                result = self.sync(role)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                parsed = tomllib.loads((self.runtime(role) / "config.toml").read_text())
+                self.assertEqual(parsed["model_auto_compact_token_limit"], 100000)
+                self.assertEqual(canonical.read_bytes(), before)
+
     def test_roles_are_isolated_and_native_agents_are_disabled(self) -> None:
         lead = self.sync("lead")
         peer = self.sync("peer")
@@ -272,6 +284,7 @@ command = "other"
         expected["features"].update(multi_agent=False, multi_agent_v2=False)
         expected["agents"] = {"enabled": False}
         expected["model_instructions_file"] = str(ROOT / "agents" / "PEER.md")
+        expected["model_auto_compact_token_limit"] = 100000
         del expected["mcp_servers"]["paseo"]
         result = self.sync("peer")
         self.assertEqual(result.returncode, 0, result.stderr)

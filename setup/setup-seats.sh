@@ -68,7 +68,7 @@ else
   for seat in amp-supervisor claude-supervisor codex-supervisor; do
     case "$seat" in
       amp-supervisor) command="$kit/setup/role-agent"; args='["supervisor","amp"]'; model=medium; effort= ;;
-      claude-supervisor) command="$kit/setup/role-agent"; args='["supervisor","claude"]'; model=claude-fable-5-1; effort=low ;;
+      claude-supervisor) command="$kit/setup/role-agent"; args='["supervisor","claude"]'; model=claude-fable-5-1; effort=medium ;;
       codex-supervisor) command="$kit/setup/codex-room"; args='["supervisor"]'; model=gpt-6-astra; effort=low ;;
     esac
     jq -e --arg id "$seat" --arg command "$command" --argjson args "$args" --arg model "$model" --arg effort "$effort" '
@@ -79,7 +79,7 @@ else
       any(.models[]; .id == $model and .isDefault == true and
         (if has("thinkingOptions") then ([.thinkingOptions[] | select(.isDefault == true) | .id] == [$effort]) else $effort == "" end)) and
       (if $id == "amp-supervisor" then ([.models[].id] | sort) == ["high","medium"] else true end) and
-      (if $id == "claude-supervisor" then any(.models[]; .id == $model and ([.thinkingOptions[].id] | sort) == ["low","medium"]) else true end) and
+      (if $id == "claude-supervisor" then any(.models[]; .id == $model and ([.thinkingOptions[].id] | sort) == ["medium"]) else true end) and
       (if $id == "codex-supervisor" then any(.models[]; .id == $model and ([.thinkingOptions[].id] | sort) == ["low","medium"]) else true end)
     ' "$paseo_config" >/dev/null || fail "$seat: wrong launcher, tools or model/effort"
   done

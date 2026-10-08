@@ -301,14 +301,9 @@
             "isDefault": true,
             "thinkingOptions": [
               {
-                "id": "low",
-                "label": "Low",
-                "isDefault": true
-              },
-              {
                 "id": "medium",
                 "label": "Medium",
-                "isDefault": false
+                "isDefault": true
               }
             ]
           }
@@ -875,14 +870,6 @@
         "model": "claude-opus-5-5",
         "thinkingOptionId": "medium",
         "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
-      },
-      {
-        "id": "claude-supervisor--claude-fable-5-1--low",
-        "name": "claude-supervisor · claude-fable-5-1 · low",
-        "provider": "claude-supervisor",
-        "model": "claude-fable-5-1",
-        "thinkingOptionId": "low",
-        "notes": "Supervisor: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "claude-supervisor--claude-fable-5-1--medium",

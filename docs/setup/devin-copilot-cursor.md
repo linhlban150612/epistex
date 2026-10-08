@@ -30,7 +30,7 @@ Additional supervisor pins:
 | Seat | Launcher args | Model | Thinking/profile pins |
 |---|---|---|---|
 | `codex-supervisor` | `codex-room supervisor` | `gpt-6-astra` | low, medium |
-| `claude-supervisor` | `role-agent supervisor claude` | `claude-fable-5-1` | low, medium |
+| `claude-supervisor` | `role-agent supervisor claude` | `claude-fable-5-1` | medium (unverified: provider credits) |
 | `amp-supervisor` | `role-agent supervisor amp` | `medium`, `high` | no thinking options |
 
 `copilot-peer` profiles pin each of Gemini 3.8 Flash, Kimi K3, Claude Haiku 5.5, Grok 4.7, and Claude Sonnet 5.5 at low and medium.

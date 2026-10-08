@@ -42,3 +42,5 @@ hay thay credentials; role/MCP separation không phải OS sandbox.
 OMP 18.8.4 hỗ trợ `github-copilot/gpt-6-luna` với effort low/medium. Cell GPT-6 Luna
 của `omp-peer` giống `pi-peer`: label `GPT-6 Luna`, `isDefault: false`, low mặc định
 và medium tùy chọn. Compaction OMP vẫn dùng `thresholdTokens` cố định trong `.omp/config.yml`.
+
+Known issue: OMP 18.8.4 resolves github-copilot/gpt-6-luna to gpt-5.6-luna (272k) — observed in probe 2026-10-08; re-verify after OMP updates

@@ -6,11 +6,12 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from collections import Counter
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "setup" / "setup-seats.sh"
 CATALOG = set("""archive_agent archive_workspace browser_back browser_click browser_close_tab browser_drag browser_evaluate browser_fill browser_forward browser_hover browser_keypress browser_list_tabs browser_logs browser_navigate browser_new_tab browser_reload browser_resize browser_screenshot browser_scroll browser_select browser_snapshot browser_type browser_upload browser_wait cancel_agent capture_terminal create_agent create_heartbeat create_schedule create_terminal create_workspace delete_heartbeat delete_schedule get_agent_activity get_agent_status inspect_provider inspect_schedule kill_agent kill_terminal list_agents list_models list_pending_permissions list_profiles list_providers list_schedules list_terminals list_workspace_scripts list_workspaces pause_schedule rename_workspace respond_to_permission resume_schedule run_schedule_once schedule_logs send_agent_prompt send_terminal_keys set_agent_mode start_workspace_script stop_workspace_script update_agent update_schedule""".split())
-KEEP = set("""list_agents list_workspaces list_providers list_models create_agent send_agent_prompt get_agent_activity get_agent_status cancel_agent archive_agent list_pending_permissions respond_to_permission set_agent_mode""".split())
+KEEP = set("""list_agents list_workspaces list_providers list_models list_profiles create_agent send_agent_prompt get_agent_activity get_agent_status cancel_agent archive_agent list_pending_permissions respond_to_permission set_agent_mode""".split())
 DENY = CATALOG - KEEP
 
 
@@ -31,12 +32,16 @@ class SetupSeatsTest(unittest.TestCase):
         self.codex.chmod(0o755)
         self.env = {"PATH": str(self.bin), "HOME": self.temporary.name,
                     "CODEX_BIN": str(self.codex), "PASEO_CONFIG": str(self.config)}
-        providers = json.loads((ROOT / "examples" / "paseo-providers.json").read_text())
-        providers.pop("_doc")
+        example = json.loads((ROOT / "examples" / "paseo-providers.json").read_text())
+        providers = example["agents"]["providers"]
         for role in ("lead", "peer"):
             providers[f"codex-{role}"]["command"] = [str(ROOT / "setup" / "codex-room"), role]
         providers["devin-supervisor"]["command"] = [str(ROOT / "setup" / "role-agent"), "supervisor", "devin"]
-        self.data = {"daemon": {"mcp": {"injectIntoAgents": True}}, "agents": {"providers": providers}}
+        providers["amp-supervisor"]["command"] = [str(ROOT / "setup" / "role-agent"), "supervisor", "amp"]
+        providers["claude-supervisor"]["command"] = [str(ROOT / "setup" / "role-agent"), "supervisor", "claude"]
+        providers["codex-supervisor"]["command"] = [str(ROOT / "setup" / "codex-room"), "supervisor"]
+        profiles = example["daemon"]["agentProfiles"]
+        self.data = {"daemon": {"mcp": {"enabled": True, "injectIntoAgents": True}, "agentProfiles": profiles}, "agents": {"providers": providers}}
 
     def tearDown(self):
         self.temporary.cleanup()
@@ -57,17 +62,25 @@ class SetupSeatsTest(unittest.TestCase):
         self.assertIn("auth, daemon and launch not checked", result.stdout)
 
     def test_catalog_partition_and_example_policy(self):
-        self.assertEqual((len(CATALOG), len(KEEP), len(DENY)), (61, 13, 48))
+        self.assertEqual((len(CATALOG), len(KEEP), len(DENY)), (61, 14, 47))
         self.assertFalse(KEEP & DENY)
         self.assertEqual(KEEP | DENY, CATALOG)
         example = json.loads((ROOT / "examples" / "paseo-providers.json").read_text())
-        enabled = [p for p in example.values() if isinstance(p, dict) and p.get("paseoTools", {}).get("enabled") is True]
+        enabled = [p for p in example["agents"]["providers"].values() if p.get("paseoTools", {}).get("enabled") is True]
         self.assertTrue(enabled)
         self.assertTrue(all(set(p["paseoTools"]["disabledTools"]) == DENY for p in enabled))
+        self.assertEqual(len(example["daemon"]["agentProfiles"]), 35)
+        counts = Counter(p["provider"] for p in example["daemon"]["agentProfiles"])
+        self.assertEqual(counts, Counter({"amp-peer": 1, "amp-supervisor": 2,
+            "claude-peer": 2, "claude-supervisor": 2, "codex-peer": 2,
+            "codex-supervisor": 2, "copilot-peer": 10, "omp-peer": 6,
+            "pi-peer": 8}))
         script = SCRIPT.read_text()
         match = re.search(r"expected_deny='(\[.*?\])'", script)
         self.assertIsNotNone(match, "checker deny-list constant not found")
         self.assertEqual(set(json.loads(match.group(1))), DENY)
+        self.assertFalse(KEEP & DENY)
+        self.assertEqual(KEEP | DENY, CATALOG)
 
     def test_enabled_provider_requires_exact_denylist(self):
         self.save()
@@ -151,6 +164,50 @@ class SetupSeatsTest(unittest.TestCase):
         supervisor["paseoTools"]["enabled"] = False
         self.save()
         self.assertNotEqual(self.run_check("--check").returncode, 0)
+
+
+    def test_profile_validation_accepts_and_rejects_invalid_references(self):
+        self.save()
+        self.assertEqual(self.run_check("--check").returncode, 0)
+        profile = self.data["daemon"]["agentProfiles"][0]
+        original = profile["model"]
+        profile["model"] = "not-on-seat"
+        self.save()
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("agentProfiles", result.stderr)
+        profile["model"] = original
+        profile["thinkingOptionId"] = "missing"
+        self.save()
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("agentProfiles", result.stderr)
+        profile.pop("thinkingOptionId")
+        amp_profile = next(p for p in self.data["daemon"]["agentProfiles"]
+                           if p["id"] == "amp-peer--medium")
+        amp_profile["thinkingOptionId"] = "low"
+        self.save()
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("agentProfiles", result.stderr)
+        amp_profile.pop("thinkingOptionId")
+        profile["provider"] = "not-an-epistex-seat"
+        self.save()
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("agentProfiles", result.stderr)
+
+    def test_amp_claude_codex_supervisor_seat_checks(self):
+        self.save()
+        self.assertEqual(self.run_check("--check").returncode, 0)
+        for seat in ("amp-supervisor", "claude-supervisor", "codex-supervisor"):
+            old = self.data["agents"]["providers"][seat]["command"][0]
+            self.data["agents"]["providers"][seat]["command"][0] = "/wrong/path"
+            self.save()
+            result = self.run_check("--check")
+            self.assertNotEqual(result.returncode, 0, seat)
+            self.assertIn(seat, result.stderr)
+            self.data["agents"]["providers"][seat]["command"][0] = old
 
     def test_unknown_argument_fails(self):
         self.assertEqual(self.run_check("--unknown").returncode, 2)

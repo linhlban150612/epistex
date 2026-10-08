@@ -28,13 +28,17 @@ và stdin nguyên trạng, giữ CWD và auth home hiện có; không dùng ACP 
 Kiểm phiên thực tế: heading từ active instructions phải là `# Peer — independent co-worker`,
 `pwd` đúng workspace, model/effort đúng và không có Paseo tools trong inventory kể cả deferred
 discovery nếu có. Không đọc file role để thay bằng chứng injection. Diagnostic không thay thế
-live launch. `setup-seats.sh --check` kiểm Codex và Supervisor; kiểm riêng các provider này. Pi Peer có sáu profile (DeepSeek Flash low, GPT-6 Luna low/medium, Kimi K3 low, GLM-5.3 Flash low, GLM-5.3 low, Claude Haiku 5.5 low/medium). OMP Peer có các profile tương tự, trừ GPT-6 Luna; GLM-5.3 giữ max mặc định ở model seat.
+live launch. `setup-seats.sh --check` kiểm Codex và Supervisor; kiểm riêng các provider này. Pi Peer có tám profile (DeepSeek Flash low, GPT-6 Luna low/medium, Kimi K3 low, GLM-5.3 Flash low, GLM-5.3 low, Claude Haiku 5.5 low/medium). OMP Peer có tám profile tương tự, gồm GPT-6 Luna low/medium; GLM-5.3 giữ max mặc định ở model seat.
 Profile model pins (profile effort options are `low` except where indicated):
 
 | Seat | Model IDs | Effort pins |
 |---|---|---|
 | `pi-peer` | `openrouter/deepseek/deepseek-v4.1-flash`; `github-copilot/gpt-6-luna`; `openrouter/moonshotai/kimi-k3`; `openrouter/z-ai/glm-5.3-flash`; `openrouter/z-ai/glm-5.3`; `openrouter/anthropic/claude-haiku-5.5` | low; GPT-6 Luna and Haiku also medium |
-| `omp-peer` | Same list except `github-copilot/gpt-6-luna` | low; Haiku also medium; GLM-5.3 model default remains max |
+| `omp-peer` | Same list as `pi-peer` | low; GPT-6 Luna and Haiku also medium; GLM-5.3 model default remains max |
 
 Chỉ dùng `pi-peer`/`omp-peer` để điều phối khi Human cho phép delegation. Không xóa session
 hay thay credentials; role/MCP separation không phải OS sandbox.
+
+OMP 18.8.4 hỗ trợ `github-copilot/gpt-6-luna` với effort low/medium. Cell GPT-6 Luna
+của `omp-peer` giống `pi-peer`: label `GPT-6 Luna`, `isDefault: false`, low mặc định
+và medium tùy chọn. Compaction OMP vẫn dùng `thresholdTokens` cố định trong `.omp/config.yml`.

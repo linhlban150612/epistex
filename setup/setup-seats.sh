@@ -15,7 +15,7 @@ for arg in "$@"; do
   esac
 done
 
-for name in bash jq python3 dirname wc; do
+for name in bash jq python3 dirname wc grep; do
   command -v "$name" >/dev/null || fail "need $name on PATH"
 done
 (( errs == 0 )) || exit 1
@@ -42,11 +42,38 @@ for name in codex-room codex-room-sync; do
   [[ -x "$wrapper" ]] || fail "$wrapper is not executable"
 done
 
+if ! jq -e '
+  .compaction.modelOverrides | type == "object" and length > 0
+' "$kit/.pi/settings.json" >/dev/null 2>&1; then
+  fail '.pi/settings.json: need valid JSON with non-empty compaction.modelOverrides'
+fi
+
+if [[ ! -f "$kit/.omp/config.yml" ]] || ! grep -Eq '^[[:space:]]*thresholdTokens:[[:space:]]*100000[[:space:]]*$' "$kit/.omp/config.yml"; then
+  fail '.omp/config.yml: need thresholdTokens: 100000'
+fi
+
+# Human opt-in is user-wide, so this observation must never gate workspace setup.
+if ! jq -e '.agent.compaction_threshold_tokens == 100000' \
+  "${XDG_CONFIG_HOME:-$HOME/.config}/devin/config.json" >/dev/null 2>&1; then
+  printf '  note: Devin user-wide agent.compaction_threshold_tokens is absent or != 100000 (informational only)\n'
+fi
+
 if [[ ! -f "$paseo_config" ]]; then
   fail "missing $paseo_config; merge examples/paseo-providers.json first"
 elif ! jq -e 'type == "object"' "$paseo_config" >/dev/null 2>&1; then
   fail "$paseo_config is not a valid JSON object"
 else
+  while IFS= read -r seat; do
+    [[ -n "$seat" ]] || continue
+    jq -e --arg seat "$seat" '
+      .agents.providers[$seat].env.CLAUDE_CODE_AUTO_COMPACT_WINDOW == "100000"
+    ' "$paseo_config" >/dev/null || fail "$seat: need env CLAUDE_CODE_AUTO_COMPACT_WINDOW=100000"
+  done < <(jq -r '
+    ([.agents.providers | to_entries[] |
+      select((.key | startswith("claude-")) and .value.enabled == true) | .key]
+      + ["claude-peer"]) | unique[]
+  ' "$paseo_config")
+
   expected_deny_lead='["archive_workspace","browser_back","browser_click","browser_close_tab","browser_drag","browser_evaluate","browser_fill","browser_forward","browser_hover","browser_keypress","browser_list_tabs","browser_logs","browser_navigate","browser_new_tab","browser_reload","browser_resize","browser_screenshot","browser_scroll","browser_select","browser_snapshot","browser_type","browser_upload","browser_wait","capture_terminal","create_heartbeat","create_schedule","create_terminal","create_workspace","delete_heartbeat","delete_schedule","inspect_provider","inspect_schedule","kill_agent","kill_terminal","list_schedules","list_terminals","list_workspace_scripts","pause_schedule","rename_workspace","resume_schedule","run_schedule_once","schedule_logs","send_terminal_keys","start_workspace_script","stop_workspace_script","update_agent","update_schedule"]'
   expected_deny_supervisor=$(jq -c 'map(select(. != "create_workspace"))' <<<"$expected_deny_lead")
 

@@ -290,7 +290,9 @@
           "supervisor",
           "claude"
         ],
-        "env": {},
+        "env": {
+          "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "100000"
+        },
         "enabled": true,
         "models": [
           {
@@ -470,7 +472,9 @@
           "peer",
           "claude"
         ],
-        "env": {},
+        "env": {
+          "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "100000"
+        },
         "models": [
           {
             "id": "claude-sonnet-5-5",

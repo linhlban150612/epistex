@@ -1,0 +1,21 @@
+{
+  "compaction": {
+    "modelOverrides": {
+      "openrouter/deepseek/deepseek-v4.1-flash": {
+        "reserveTokens": 948576
+      },
+      "github-copilot/gpt-6-luna": {
+        "reserveTokens": 900000
+      },
+      "openrouter/moonshotai/kimi-k3": {
+        "reserveTokens": 948576
+      },
+      "openrouter/z-ai/glm-5.3-flash": {
+        "reserveTokens": 948575
+      },
+      "openrouter/z-ai/glm-5.3": {
+        "reserveTokens": 948576
+      }
+    }
+  }
+}

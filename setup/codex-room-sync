@@ -68,6 +68,7 @@ def same_values(left, right) -> bool:
 def render_config(text: str, role: str, prompt: pathlib.Path) -> str:
     config = tomllib.loads(text)
     config["model_instructions_file"] = str(prompt)
+    config["model_auto_compact_token_limit"] = 100000
     for table, flags in (("features", {"multi_agent": False, "multi_agent_v2": False}),
                          ("agents", {"enabled": False})):
         section = config.setdefault(table, {})

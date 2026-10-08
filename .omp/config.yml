@@ -1,0 +1,3 @@
+compaction:
+  enabled: true
+  thresholdTokens: 100000

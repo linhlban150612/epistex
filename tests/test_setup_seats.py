@@ -23,7 +23,11 @@ class SetupSeatsTest(unittest.TestCase):
         self.config = pathlib.Path(self.temporary.name) / "config.json"
         self.bin = pathlib.Path(self.temporary.name) / "bin"
         self.bin.mkdir()
-        for name in ("bash", "jq", "dirname", "wc", "chmod"):
+        self.kit = pathlib.Path(self.temporary.name) / "kit"
+        for directory in ("setup", "agents", ".pi", ".omp"):
+            shutil.copytree(ROOT / directory, self.kit / directory)
+        self.script = self.kit / "setup" / "setup-seats.sh"
+        for name in ("bash", "jq", "dirname", "wc", "chmod", "grep"):
             target = shutil.which(name)
             if target is None:
                 raise RuntimeError(f"test prerequisite missing: {name}")
@@ -37,11 +41,11 @@ class SetupSeatsTest(unittest.TestCase):
         example = json.loads((ROOT / "examples" / "paseo-providers.json").read_text())
         providers = example["agents"]["providers"]
         for role in ("lead", "peer"):
-            providers[f"codex-{role}"]["command"] = [str(ROOT / "setup" / "codex-room"), role]
-        providers["devin-supervisor"]["command"] = [str(ROOT / "setup" / "role-agent"), "supervisor", "devin"]
-        providers["amp-supervisor"]["command"] = [str(ROOT / "setup" / "role-agent"), "supervisor", "amp"]
-        providers["claude-supervisor"]["command"] = [str(ROOT / "setup" / "role-agent"), "supervisor", "claude"]
-        providers["codex-supervisor"]["command"] = [str(ROOT / "setup" / "codex-room"), "supervisor"]
+            providers[f"codex-{role}"]["command"] = [str(self.kit / "setup" / "codex-room"), role]
+        providers["devin-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "devin"]
+        providers["amp-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "amp"]
+        providers["claude-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "claude"]
+        providers["codex-supervisor"]["command"] = [str(self.kit / "setup" / "codex-room"), "supervisor"]
         profiles = example["daemon"]["agentProfiles"]
         self.data = {"daemon": {"mcp": {"enabled": True, "injectIntoAgents": True}, "agentProfiles": profiles}, "agents": {"providers": providers}}
 
@@ -49,7 +53,7 @@ class SetupSeatsTest(unittest.TestCase):
         self.temporary.cleanup()
 
     def run_check(self, *args):
-        return subprocess.run([str(self.bin / "bash"), str(SCRIPT), *args], text=True,
+        return subprocess.run([str(self.bin / "bash"), str(self.script), *args], text=True,
                               capture_output=True, env=self.env)
 
     def save(self):
@@ -62,6 +66,70 @@ class SetupSeatsTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.config.read_bytes(), before)
         self.assertIn("auth, daemon and launch not checked", result.stdout)
+
+    def test_claude_compaction_env_checks_each_enabled_seat_and_peer(self):
+        providers = self.data["agents"]["providers"]
+        providers["claude-lead"] = {
+            "enabled": True, "env": {"CLAUDE_CODE_AUTO_COMPACT_WINDOW": "100000"}}
+        self.save()
+        self.assertEqual(self.run_check("--check").returncode, 0)
+        for seat in ("claude-peer", "claude-lead", "claude-supervisor"):
+            with self.subTest(seat=seat):
+                providers[seat]["env"]["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] = "200000"
+                self.save()
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(seat + ": need env CLAUDE_CODE_AUTO_COMPACT_WINDOW=100000", result.stderr)
+                providers[seat]["env"]["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] = "100000"
+        providers["claude-lead"]["enabled"] = False
+        providers["claude-lead"]["env"] = {}
+        providers["claude-peer"]["enabled"] = False
+        providers["claude-peer"]["env"] = {}
+        self.save()
+        result = self.run_check("--check")
+        self.assertIn("claude-peer: need env", result.stderr)
+        self.assertNotIn("claude-lead: need env", result.stderr)
+
+    def test_pi_compaction_settings_check(self):
+        self.save()
+        self.assertEqual(self.run_check("--check").returncode, 0)
+        settings = self.kit / ".pi" / "settings.json"
+        for invalid in ('{', '{}', '{"compaction":{"modelOverrides":{}}}',
+                        '{"compaction":{"modelOverrides":[]}}'):
+            with self.subTest(invalid=invalid):
+                settings.write_text(invalid)
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(".pi/settings.json: need valid JSON", result.stderr)
+        settings.unlink()
+        self.assertNotEqual(self.run_check("--check").returncode, 0)
+
+    def test_omp_compaction_settings_check(self):
+        self.save()
+        self.assertEqual(self.run_check("--check").returncode, 0)
+        config = self.kit / ".omp" / "config.yml"
+        for invalid in ("compaction: {}\n", "compaction:\n  thresholdTokens: 200000\n"):
+            config.write_text(invalid)
+            result = self.run_check("--check")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(".omp/config.yml: need thresholdTokens: 100000", result.stderr)
+        config.unlink()
+        self.assertNotEqual(self.run_check("--check").returncode, 0)
+
+    def test_devin_compaction_observation_is_informational_only(self):
+        self.save()
+        absent = self.run_check("--check")
+        self.assertEqual(absent.returncode, 0, absent.stderr)
+        self.assertIn("Devin user-wide agent.compaction_threshold_tokens is absent", absent.stdout)
+        config = pathlib.Path(self.temporary.name) / ".config" / "devin" / "config.json"
+        config.parent.mkdir(parents=True)
+        for value in (100000, 200000):
+            config.write_text(json.dumps({"agent": {"compaction_threshold_tokens": value}}))
+            before = config.read_bytes()
+            result = self.run_check("--check")
+            self.assertEqual(result.returncode, absent.returncode, result.stderr)
+            self.assertEqual(config.read_bytes(), before)
+            self.assertEqual("Devin user-wide" in result.stdout, value != 100000)
 
     def test_catalog_partition_and_example_policy(self):
         self.assertEqual((len(CATALOG), len(KEEP_LEAD), len(DENY_LEAD)), (61, 14, 47))

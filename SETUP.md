@@ -60,8 +60,8 @@ Peer `gpt-6-luna`, effort mặc định `low`. `command` phải giữ đúng rol
 mẫu `<seat>--<model-slug>--<thinking>`; profile không chứa prompt. Orchestrator sao chép `provider`,
 `model` và `thinkingOptionId` khi gọi `create_agent`; Lead/Supervisor khám phá inventory bằng
 `list_profiles`. Amp profiles không có thinking option khi model không khai báo options. Cả daemon và
-CLI đang ở Paseo 0.11.1. `paseo reload` nạp thay đổi cấu hình để các agent mới dùng chúng; agent đang
-chạy không đổi.
+CLI đang ở Paseo 0.11.1. Sau sửa config, `paseo reload` trả `Configuration reloaded.` trong lần
+kiểm chứng này. Xác minh phiên mới/launch riêng; reload output không tự chứng minh model hoặc role.
 
 ## 6. Đặt contract và protocol tại project đích
 

@@ -144,12 +144,12 @@ class SetupSeatsTest(unittest.TestCase):
             if provider.get("paseoTools", {}).get("enabled") is True:
                 expected = DENY_SUPERVISOR if key.endswith("-supervisor") else DENY_LEAD
                 self.assertEqual(set(provider["paseoTools"]["disabledTools"]), expected, key)
-        self.assertEqual(len(example["daemon"]["agentProfiles"]), 39)
+        self.assertEqual(len(example["daemon"]["agentProfiles"]), 45)
         counts = Counter(p["provider"] for p in example["daemon"]["agentProfiles"])
         self.assertEqual(counts, Counter({"amp-peer": 1, "amp-supervisor": 2,
-            "claude-peer": 2, "claude-supervisor": 1, "codex-peer": 2,
-            "codex-supervisor": 2, "copilot-peer": 10, "omp-peer": 8,
-            "pi-peer": 8, "agy-peer": 3}))
+            "claude-peer": 6, "claude-supervisor": 1, "codex-peer": 2,
+            "codex-supervisor": 2, "copilot-peer": 10, "omp-peer": 9,
+            "pi-peer": 9, "agy-peer": 3}))
         script = SCRIPT.read_text()
         match = re.search(r"expected_deny_lead='(\[.*?\])'", script)
         self.assertIsNotNone(match, "checker deny-list constant not found")
@@ -160,7 +160,12 @@ class SetupSeatsTest(unittest.TestCase):
         providers = self.data["agents"]["providers"]
         model = "github-copilot/gpt-6-luna"
         cell = next(m for m in providers["omp-peer"]["models"] if m["id"] == model)
-        self.assertEqual(cell, next(m for m in providers["pi-peer"]["models"] if m["id"] == model))
+        pi_cell = next(m for m in providers["pi-peer"]["models"] if m["id"] == model)
+        self.assertTrue(pi_cell["isDefault"])
+        self.assertEqual(pi_cell["thinkingOptions"], [
+            {"id": "low", "label": "Low", "isDefault": False},
+            {"id": "medium", "label": "Medium", "isDefault": True}])
+        self.assertEqual(len([m for m in providers["pi-peer"]["models"] if m["isDefault"]]), 1)
         self.assertFalse(cell["isDefault"])
         self.assertEqual(cell["thinkingOptions"], [
             {"id": "low", "label": "Low", "isDefault": True},

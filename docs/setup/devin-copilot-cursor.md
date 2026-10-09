@@ -21,7 +21,7 @@ Giữ MCP injection bật ở daemon; Supervisor và Devin Lead expose Paseo too
 |---|---|---|---|---|
 | `devin-supervisor` | `["<KIT>/setup/role-agent","supervisor","devin"]` | `fusion-claude-fable-5-1-medium-sidekick-swe-2-medium` | `medium` | Bật |
 | `devin-lead` | `["<KIT>/setup/role-agent","lead","devin"]` | `fusion-claude-fable-5-1-medium-sidekick-swe-2-medium` | `medium` | Bật |
-| `devin-peer` | `["<KIT>/setup/role-agent","peer","devin"]` | `fusion-claude-opus-5-5-high-sidekick-swe-2-medium` | `high` | Tắt |
+| `devin-peer` | `["<KIT>/setup/role-agent","peer","devin"]` | `fusion-claude-opus-5-5-high-sidekick-swe-2-medium` (mặc định), `swe-2-high` | `high` | Tắt |
 | `copilot-peer` | `["<KIT>/setup/role-agent","peer","copilot"]` | `gpt-6-luna` | `medium` | Tắt |
 | `cursor-peer` | `["<KIT>/setup/role-agent","peer","cursor"]` | `composer-2.5[fast=true]` | Không có | Tắt |
 

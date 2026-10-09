@@ -477,6 +477,23 @@
         },
         "models": [
           {
+            "id": "claude-haiku-5-5",
+            "label": "Haiku 5.5",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
             "id": "claude-sonnet-5-5",
             "label": "Sonnet 5.5",
             "isDefault": true,
@@ -485,6 +502,11 @@
                 "id": "low",
                 "label": "Low",
                 "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
               }
             ]
           },
@@ -525,7 +547,7 @@
           {
             "id": "openrouter/deepseek/deepseek-v4.1-flash",
             "label": "DeepSeek V4.1 Flash",
-            "isDefault": true,
+            "isDefault": false,
             "thinkingOptions": [
               {
                 "id": "low",
@@ -537,17 +559,17 @@
           {
             "id": "github-copilot/gpt-6-luna",
             "label": "GPT-6 Luna",
-            "isDefault": false,
+            "isDefault": true,
             "thinkingOptions": [
               {
                 "id": "low",
                 "label": "Low",
-                "isDefault": true
+                "isDefault": false
               },
               {
                 "id": "medium",
                 "label": "Medium",
-                "isDefault": false
+                "isDefault": true
               }
             ]
           },
@@ -584,6 +606,11 @@
                 "id": "low",
                 "label": "Low",
                 "isDefault": true
+              },
+              {
+                "id": "high",
+                "label": "High",
+                "isDefault": false
               }
             ]
           },
@@ -680,13 +707,14 @@
             "isDefault": true,
             "thinkingOptions": [
               {
-                "id": "max",
-                "label": "Max",
-                "isDefault": true
+                "id": "low",
+                "label": "Low",
+                "isDefault": false
               },
               {
-                "id": "low",
-                "label": "Low"
+                "id": "high",
+                "label": "High",
+                "isDefault": true
               }
             ]
           },
@@ -704,6 +732,47 @@
                 "id": "medium",
                 "label": "Medium",
                 "isDefault": false
+              }
+            ]
+          }
+        ],
+        "paseoTools": {
+          "enabled": false
+        },
+        "enabled": true
+      },
+      "devin-peer": {
+        "extends": "acp",
+        "label": "Devin Peer Seat",
+        "description": "Peer — implementation, evidence and handoff",
+        "command": [
+          "<KIT>/setup/role-agent",
+          "peer",
+          "devin"
+        ],
+        "env": {},
+        "models": [
+          {
+            "id": "fusion-claude-opus-5-5-high-sidekick-swe-2-medium",
+            "label": "Fusion (Claude Opus 5.5 High + SWE-2 Medium)",
+            "isDefault": true,
+            "thinkingOptions": [
+              {
+                "id": "high",
+                "label": "High",
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "id": "swe-2-high",
+            "label": "SWE-2 (High)",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "high",
+                "label": "High",
+                "isDefault": true
               }
             ]
           }
@@ -833,18 +902,18 @@
         },
         "models": [
           {
-            "id": "gemini-3.1-pro-high",
-            "label": "Gemini 3.1 Pro (High)",
+            "id": "gemini-3.8-flash-low",
+            "label": "Gemini 3.8 Flash (Low)",
             "isDefault": true
+          },
+          {
+            "id": "gemini-3.8-flash-medium",
+            "label": "Gemini 3.8 Flash (Medium)",
+            "isDefault": false
           },
           {
             "id": "gemini-3.8-flash-high",
             "label": "Gemini 3.8 Flash (High)",
-            "isDefault": false
-          },
-          {
-            "id": "claude-opus-4-6-thinking",
-            "label": "Claude Opus 4.6 (Thinking)",
             "isDefault": false
           }
         ]
@@ -905,6 +974,38 @@
         "model": "gpt-6-astra",
         "thinkingOptionId": "medium",
         "notes": "Supervisor: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "claude-peer--claude-haiku-5-5--low",
+        "name": "claude-peer · claude-haiku-5-5 · low",
+        "provider": "claude-peer",
+        "model": "claude-haiku-5-5",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "claude-peer--claude-haiku-5-5--medium",
+        "name": "claude-peer · claude-haiku-5-5 · medium",
+        "provider": "claude-peer",
+        "model": "claude-haiku-5-5",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "claude-peer--claude-sonnet-5-5--low",
+        "name": "claude-peer · claude-sonnet-5-5 · low",
+        "provider": "claude-peer",
+        "model": "claude-sonnet-5-5",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "claude-peer--claude-sonnet-5-5--medium",
+        "name": "claude-peer · claude-sonnet-5-5 · medium",
+        "provider": "claude-peer",
+        "model": "claude-sonnet-5-5",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "claude-peer--claude-opus-5-5--low",
@@ -979,6 +1080,14 @@
         "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
+        "id": "pi-peer--openrouter-z-ai-glm-5-3--high",
+        "name": "pi-peer · openrouter/z-ai/glm-5.3 · high",
+        "provider": "pi-peer",
+        "model": "openrouter/z-ai/glm-5.3",
+        "thinkingOptionId": "high",
+        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
         "id": "pi-peer--openrouter-anthropic-claude-haiku-5-5--low",
         "name": "pi-peer · openrouter/anthropic/claude-haiku-5.5 · low",
         "provider": "pi-peer",
@@ -1041,6 +1150,14 @@
         "model": "openrouter/z-ai/glm-5.3",
         "thinkingOptionId": "low",
         "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "omp-peer--openrouter-z-ai-glm-5-3--high",
+        "name": "omp-peer · openrouter/z-ai/glm-5.3 · high",
+        "provider": "omp-peer",
+        "model": "openrouter/z-ai/glm-5.3",
+        "thinkingOptionId": "high",
+        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "omp-peer--openrouter-anthropic-claude-haiku-5-5--low",
@@ -1139,25 +1256,25 @@
         "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
-        "id": "agy-peer--gemini-3.1-pro-high",
-        "name": "agy-peer · gemini-3.1-pro-high",
+        "id": "agy-peer--gemini-3.8-flash-low",
+        "name": "agy-peer · gemini-3.8-flash-low",
         "provider": "agy-peer",
-        "model": "gemini-3.1-pro-high",
-        "notes": "Peer: Antigravity CLI via ACP. Orchestrator must copy provider and model into create_agent; thinking effort is baked into the model ID."
+        "model": "gemini-3.8-flash-low",
+        "notes": "Peer: cheap/fast. Effort is encoded in the model id; no thinkingOptionId. Orchestrator must copy provider and model into create_agent."
+      },
+      {
+        "id": "agy-peer--gemini-3.8-flash-medium",
+        "name": "agy-peer · gemini-3.8-flash-medium",
+        "provider": "agy-peer",
+        "model": "gemini-3.8-flash-medium",
+        "notes": "Peer: balanced. Effort is encoded in the model id; no thinkingOptionId. Orchestrator must copy provider and model into create_agent."
       },
       {
         "id": "agy-peer--gemini-3.8-flash-high",
         "name": "agy-peer · gemini-3.8-flash-high",
         "provider": "agy-peer",
         "model": "gemini-3.8-flash-high",
-        "notes": "Peer: Antigravity CLI via ACP. Orchestrator must copy provider and model into create_agent; thinking effort is baked into the model ID."
-      },
-      {
-        "id": "agy-peer--claude-opus-4-6-thinking",
-        "name": "agy-peer · claude-opus-4-6-thinking",
-        "provider": "agy-peer",
-        "model": "claude-opus-4-6-thinking",
-        "notes": "Peer: Antigravity CLI via ACP. Orchestrator must copy provider and model into create_agent; thinking effort is baked into the model ID."
+        "notes": "Peer: careful. Effort is encoded in the model id; no thinkingOptionId. Orchestrator must copy provider and model into create_agent."
       }
     ]
   }

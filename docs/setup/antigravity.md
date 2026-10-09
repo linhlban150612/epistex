@@ -5,7 +5,7 @@ This guide adds `agy-peer`, a Paseo Peer backed by Google's Antigravity CLI (`ag
 ## Prerequisites and build
 
 1. Install Google Antigravity CLI and ensure `agy` is on the PATH inherited by Paseo. Authenticate it using the supported `agy` login flow before launching a seat; authentication credentials remain in the CLI's user state, never in this repository.
-2. Confirm `agy models` prints the configured model IDs. The example pins `gemini-3.1-pro-high` as default and also exposes `gemini-3.8-flash-high` and `claude-opus-4-6-thinking`.
+2. Confirm `agy models` prints the configured model IDs. The example pins `gemini-3.8-flash-low` as default and also exposes `gemini-3.8-flash-medium` and `gemini-3.8-flash-high`.
 3. Install Rust/Cargo, then build and install the checked-in adapter source:
 
    ```sh

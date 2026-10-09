@@ -20,6 +20,8 @@ Profile pins:
 
 | Seat | Model | Thinking options |
 |---|---|---|
+| `claude-peer` | `claude-haiku-5-5` | `low`, `medium` |
+| `claude-peer` | `claude-sonnet-5-5` | `low`, `medium` |
 | `claude-peer` | `claude-opus-5-5` | `low`, `medium` |
 | `claude-supervisor` | `claude-fable-5-1` | `medium` (unverified: provider credits) |
 
@@ -39,5 +41,5 @@ thấy Paseo tools và gọi được một tool read-only; Peer phải có head
 `# Peer — independent co-worker` và không thấy Paseo tools kể cả qua deferred tool discovery.
 Lead điều phối Peer Claude bằng `claude-peer`, không dùng provider Claude gốc.
 
-`setup-seats.sh --check` kiểm các supervisor seat. Claude Peer profiles pin `claude-opus-5-5` ở low/medium; Supervisor profile pin `claude-fable-5-1` ở medium (unverified: provider credits). Kiểm field provider và chạy launch thật cho các role.
+`setup-seats.sh --check` kiểm các supervisor seat. Claude Peer profiles pin `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5` ở low/medium; Supervisor profile pin `claude-fable-5-1` ở medium (unverified: provider credits). Kiểm field provider và chạy launch thật cho các role.
 Đây là role/MCP separation, không phải OS sandbox hay hai credential home cô lập.

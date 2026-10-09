@@ -245,6 +245,11 @@ Before closing:
 If a fix is needed, trace it to the layer that produced the deviation before patching the symptom.
 Do not add retries, exceptions or implementation-matching tests just to turn the signal green.
 
+**Rework cap: at most 2 rework rounds per Peer on one task.** If the third candidate still fails
+review, do not send that Peer a fourth brief: archive it and hand the task to a different Peer
+(prefer another backend), resuming from the old Peer's last committed candidate SHA on the same
+base, with a fresh brief that lists the unresolved findings as third-party.
+
 Once closed, `archive_agent`, including abandoned agents: the durable artifact is the **candidate**;
 a live agent only leaves a target for a misaimed `send_agent_prompt`.
 

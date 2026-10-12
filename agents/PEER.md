@@ -109,6 +109,11 @@ Unknown / risk     assumptions you are standing on, decisions that need the Huma
 Ownership          stopped writing and returned scope to the Lead, or which scope you still hold and why
 ```
 
+When the outcome is `reopen`, `blocked` or a dependency, the handoff **also states the report
+type verbatim** — `REOPEN_REQUEST`, `BLOCKED` or `DEPENDENCY_REQUEST` — and for `REOPEN_REQUEST`
+the layer being reopened (`foundation`, `dependency`, `lifecycle`, `API`, `ownership`,
+`verification`). The Lead routes on that token; `Outcome: reopen` alone does not reach it.
+
 **Unknown stays unknown.** "I could not determine this; here is where I looked" is a valid
 result. Not found ≠ does not exist.
 

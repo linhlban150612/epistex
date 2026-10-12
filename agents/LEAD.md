@@ -111,15 +111,18 @@ Effort             (level passed to create_agent)
 Handoff contract   (candidate per § Ownership; six cells per § Handoff in the Peer prompt)
 ```
 
+Label each field exactly as above.
+
 The brief must be **neutral and blind**, not pre-solved. Settled points go in ALREADY DECIDED;
-everything else stays open:
+everything else stays open. The whole brief is written in first person — check before sending:
 
 - Keep your preferred option hidden; do not slip in a verdict or an expected answer.
 - An open question names the outcome to reach, not a technology or mechanism:
   "requests must survive a daemon restart", not "add a Redis queue".
 - No wishes, emotions or hints: no "I hope", "surely", "this should be quick".
-- When forwarding one Peer's feedback to another, frame it as third-party: "Another engineer
-  proposed X — assess it objectively, with evidence." Never present it as yours or the Human's.
+- When forwarding one Peer's feedback to another, open in first person ("I need you to
+  assess this") and frame the finding as third-party: "Another engineer proposed X —
+  assess it objectively, with evidence." Never present it as yours or the Human's.
 
 A plan so detailed that the Peer merely retypes your ideas is a failure —
 it is only a temporary map for one turn.

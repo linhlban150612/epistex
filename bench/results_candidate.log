@@ -1,0 +1,28 @@
+{"runner": "bench/run_llm.py", "suite_version": "epistex-bench-1.0", "label": "candidate-v1", "model_requested": "deepseek/deepseek-chat-v3.1", "temperature": 0.0, "trials_per_task": 3, "rework_cap": 2, "agents_dir": "/root/.hermes/workspace/packs/epistex/agents", "repo_head": "5f5643ba356254cd8c13895b695aeb786558b5ec", "recorded_at": "20261011T155934Z"}
+  lead-brief-01: first-pass 2/3, eventual 2/3
+  lead-brief-02: first-pass 2/3, eventual 2/3
+  lead-brief-03: first-pass 3/3, eventual 3/3
+  lead-brief-04: first-pass 0/3, eventual 0/3
+  peer-handoff-01: first-pass 3/3, eventual 3/3
+  peer-handoff-02: first-pass 3/3, eventual 3/3
+  peer-handoff-03: first-pass 3/3, eventual 3/3
+  peer-handoff-04: first-pass 2/3, eventual 3/3
+  peer-handoff-05: first-pass 3/3, eventual 3/3
+  lead-review-01: first-pass 3/3, eventual 3/3
+  lead-review-02: first-pass 3/3, eventual 3/3
+  lead-loop-01: first-pass 3/3, eventual 3/3
+{
+ "label": "candidate-v1",
+ "model": "deepseek/deepseek-chat-v3.1",
+ "task_trials": 36,
+ "first_pass_rate": 0.8333,
+ "eventual_success_rate": 0.8611,
+ "rework_rate": 0.234,
+ "avg_turns_per_trial": 1.306,
+ "total_latency_s": 688.2,
+ "tokens_in": 147463,
+ "tokens_out": 7910,
+ "cost_usd": 0.0446,
+ "cost_per_successful_trial": 0.0014,
+ "results_file": "/root/.hermes/workspace/packs/epistex/bench/results/candidate-v1_20261011T155934Z.jsonl"
+}

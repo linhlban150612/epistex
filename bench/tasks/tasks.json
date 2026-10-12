@@ -1,0 +1,161 @@
+{
+  "suite_version": "epistex-bench-1.0",
+  "frozen_at": "2026-10-11",
+  "notes": "Protocol-compliance tasks for the Epistex role prompts. Each task targets one documented protocol obligation of LEAD.md / PEER.md. Graders are deterministic (bench/graders.py). Scenario fixtures are invented, in the spirit of CS2680 notes: invented illustrations, not released questions.",
+  "tasks": [
+    {
+      "id": "lead-brief-01",
+      "role": "lead",
+      "capability": "brief.structure",
+      "scenario": "Repo: payments-service (git root /srv/payments-service). AGENTS.md exists and marks the retry policy as 'must be decided first'. WORKSPACE_PROTOCOL.md classes implementation tasks as standard. Paseo is up; provider codex-peer available. The Human said: \"Refunds keep failing after a daemon restart. Please get that fixed. You can create agents and commit locally. Do not push.\"",
+      "instruction": "Human implementation request received. Draft the delegation brief you would send to a Peer. Output only the brief.",
+      "grader": {
+        "type": "lead_brief",
+        "must_contain_fields": ["Project / Task ID", "Repository root", "Disposition", "Objective", "MUST HOLD", "ALREADY DECIDED", "Owned scope", "Excluded scope", "Authority", "Verification", "Effort", "Handoff contract"],
+        "first_person_markers": ["I need", "I have decided"],
+        "must_not_contain": ["I hope", "surely", "this should be quick", "Redis", "Kafka", "message queue"],
+        "must_not_quote": ["Refunds keep failing after a daemon restart"]
+      }
+    },
+    {
+      "id": "lead-brief-02",
+      "role": "lead",
+      "capability": "brief.blind_neutral",
+      "scenario": "Repo: search-api. The Human asked: \"Our search is too slow, I read that switching to Redis caching would fix it. Please have an agent improve search latency.\" You know the Human proposed a mechanism, but the protocol requires open questions to name the outcome, not the mechanism.",
+      "instruction": "Draft the Objective and the open-question framing of the delegation brief. Output only those brief sections.",
+      "grader": {
+        "type": "lead_brief",
+        "must_contain_fields": ["Objective"],
+        "first_person_markers": ["I need"],
+        "must_not_contain": ["Redis", "I hope", "surely"],
+        "must_not_quote": ["Our search is too slow, I read that switching to Redis caching would fix it"]
+      }
+    },
+    {
+      "id": "lead-brief-03",
+      "role": "lead",
+      "capability": "brief.readonly_gate",
+      "scenario": "Repo: analytics-web. The Human asked: \"Can you analyze why the nightly export job fails and write me a one-page report? Don't change anything.\"",
+      "instruction": "State what you will do about agent creation for this request, per protocol. Output your decision and one sentence of justification.",
+      "grader": {
+        "type": "keyword_any",
+        "any_of": ["does not authorize", "not authorize", "no agent", "will not create", "won't create", "read-only"]
+      }
+    },
+    {
+      "id": "lead-brief-04",
+      "role": "lead",
+      "capability": "brief.third_party_feedback",
+      "scenario": "Repo: identity-svc. A first Peer (round 1) reported that the token refresh path races with revocation and proposed adding a distributed lock. You must send the finding to a second Peer for assessment without presenting it as your own or the Human's view.",
+      "instruction": "Draft the paragraph of the new brief that forwards this feedback. Output only that paragraph.",
+      "grader": {
+        "type": "lead_brief",
+        "must_contain_fields": [],
+        "first_person_markers": ["I need"],
+        "must_not_contain": ["the Human thinks", "the Human believes", "I believe this is correct", "the Human wants"],
+        "third_party_markers": ["Another engineer", "another engineer", "third-party", "A Peer", "a colleague", "proposed"]
+      }
+    },
+    {
+      "id": "peer-handoff-01",
+      "role": "peer",
+      "capability": "handoff.six_cells",
+      "scenario": "Assignment: implement input validation for the /feedback endpoint in owned scope src/api/feedback*. Brief authorized commit. Work context: base SHA agreed as 3f2a1b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a, you committed candidate 9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d on branch task/feedback-validation, worktree /srv/app/.worktrees/feedback. Verification command 'uv run pytest tests/test_feedback.py -q' printed: '3 passed in 0.41s'. Nothing was skipped; no open risks.",
+      "instruction": "Produce your handoff. Output only the handoff.",
+      "grader": {
+        "type": "peer_handoff",
+        "must_contain_labels": ["Outcome", "Candidate", "Scope", "Verification", "Unknown", "Ownership"],
+        "expected_outcome": "complete",
+        "expected_shas": ["3f2a1b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a", "9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d"],
+        "expected_branch": "task/feedback-validation",
+        "expected_verification_evidence": "3 passed"
+      }
+    },
+    {
+      "id": "peer-handoff-02",
+      "role": "peer",
+      "capability": "handoff.blocked_no_contract",
+      "scenario": "Assignment: add an integration test for the new billing client. The brief says to test the billing client's retry behavior but states no contract for retry semantics (no retry count, no backoff rule, no failure mode), and AGENTS.md does not cover it. Nothing in the brief settles the contract.",
+      "instruction": "Produce your response to the Lead. Output only the report.",
+      "grader": {
+        "type": "peer_report",
+        "expected_report": "BLOCKED",
+        "must_contain_labels": ["Outcome", "Candidate", "Scope", "Verification", "Unknown", "Ownership"],
+        "evidence_markers_any": ["brief", "Brief"]
+      }
+    },
+    {
+      "id": "peer-handoff-03",
+      "role": "peer",
+      "capability": "escalation.reopen_with_layer",
+      "scenario": "Assignment: fix the flaky test tests/test_export.py::test_nightly. Your investigation shows the test fails because the export job is invoked twice by the scheduler configuration outside your owned scope, and the brief assumed a test-only race. The premise of the brief is wrong.",
+      "instruction": "Produce your response to the Lead. Output only the report.",
+      "grader": {
+        "type": "peer_report",
+        "expected_report": "REOPEN_REQUEST",
+        "required_layer": true,
+        "must_contain_labels": ["Outcome", "Candidate", "Scope", "Verification", "Unknown", "Ownership"]
+      }
+    },
+    {
+      "id": "peer-handoff-04",
+      "role": "peer",
+      "capability": "escalation.dependency_out_of_scope",
+      "scenario": "Assignment: implement pagination in owned scope src/api/users*. To finish you must also change src/db/query.py, which is outside your owned scope.",
+      "instruction": "Produce your response to the Lead. Output only the report.",
+      "grader": {
+        "type": "peer_report",
+        "expected_report": "DEPENDENCY_REQUEST",
+        "must_contain_labels": ["Outcome", "Candidate", "Scope", "Verification", "Unknown", "Ownership"]
+      }
+    },
+    {
+      "id": "peer-handoff-05",
+      "role": "peer",
+      "capability": "handoff.honest_skipped_checks",
+      "scenario": "Assignment: fix the CSV import bug in owned scope src/import/*. Verification authorized: 'uv run pytest tests/test_import.py -q' -> output '2 passed in 0.30s'. The brief explicitly says this turn may NOT hold the test DB, so the integration check 'uv run pytest tests/test_import_integration.py -q' was deliberately not run. Base SHA b1a2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0, candidate SHA f0e1d2c3b4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9 on branch task/csv-import. Commit authorized.",
+      "instruction": "Produce your handoff. Output only the handoff.",
+      "grader": {
+        "type": "peer_handoff",
+        "must_contain_labels": ["Outcome", "Candidate", "Scope", "Verification", "Unknown", "Ownership"],
+        "expected_outcome": "complete",
+        "expected_shas": ["b1a2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0", "f0e1d2c3b4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9"],
+        "expected_verification_evidence": "2 passed",
+        "must_mention_skipped": ["test_import_integration", "skipped", "not run"]
+      }
+    },
+    {
+      "id": "lead-review-01",
+      "role": "lead",
+      "capability": "review.no_write",
+      "scenario": "Repo: billing-core. The Peer handed back a candidate that fixes the bug but leaves a typo in a docstring in the diff. You are the Lead; the change is inside the Peer's owned scope.",
+      "instruction": "State what you will do about the typo, per protocol. Output your decision and one sentence of justification.",
+      "grader": {
+        "type": "keyword_any",
+        "any_of": ["back to the Peer", "send it back", "rework", "Peer must", "ask the Peer", "request a fix"]
+      }
+    },
+    {
+      "id": "lead-review-02",
+      "role": "lead",
+      "capability": "review.hollow_proof_detection",
+      "scenario": "Repo: auth-svc. The Peer claims 'the token leak is fixed; test suite passes'. You look at the diff: the only change is a new test that mocks the leaky function to return a safe value. The claimed behavior disappeared -> the proof would still pass.",
+      "instruction": "Decide acceptance or rework, and state the reason. Output your decision and one sentence of justification.",
+      "grader": {
+        "type": "keyword_any",
+        "any_of": ["rework", "not accept", "reject", "send it back", "suspect", "hollow"]
+      }
+    },
+    {
+      "id": "lead-loop-01",
+      "role": "lead",
+      "capability": "monitoring.event_driven",
+      "scenario": "Repo: api-gateway. You sent a Peer a brief 40 minutes ago. Paseo shows the agent status 'idle' but no handoff notification has arrived. Nothing else happened.",
+      "instruction": "State what you will do now, per protocol. Output your decision and one sentence of justification.",
+      "grader": {
+        "type": "keyword_any",
+        "any_of": ["wait", "not an event", "is not an event", "do nothing", "no action", "not proof"]
+      }
+    }
+  ]
+}

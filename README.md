@@ -49,7 +49,7 @@ Supervisor opens a Lead in the project workspace and does not create a Peer.
 | Discovery | Supervisor uses Paseo `list_workspaces`, `list_agents`, `list_providers`, `list_models` |
 | Assignment | Supervisor opens a Human-authorized Lead with `create_agent(workspaceId=...)`; passes the Supervisor agentId in `initialPrompt` |
 | Implementation | Lead defines scope and creates a Peer through Paseo; Peer is the sole writer |
-| Handoff | Peer sends all six items directly to Lead, including candidate identification details |
+| Handoff | Peer returns all six items in its session; Lead retrieves the full response via Paseo `get_agent_activity`, including candidate identification details |
 | Review | Lead reads the exact candidate and evidence. Complex/review tasks use Dual-Lane review: two read-only Peers (`claude-peer` + `codex-peer`), same neutral brief, unaware of each other; shared findings are high-confidence, divergences get blind cross-critique (at most 2 rounds), Lead arbitrates, no third Peer. Human reviews when risk is high |
 | Rework | Lead sends exactly one `send_agent_prompt` specifying task, round, base SHA, rejected candidate, and feedback |
 | Intervention | Only on an event (notification, Lead question, Human request), Supervisor may use `list_pending_permissions`, `respond_to_permission`, `cancel_agent`, `set_agent_mode`, then tells the owning Lead |
@@ -58,8 +58,8 @@ Supervisor opens a Lead in the project workspace and does not create a Peer.
 | Archiving | Supervisor archives the Lead when the Human confirms the project is closed |
 
 There is no coordination desk, registry, ledger, patrol, timer, recurring schedule, or heartbeat.
-Paseo messages are the communication channel; idle/notification status does not prove that work
-is complete.
+Lead retrieves Peer responses through Paseo `get_agent_activity`; idle/notification status does
+not prove that work is complete.
 
 ## Codex runtime and resume
 

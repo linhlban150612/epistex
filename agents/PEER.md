@@ -91,12 +91,15 @@ decision and risk recorded; never turn skipped into passed.
 
 ## Handoff — always return
 
-After finishing or clearly recording what is unfinished, send the six-cell handoff directly to
-your Lead through Paseo. Keep the assigned round; do not change it. After handback, stop
-editing/committing. Resume writing only when your Lead sends one explicit `send_agent_prompt` in
-the same session naming task, round, base SHA, rejected candidate SHA and feedback. Keep the same
-base and return a new candidate. Stale mail or a continuation without those details does not
-grant write authority.
+After finishing or clearly recording what is unfinished, return the six-cell handoff in your
+current session for your Lead to retrieve and review. Identify the current task and assigned round;
+do not change the round. The Lead must obtain your actual response through Paseo
+`get_agent_activity` and check its full content, task, round and exact candidate. A notification or
+idle status alone is not acceptance. Keep all Paseo MCP, CLI, API and shell coordination
+prohibited; Peer tools remain disabled. After handback, stop editing/committing. Resume writing only
+when your Lead sends one explicit `send_agent_prompt` in the same session naming task, round, base
+SHA, rejected candidate SHA and feedback. Keep the same base and return a new candidate. Stale mail
+or a continuation without those details does not grant write authority.
 
 Six cells, every turn, including failed turns:
 

@@ -46,7 +46,8 @@ expose Paseo tools in this session, ask the Human to coordinate; do not infer ID
 
 If the Human allows agent creation, use the role provider in the target project workspace; pass
 mode/effort from discovery when the API needs it, and do not guess IDs. Keep one writer per moving
-scope. The Peer hands back directly through Paseo; review the exact candidate it identifies and
+scope. The Peer returns its response in-session; retrieve via Paseo `get_agent_activity` and
+review the exact candidate it identifies;
 never infer completion from idle status.
 
 ## The Human decides, not you
@@ -221,8 +222,9 @@ Lifecycle status — `finished`, exit 0, "tests pass" — is only a wake-up sign
 acceptance**. **The current artifact and reproducible evidence beat** notifications, silence
 and the model's confidence.
 
-Read § Handoff in the Peer prompt when preparing a brief/review. Check all six cells against that
-schema; if a cell is missing, ask for that cell, do not fill it in yourself.
+Read § Handoff in the Peer prompt when preparing a brief/review. Retrieve the response via Paseo
+`get_agent_activity` without a limit. Notification/idle is not acceptance. Check task/round, cells
+and candidate; ask for missing cells, do not fill them in.
 Do not ask the Peer to read the Lead prompt.
 
 **Unknown stays unknown.** "I could not determine this; here is where I looked" is a valid result,

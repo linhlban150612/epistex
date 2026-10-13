@@ -61,9 +61,15 @@ def prime_claude(line: bytes, instructions: str) -> bytes:
 
 
 def main() -> int:
-    if len(sys.argv) < 3 or sys.argv[1] not in ROLES or sys.argv[2] not in (*ACP, "claude", "pi", "omp"):
-        raise SystemExit("usage: role-agent <supervisor|lead|peer> <claude|pi|omp|devin|copilot|cursor|amp|agy|glm|droid>")
+    if len(sys.argv) < 3 or sys.argv[1] not in ROLES or sys.argv[2] not in (*ACP, "claude", "pi", "omp", "kiro"):
+        raise SystemExit("usage: role-agent <supervisor|lead|peer> <claude|pi|omp|devin|copilot|cursor|amp|agy|glm|droid|kiro>")
     role, agent = sys.argv[1:3]
+    if agent == "kiro":
+        import os
+
+        if role != "peer" or sys.argv[3:]:
+            raise SystemExit("Kiro supports only the scoped Peer seat, without extra launch flags")
+        os.execv(sys.executable, [sys.executable, str(ROOT / "setup/kiro-acp"), role])
     instructions = (ROOT / "agents" / f"{role.upper()}.md").read_text()
     claude_stream = agent == "claude" and any(
         flag == "--input-format" and value == "stream-json"

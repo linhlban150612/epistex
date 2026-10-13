@@ -884,6 +884,21 @@
         },
         "enabled": true
       },
+      "kiro-peer": {
+        "extends": "acp",
+        "label": "Kiro Peer Seat",
+        "description": "Peer — fixed v2 agent; confirmed backend effort",
+        "command": ["<KIT>/setup/role-agent", "peer", "kiro"],
+        "env": {},
+        "enabled": true,
+        "paseoTools": {"enabled": false},
+        "models": [
+          {"id": "claude-opus-5.5", "label": "Claude Opus 5.5", "isDefault": true,
+           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
+          {"id": "claude-sonnet-5.5", "label": "Claude Sonnet 5.5", "isDefault": false,
+           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]}
+        ]
+      },
       "agy-peer": {
         "extends": "acp",
         "label": "Antigravity Peer Seat",
@@ -922,6 +937,10 @@
   },
   "daemon": {
     "agentProfiles": [
+      {"id": "kiro-peer--claude-opus-5-5--low", "name": "kiro-peer · claude-opus-5.5 · low", "provider": "kiro-peer", "model": "claude-opus-5.5", "thinkingOptionId": "low"},
+      {"id": "kiro-peer--claude-opus-5-5--medium", "name": "kiro-peer · claude-opus-5.5 · medium", "provider": "kiro-peer", "model": "claude-opus-5.5", "thinkingOptionId": "medium"},
+      {"id": "kiro-peer--claude-sonnet-5-5--low", "name": "kiro-peer · claude-sonnet-5.5 · low", "provider": "kiro-peer", "model": "claude-sonnet-5.5", "thinkingOptionId": "low"},
+      {"id": "kiro-peer--claude-sonnet-5-5--medium", "name": "kiro-peer · claude-sonnet-5.5 · medium", "provider": "kiro-peer", "model": "claude-sonnet-5.5", "thinkingOptionId": "medium"},
       {
         "id": "amp-peer--medium",
         "name": "amp-peer · medium",

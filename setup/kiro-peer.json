@@ -1,0 +1,10 @@
+{
+  "name": "epistex_peer",
+  "description": "Epistex Peer; Paseo owns lifecycle and topology",
+  "model": "claude-opus-5.5",
+  "tools": ["read", "write", "shell", "glob", "grep", "code", "web_fetch", "web_search", "knowledge", "todo_list", "use_aws"],
+  "allowedTools": [],
+  "includeMcpJson": false,
+  "mcpServers": {},
+  "resources": []
+}

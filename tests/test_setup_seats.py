@@ -45,6 +45,10 @@ class SetupSeatsTest(unittest.TestCase):
         providers["devin-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "devin"]
         providers["amp-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "amp"]
         providers["agy-peer"]["command"] = [str(self.kit / "setup" / "role-agent"), "peer", "agy"]
+        providers["kiro-peer"]["command"] = [str(self.kit / "setup" / "role-agent"), "peer", "kiro"]
+        runtime = pathlib.Path(self.temporary.name) / ".kiro/agents"
+        runtime.mkdir(parents=True)
+        shutil.copyfile(self.kit / "setup/kiro-peer.json", runtime / "epistex_peer.json")
         providers["claude-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "claude"]
         providers["codex-supervisor"]["command"] = [str(self.kit / "setup" / "codex-room"), "supervisor"]
         profiles = example["daemon"]["agentProfiles"]
@@ -144,12 +148,12 @@ class SetupSeatsTest(unittest.TestCase):
             if provider.get("paseoTools", {}).get("enabled") is True:
                 expected = DENY_SUPERVISOR if key.endswith("-supervisor") else DENY_LEAD
                 self.assertEqual(set(provider["paseoTools"]["disabledTools"]), expected, key)
-        self.assertEqual(len(example["daemon"]["agentProfiles"]), 45)
+        self.assertEqual(len(example["daemon"]["agentProfiles"]), 49)
         counts = Counter(p["provider"] for p in example["daemon"]["agentProfiles"])
         self.assertEqual(counts, Counter({"amp-peer": 1, "amp-supervisor": 2,
             "claude-peer": 6, "claude-supervisor": 1, "codex-peer": 2,
             "codex-supervisor": 2, "copilot-peer": 10, "omp-peer": 9,
-            "pi-peer": 9, "agy-peer": 3}))
+            "pi-peer": 9, "agy-peer": 3, "kiro-peer": 4}))
         script = SCRIPT.read_text()
         match = re.search(r"expected_deny_lead='(\[.*?\])'", script)
         self.assertIsNotNone(match, "checker deny-list constant not found")
@@ -351,3 +355,21 @@ class SetupSeatsTest(unittest.TestCase):
 
     def test_unknown_argument_fails(self):
         self.assertEqual(self.run_check("--unknown").returncode, 2)
+
+    def test_kiro_peer_requires_all_four_profiles_and_scoped_runtime(self):
+        self.save()
+        self.assertEqual(self.run_check("--check").returncode, 0)
+        profiles = self.data["daemon"]["agentProfiles"]
+        for profile in [p for p in profiles if p["provider"] == "kiro-peer"]:
+            profiles.remove(profile)
+            self.save()
+            result = self.run_check("--check")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("kiro-peer: missing or wrong", result.stderr)
+            profiles.append(profile)
+        self.save()
+        runtime = pathlib.Path(self.temporary.name) / ".kiro/agents/epistex_peer.json"
+        runtime.write_text('{"tools":["subagent"]}')
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("install exact seat-owned runtime config", result.stderr)

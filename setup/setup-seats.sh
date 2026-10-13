@@ -32,7 +32,7 @@ for seat in LEAD PEER SUPERVISOR; do
   fi
 done
 
-for name in codex-room codex-room-sync; do
+for name in codex-room codex-room-sync role-agent kiro-acp; do
   wrapper="$kit/setup/$name"
   if [[ ! -f "$wrapper" ]]; then
     fail "missing $wrapper"
@@ -167,11 +167,35 @@ else
       length == 1 and all(.[]; .provider == "agy-peer" and .model == $model and (has("thinkingOptionId") | not))
     ' "$paseo_config" >/dev/null || fail "agy-peer: missing or wrong $model profile"
   done
+  if jq -e '.agents.providers["kiro-peer"].enabled == true' "$paseo_config" >/dev/null; then
+    jq -e --arg command "$kit/setup/role-agent" '
+      .agents.providers["kiro-peer"] |
+      .extends == "acp" and .command == [$command,"peer","kiro"] and
+      .paseoTools.enabled == false and .env == {} and
+      ([.models[].id] | sort) == ["claude-opus-5.5","claude-sonnet-5.5"] and
+      ([.models[] | select(.isDefault == true) | .id] == ["claude-opus-5.5"]) and
+      all(.models[]; ([.thinkingOptions[].id] | sort) == ["low","medium"] and
+        ([.thinkingOptions[] | select(.isDefault == true) | .id] == ["low"]))
+    ' "$paseo_config" >/dev/null || fail 'kiro-peer: wrong launcher, tools or model/effort'
+    for model in claude-opus-5.5 claude-sonnet-5.5; do
+      for effort in low medium; do
+        jq -e --arg model "$model" --arg effort "$effort" '
+          [.daemon.agentProfiles[]? | select(.id == ("kiro-peer--" + ($model | gsub("\\.";"-")) + "--" + $effort))] |
+          length == 1 and all(.[]; .provider == "kiro-peer" and .model == $model and .thinkingOptionId == $effort)
+        ' "$paseo_config" >/dev/null || fail "kiro-peer: missing or wrong $model $effort profile"
+      done
+    done
+    python3 - "$kit/setup/kiro-peer.json" "$HOME/.kiro/agents/epistex_peer.json" <<'PY' || fail 'kiro-peer: install exact seat-owned runtime config (no symlinks)'
+import pathlib, sys
+source, installed = map(pathlib.Path, sys.argv[1:])
+assert not installed.is_symlink() and installed.read_bytes() == source.read_bytes()
+PY
+  fi
   jq -e '
     [.daemon.agentProfiles[]? as $p |
       .agents.providers[$p.provider] as $seat |
       select(($seat | type) != "object" or $seat.enabled != true or
-        (($p.provider | test("^(codex|claude|amp|agy|pi|omp|copilot)-")) | not) or
+        (($p.provider | test("^(codex|claude|amp|agy|pi|omp|copilot|kiro)-")) | not) or
         (([ $seat.models[]?.id ] | index($p.model)) == null) or
         (if any($seat.models[]?; .id == $p.model and has("thinkingOptions"))
          then (($p | has("thinkingOptionId")) | not) or

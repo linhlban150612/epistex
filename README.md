@@ -50,12 +50,22 @@ Supervisor opens a Lead in the project workspace and does not create a Peer.
 | Assignment | Supervisor opens a Human-authorized Lead with `create_agent(workspaceId=...)`; passes the Supervisor agentId in `initialPrompt` |
 | Implementation | Lead defines scope and creates a Peer through Paseo; Peer is the sole writer |
 | Handoff | Peer returns all six items in its session; Lead retrieves the full response via Paseo `get_agent_activity`, including candidate identification details |
-| Review | Lead reads the exact candidate and evidence. Complex/review tasks use Dual-Lane review: two read-only Peers (`claude-peer` + `codex-peer`), same neutral brief, unaware of each other; shared findings are high-confidence, divergences get blind cross-critique (at most 2 rounds), Lead arbitrates, no third Peer. Human reviews when risk is high |
-| Rework | Lead sends exactly one `send_agent_prompt` specifying task, round, base SHA, rejected candidate, and feedback |
+| Review | Lead reads the exact candidate and evidence. Complex/review tasks use [Dual-Lane review](agents/LEAD.md#dual-lane-review--complex--review-tasks): two read-only Peers with verified distinct model families, same frozen candidate and neutral brief; initial briefs and handoffs stay blind until both return. Shared findings are high-confidence; divergences get blind cross-critique (at most 2 rounds), Lead arbitrates, no third Peer. Existing Human review and agent-creation gates apply |
+| Rework | Lead sends exactly one `send_agent_prompt` specifying task, round, feedback, baseline and rejected candidate identities (commit or frozen snapshot/diff); preserves both. See [Peer handoff](agents/PEER.md#handoff--always-return) and [Lead acceptance](agents/LEAD.md#acceptance) |
 | Intervention | Only on an event (notification, Lead question, Human request), Supervisor may use `list_pending_permissions`, `respond_to_permission`, `cancel_agent`, `set_agent_mode`, then tells the owning Lead |
-| Loops / reset | Loops are counted in events, never time. Lead proposes a context reset (archive the stuck agent; a new agent resumes from the frozen base/candidate SHA); only the Human confirms, via Supervisor |
+| Loops / reset | Loops are counted in events, never time. Lead proposes reset from the same baseline and last frozen candidate identities (baseline if none), preserving frozen artifacts and authority. Human confirmation through Supervisor (directly if none) is required before stopping/archiving the old agent; confirm it can no longer write before replacement. See [Lead monitoring](agents/LEAD.md#monitoring) and [Supervisor reset](agents/SUPERVISOR.md#loops-and-context-reset) |
 | Acceptance | Lead decides; Supervisor does not decide in their place |
 | Archiving | Supervisor archives the Lead when the Human confirms the project is closed |
+
+These are summaries of the role contracts, not a second policy source; only the Human changes
+these contracts. [Ownership](agents/LEAD.md#ownership) identifies commits by base/candidate SHA,
+branch and worktree; without commit permission, Git or a base commit, use deterministic
+baseline/candidate snapshots/diffs, each with checksum and path. Agree the baseline before writing,
+keep it across rework/reset, and preserve prior frozen candidates; SHA checks apply only to commits.
+The project's `WORKSPACE_PROTOCOL.md` owns Human-authorized provider/profile selection, family
+evidence and fallback (see the [Routing template](examples/WORKSPACE_PROTOCOL.md#routing)). Unknown
+family or no valid authorized pair means `BLOCKED`, never a one-lane downgrade or self-authorized
+model/effort change.
 
 There is no coordination desk, registry, ledger, patrol, timer, recurring schedule, or heartbeat.
 Lead retrieves Peer responses through Paseo `get_agent_activity`; idle/notification status does

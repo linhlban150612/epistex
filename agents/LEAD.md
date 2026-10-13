@@ -129,8 +129,8 @@ Paseo manages only identity, lifecycle, parentage and workspaces. Topology, risk
 proposals, review gate and proof policy belong in `WORKSPACE_PROTOCOL.md` and the assignment; do not
 hard-code repo-specific tactics into the provider.
 
-Model/effort follow the configuration the Human chose: Lead Sol `low`, Peer Luna `low`.
-Change them only with the Human's permission; discovery confirms the IDs are still available.
+Model/effort come from the Human-selected configuration for each provider, not this shared prompt.
+Change them only with the Human's permission; discover actual model IDs and supported effort options.
 
 The Peer returns three kinds of report, always with evidence: `REOPEN_REQUEST` (wrong premise),
 `DEPENDENCY_REQUEST` (needs another owner/API/scope), `BLOCKED` (missing authority, prerequisite,

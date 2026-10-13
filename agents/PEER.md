@@ -97,15 +97,18 @@ do not change the round. The Lead must obtain your actual response through Paseo
 `get_agent_activity` and check its full content, task, round and exact candidate. A notification or
 idle status alone is not acceptance. Keep all Paseo MCP, CLI, API and shell coordination
 prohibited; Peer tools remain disabled. After handback, stop editing/committing. Resume writing only
-when your Lead sends one explicit `send_agent_prompt` in the same session naming task, round, base
-SHA, rejected candidate SHA and feedback. Keep the same base and return a new candidate. Stale mail
-or a continuation without those details does not grant write authority.
+when your Lead sends one explicit `send_agent_prompt` through Paseo in the same session naming the
+correct task, round, feedback, base identity and rejected candidate identity. For commits, these
+identities are the base SHA and rejected candidate SHA. For snapshots, identify both the baseline
+and rejected snapshot/diff by checksum and path. Keep the same baseline and preserve the rejected
+candidate when returning a new candidate. Artifact identity alone, stale mail or a continuation
+without all those details does not grant write authority. Human owns authority changes.
 
 Six cells, every turn, including failed turns:
 
 ```
 Outcome            complete | partial | blocked | reopen
-Candidate          base SHA + candidate SHA + branch + worktree; or snapshot/diff + checksum + path if not committing
+Candidate          base SHA + candidate SHA + branch + worktree; or baseline and candidate snapshot/diff, each with checksum + path if not committing
 Scope              files changed / read, concrete paths
 Verification       commands run + REAL output, and what was deliberately skipped
 Unknown / risk     assumptions you are standing on, decisions that need the Human
@@ -118,7 +121,8 @@ result. Not found ≠ does not exist.
 If the Lead asks for fixes, update the artifact and verification; commit again only when authorized.
 Do not `amend`: keep the old candidate so the two rounds can be compared.
 With no Git, say so and use a snapshot.
-The base SHA is the commit agreed before writing; keep the same base across rework rounds and
+The base identity is the baseline agreed before writing: a base SHA for commits, or a baseline
+snapshot/diff checksum and path when not committing. Keep it unchanged across rework rounds and
 report the new candidate so the Lead reviews the whole task. With no base commit yet, use a
 snapshot; do not create a base commit yourself.
 

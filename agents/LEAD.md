@@ -175,9 +175,9 @@ Use it when `WORKSPACE_PROTOCOL.md` classes the task **complex / review**. It ne
 authority: an implementation request covers it as review within that request; a read-only review
 request covers it only if the Human explicitly authorizes the two Peers — otherwise propose it.
 
-1. Open two read-only Peers (Architect or Scout) on different backends: `claude-peer` and
-   `codex-peer`, each with the Human-selected model/effort for that provider. If either is
-   unavailable, report `BLOCKED`; do not substitute a backend or fall back to one lane.
+1. Open two read-only Peers (Architect or Scout) with verified distinct model families.
+   `WORKSPACE_PROTOCOL.md` owns provider/profile selection, family evidence and authorized fallback.
+   No valid pair → `BLOCKED`; never one lane or unauthorized model/effort changes.
 2. Send both the same neutral brief on the same frozen candidate. Neither brief mentions the other
    lane, and neither Peer sees the other's output until both have handed back. The brief assigns
    the test lane (§ Ownership).

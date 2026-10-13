@@ -57,9 +57,9 @@ Refer to Authority in `AGENTS.md`; record only additional coordination decisions
 - Use when one reviewer's blind spot is costly: a large or cross-cutting candidate, a
   security- or lifecycle-sensitive change, or a review whose conclusion drives a
   hard-to-reverse decision.
-- Dual-Lane: the Lead opens two read-only Peers on different backends, `claude-peer` and
-  `codex-peer`, with the same neutral brief on the same frozen candidate; neither knows of
-  the other. If either backend is unavailable, the task is blocked; no substitute, no single lane.
+- Dual-Lane: the Lead opens two read-only Peers with verified distinct model families,
+  selected under Routing, with the same neutral brief on the same frozen candidate.
+  Neither knows of the other; initial handoffs remain blind until both return.
 - Findings both lanes raise independently are high-confidence. Divergences go through blind
   cross-critique framed as third-party, at most 2 rounds; the Lead remains the final arbiter.
 - No third Peer or tie-breaker. Dual-Lane does not replace Human review triggers. Creating the
@@ -82,6 +82,17 @@ Refer to Authority in `AGENTS.md`; record only additional coordination decisions
 - Use the model/effort selected by the Human. Task risk may justify proposing a change, but change
   only with Human approval; discovery does not grant authority to switch.
 - Paseo manages sessions, parentage, lifecycle and workspace; this protocol governs tactics.
+- Dual-Lane primary provider/profile pair: `<Human-selected pair>`.
+- Ordered fallback pairs: `<Human-authorized pairs in priority order; none until specified>`.
+  Try the primary, then these pairs in order; a fallback replaces the pair, not the review gates.
+- Before using a pair, record each lane's discovered model ID, Human-selected profile/effort,
+  model family and supporting discovery or authoritative model metadata. Provider IDs alone
+  are not family evidence; different providers may serve the same family. Unknown or ambiguous
+  family identity makes the pair invalid until verified, not presumed distinct.
+- Use only an authorized, available pair with verified distinct families. If none qualifies,
+  report BLOCKED for a Human decision; never downgrade to one lane or change model/effort yourself.
+  Fallback grants no additional task or material authority. Family diversity does not guarantee
+  neutrality or correctness.
 
 ## Verification
 

@@ -139,19 +139,19 @@ external state, or needs a Human decision).
 
 ## Ownership
 
-- **Candidate** is a frozen artifact for review: base SHA + candidate SHA + branch + worktree,
-  or snapshot/diff + checksum + path when not committing. Use the same identifier in the brief,
-  handoff, review and acceptance; if the artifact changes, update the candidate and verification.
+- **Identity**: base SHA + candidate SHA + branch + worktree for commits; otherwise baseline and
+  candidate snapshot/diff, each with checksum + path. Agree on baseline before writing; retain it
+  across rework. Freeze candidate for review. Use identities in brief, handoff, review and acceptance;
+  changed candidate needs new verification. Identity never grants authority.
 - One moving scope → exactly **one** writer; parallel writers → separate worktrees.
-- **The Peer commits when authorized**; agree on the base SHA before writing, and the handoff gives
-  base SHA + candidate SHA + branch + worktree. Keep the base across rework rounds so you review the
-  whole task, not just the last commit. Read from **objects** (`git show "$candidate":path`,
+- **The Peer commits only when authorized**. Read from **objects** (`git show "$candidate":path`,
   `git diff "$base" "$candidate"`), NOT from files on disk. Before use, check that both IDs are
   non-empty, resolve to full commits, and that base is an ancestor of candidate; always quote
-  variables. With no base commit yet, use the snapshot below.
-- If committing is not allowed or the workspace has no Git, use a deterministic snapshot/diff with
-  checksum and path; keep the scope frozen during review. The SHA items below apply to commits;
-  for a snapshot, check identity and an equivalent diff, and do not force a commit.
+  variables.
+- No commit permission, Git or base commit → deterministic baseline/candidate snapshots/diffs,
+  never invent SHAs or force a commit. Verify both checksum/path identities; read the full diff.
+  Freeze scope for review; preserve prior frozen candidates. Arbitrary uncommitted work is not a
+  frozen snapshot. SHA checks below apply only to commits.
 - **One test lane at a time.** When more than one agent is active, the brief must state who runs
   the full suite / holds ports / uses the test DB.
 - Accept does **not** imply `git push`, deploy or calling external services.
@@ -205,16 +205,15 @@ tool call or a Peer report. For the same symptom (same command, error or finding
 Idle status or silence is not an event and does not prove an agent is stuck.
 
 **Context reset** of a stuck agent = archive it and create a new agent that resumes from the
-frozen base/candidate SHA. It is a step you **propose** and the Human **confirms** through the
-Supervisor:
+frozen identities (§ Ownership). You **propose**; the Human **confirms** through the Supervisor:
 
-1. Send the Supervisor (`send_agent_prompt`) the agent ID, task, round, base SHA, last frozen
-   candidate SHA and the repeated symptom with evidence. With no Supervisor, ask the Human directly.
+1. Send the Supervisor (`send_agent_prompt`) agent ID, task, round, baseline and last frozen candidate
+   identities (or explicitly no candidate), plus symptom evidence. No Supervisor → ask the Human.
 2. No confirmation → no reset. Silence is not confirmation.
 3. On confirmation: `cancel_agent` if it is running, then `archive_agent`, and confirm it can no
-   longer write. Then create the new agent with a fresh brief naming the same task, round and base
-   SHA, and the frozen candidate SHA to resume from (base if none). Uncommitted work the old agent
-   left is not a candidate; do not delete it without the Human.
+   longer write. Replacement brief keeps task, round, baseline and authority,
+   resuming from the last frozen candidate (baseline if none). Preserve frozen artifacts; other
+   uncommitted work is not a candidate and must not be deleted without the Human.
 
 ## Acceptance
 
@@ -232,10 +231,11 @@ and far cheaper than a neat root cause inferred from the absence of evidence.
 
 Before closing:
 
-- [ ] Base/candidate are valid commits (`git cat-file -e "$base^{commit}"`, likewise candidate),
+- [ ] For commits: base/candidate are valid (`git cat-file -e "$base^{commit}"`, likewise candidate),
       `git merge-base --is-ancestor "$base" "$candidate"` succeeds and
       `git diff --stat "$base" "$candidate"` matches the file list the Peer declared
-- [ ] Read the full real diff (`git diff "$base" "$candidate"`), not just the last commit
+- [ ] For snapshots: both checksum/path identities verify; diff file list matches the handoff
+- [ ] Read the full baseline-to-candidate diff (commits: `git diff "$base" "$candidate"`)
 - [ ] Required checks passed on the candidate with real output, or the Human explicitly
       waived/deferred them; checks not yet authorized stay pending, never run them yourself or
       count them as passed. Record skipped optional checks
@@ -248,9 +248,9 @@ If a fix is needed, trace it to the layer that produced the deviation before pat
 Do not add retries, exceptions or implementation-matching tests just to turn the signal green.
 
 **Rework cap: at most 2 rework rounds per Peer on one task.** If the third candidate still fails
-review, do not send that Peer a fourth brief: archive it and hand the task to a different Peer
-(prefer another backend), resuming from the old Peer's last committed candidate SHA on the same
-base, with a fresh brief that lists the unresolved findings as third-party.
+review, no fourth brief: propose replacement through the confirmed reset procedure (§ Monitoring).
+After confirmation, use a different Peer (prefer another backend) on the same baseline and last
+frozen candidate, preserving both and authority. List unresolved findings as third-party.
 
 Once closed, `archive_agent`, including abandoned agents: the durable artifact is the **candidate**;
 a live agent only leaves a target for a misaimed `send_agent_prompt`.

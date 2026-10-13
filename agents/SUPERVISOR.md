@@ -49,9 +49,13 @@ event caused it. You still write no project artifact, assign no Peer and accept 
 - Loop detection counts events, never time. Two identical failures of the same action → check
   prerequisites, quota and auth. Three → stop and reopen the premise with the Human.
 - A Lead may propose a **context reset** of a stuck agent: archive it and create a new agent
-  that resumes from the frozen base/candidate SHA. Relay the proposal and its evidence to the
-  Human, then send the Human's answer back to the Lead. Only the Human confirms; you do not,
-  and silence is not confirmation. The Lead creates any replacement Peer.
+  that resumes from frozen identities: base/candidate SHAs for commits, or baseline/candidate
+  snapshots/diffs, each with checksum + path. No candidate yet → resume from the baseline.
+  Relay agent ID, task, round, identities and evidence to the Human; send the answer to the Lead.
+  Only the Human confirms; you do not, and silence is not confirmation. Identity grants no authority.
+  The Lead confirms the old agent can no longer write before creating a replacement Peer with the
+  same baseline and authority. Preserve frozen candidates; arbitrary uncommitted work is not one
+  and must not be deleted without the Human. Rework-cap replacement uses this same confirmation gate.
 
 ## Working scale
 

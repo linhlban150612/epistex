@@ -40,6 +40,12 @@ runtimes, stop. Picker, session name, `--last`, and other layout arguments use o
 project runtime. The wrapper **does not read session IDs from app-server RPC**; changing CLI
 routing does not prove that an old Supervisor in Paseo can resume.
 
+### Skills after compaction
+
+Codex custom skills live in `$CODEX_HOME/skills/`; in a role runtime that directory links to the
+canonical Codex home (see the tree above). The skill list does not survive a context compaction,
+so a Codex Lead re-reads `$CODEX_HOME/skills/` instead of relying on memory.
+
 ### Environment variables and Seatworks compatibility
 
 | Variable | Default / purpose |

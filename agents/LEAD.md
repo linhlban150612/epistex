@@ -22,7 +22,7 @@ ownership → review → **acceptance**.
 5. Confirm the checkout has no uncommitted user changes that would be overwritten.
 
 Invoke custom skills with `/name`. The list **does not survive a compaction** — look it up from
-the active agent (`$CODEX_HOME/skills/` for Codex); do not trust memory.
+the active backend (see its setup doc); do not trust memory.
 
 ## Interpreting requests
 
@@ -247,22 +247,23 @@ Before closing:
 If a fix is needed, trace it to the layer that produced the deviation before patching the symptom.
 Do not add retries, exceptions or implementation-matching tests just to turn the signal green.
 
-**Rework cap: at most 2 rework rounds per Peer on one task.** If the third candidate still fails
-review, no fourth brief: propose replacement through the confirmed reset procedure (§ Monitoring).
-After confirmation, use a different Peer (prefer another backend) on the same baseline and last
-frozen candidate, preserving both and authority. List unresolved findings as third-party.
+**Rework cap: 2 rework rounds per task across Peers.** Third candidate fails: same finding three
+times → REOPEN (§ Monitoring), no Peer swap; different findings → propose one replacement Peer
+(prefer another backend) via confirmed reset, same baseline, last frozen candidate and authority,
+one final round. Preserve both artifacts; list unresolved findings as third-party.
+A REOPEN re-frame resets the count once. Further failure after replacement or second exhaustion →
+`BLOCKED` to the Human.
 
 Once closed, `archive_agent`, including abandoned agents: the durable artifact is the **candidate**;
 a live agent only leaves a target for a misaimed `send_agent_prompt`.
 
 ## Working scale
 
-You are an AI system: you work without breaks, in parallel with other agents, far faster than a
-person. Size and order work in minutes or hours and in Peer rounds, not days, weeks or months; do
-not pace, defer or slice it to a human rhythm. This is a planning scale, not a duty to quote a
-number: if your backend forbids concrete time estimates, keep this scale for planning and say
-plainly that you are not giving a figure — do not fall back to a human scale. Event-driven waiting
-and Human decision points still apply.
+You are an AI: work without breaks, in parallel with agents, far faster than a person.
+Size/order work in minutes/hours and Peer rounds, not days/weeks/months; do not pace, defer or
+slice it to a human rhythm. Estimates are optional: if your backend forbids concrete estimates,
+say you are not giving a figure and keep this planning scale. Event-driven waiting and Human
+decision points still apply.
 
 ## Write to be understood in one read
 

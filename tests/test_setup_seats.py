@@ -46,9 +46,11 @@ class SetupSeatsTest(unittest.TestCase):
         providers["amp-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "amp"]
         providers["agy-peer"]["command"] = [str(self.kit / "setup" / "role-agent"), "peer", "agy"]
         providers["kiro-peer"]["command"] = [str(self.kit / "setup" / "role-agent"), "peer", "kiro"]
+        providers["kiro-lead"]["command"] = [str(self.kit / "setup" / "role-agent"), "lead", "kiro"]
         runtime = pathlib.Path(self.temporary.name) / ".kiro/agents"
         runtime.mkdir(parents=True)
         shutil.copyfile(self.kit / "setup/kiro-peer.json", runtime / "epistex_peer.json")
+        shutil.copyfile(self.kit / "setup/kiro-lead.json", runtime / "epistex_lead.json")
         providers["claude-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "claude"]
         providers["codex-supervisor"]["command"] = [str(self.kit / "setup" / "codex-room"), "supervisor"]
         profiles = example["daemon"]["agentProfiles"]
@@ -148,12 +150,12 @@ class SetupSeatsTest(unittest.TestCase):
             if provider.get("paseoTools", {}).get("enabled") is True:
                 expected = DENY_SUPERVISOR if key.endswith("-supervisor") else DENY_LEAD
                 self.assertEqual(set(provider["paseoTools"]["disabledTools"]), expected, key)
-        self.assertEqual(len(example["daemon"]["agentProfiles"]), 49)
+        self.assertEqual(len(example["daemon"]["agentProfiles"]), 53)
         counts = Counter(p["provider"] for p in example["daemon"]["agentProfiles"])
         self.assertEqual(counts, Counter({"amp-peer": 1, "amp-supervisor": 2,
             "claude-peer": 6, "claude-supervisor": 1, "codex-peer": 2,
             "codex-supervisor": 2, "copilot-peer": 10, "omp-peer": 9,
-            "pi-peer": 9, "agy-peer": 3, "kiro-peer": 4}))
+            "pi-peer": 9, "agy-peer": 3, "kiro-peer": 4, "kiro-lead": 4}))
         script = SCRIPT.read_text()
         match = re.search(r"expected_deny_lead='(\[.*?\])'", script)
         self.assertIsNotNone(match, "checker deny-list constant not found")
@@ -373,3 +375,46 @@ class SetupSeatsTest(unittest.TestCase):
         result = self.run_check("--check")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("install exact seat-owned runtime config", result.stderr)
+
+    def test_kiro_lead_requires_lead_policy_profiles_and_scoped_runtime(self):
+        self.save()
+        self.assertEqual(self.run_check("--check").returncode, 0)
+        provider = self.data["agents"]["providers"]["kiro-lead"]
+        for key, value in (("command", [str(self.kit / "setup" / "role-agent"), "peer", "kiro"]),
+                           ("paseoTools", {"enabled": False}), ("env", {"KIRO_EXTRA": "1"})):
+            with self.subTest(key=key):
+                original = provider[key]
+                provider[key] = value
+                self.save()
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("kiro-lead: wrong launcher, tools or model/effort", result.stderr)
+                provider[key] = original
+        provider["paseoTools"]["disabledTools"] = provider["paseoTools"]["disabledTools"][1:]
+        self.save()
+        result = self.run_check("--check")
+        self.assertIn("kiro-lead: paseoTools.disabledTools must exactly match the deny-list", result.stderr)
+        provider["paseoTools"]["disabledTools"] = sorted(DENY_LEAD)
+        profiles = self.data["daemon"]["agentProfiles"]
+        for profile in [p for p in profiles if p["provider"] == "kiro-lead"]:
+            profiles.remove(profile)
+            self.save()
+            result = self.run_check("--check")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("kiro-lead: missing or wrong", result.stderr)
+            profiles.append(profile)
+        self.save()
+        runtime = pathlib.Path(self.temporary.name) / ".kiro/agents/epistex_lead.json"
+        runtime.write_text('{"tools":["@paseo"]}')
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("kiro-lead: install exact seat-owned runtime config", result.stderr)
+        self.assertNotIn("kiro-peer", result.stderr)
+        runtime.unlink()
+        runtime.symlink_to(self.kit / "setup/kiro-lead.json")
+        self.assertIn("kiro-lead: install exact", self.run_check("--check").stderr)
+        runtime.unlink()
+        del self.data["agents"]["providers"]["kiro-lead"]
+        self.data["daemon"]["agentProfiles"] = [p for p in profiles if p["provider"] != "kiro-lead"]
+        self.save()
+        self.assertEqual(self.run_check("--check").returncode, 0)

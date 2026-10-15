@@ -167,30 +167,33 @@ else
       length == 1 and all(.[]; .provider == "agy-peer" and .model == $model and (has("thinkingOptionId") | not))
     ' "$paseo_config" >/dev/null || fail "agy-peer: missing or wrong $model profile"
   done
-  if jq -e '.agents.providers["kiro-peer"].enabled == true' "$paseo_config" >/dev/null; then
-    jq -e --arg command "$kit/setup/role-agent" '
-      .agents.providers["kiro-peer"] |
-      .extends == "acp" and .command == [$command,"peer","kiro"] and
-      .paseoTools.enabled == false and .env == {} and
+  for role in peer lead; do
+    seat="kiro-$role"
+    jq -e --arg seat "$seat" '.agents.providers[$seat].enabled == true' "$paseo_config" >/dev/null || continue
+    # Lead keeps Paseo tools (deny-list enforced above); Peer has none.
+    jq -e --arg command "$kit/setup/role-agent" --arg seat "$seat" --arg role "$role" '
+      .agents.providers[$seat] |
+      .extends == "acp" and .command == [$command,$role,"kiro"] and
+      .paseoTools.enabled == ($role == "lead") and .env == {} and
       ([.models[].id] | sort) == ["claude-opus-5.5","claude-sonnet-5.5"] and
       ([.models[] | select(.isDefault == true) | .id] == ["claude-opus-5.5"]) and
       all(.models[]; ([.thinkingOptions[].id] | sort) == ["low","medium"] and
         ([.thinkingOptions[] | select(.isDefault == true) | .id] == ["low"]))
-    ' "$paseo_config" >/dev/null || fail 'kiro-peer: wrong launcher, tools or model/effort'
+    ' "$paseo_config" >/dev/null || fail "$seat: wrong launcher, tools or model/effort"
     for model in claude-opus-5.5 claude-sonnet-5.5; do
       for effort in low medium; do
-        jq -e --arg model "$model" --arg effort "$effort" '
-          [.daemon.agentProfiles[]? | select(.id == ("kiro-peer--" + ($model | gsub("\\.";"-")) + "--" + $effort))] |
-          length == 1 and all(.[]; .provider == "kiro-peer" and .model == $model and .thinkingOptionId == $effort)
-        ' "$paseo_config" >/dev/null || fail "kiro-peer: missing or wrong $model $effort profile"
+        jq -e --arg seat "$seat" --arg model "$model" --arg effort "$effort" '
+          [.daemon.agentProfiles[]? | select(.id == ($seat + "--" + ($model | gsub("\\.";"-")) + "--" + $effort))] |
+          length == 1 and all(.[]; .provider == $seat and .model == $model and .thinkingOptionId == $effort)
+        ' "$paseo_config" >/dev/null || fail "$seat: missing or wrong $model $effort profile"
       done
     done
-    python3 - "$kit/setup/kiro-peer.json" "$HOME/.kiro/agents/epistex_peer.json" <<'PY' || fail 'kiro-peer: install exact seat-owned runtime config (no symlinks)'
+    python3 - "$kit/setup/$seat.json" "$HOME/.kiro/agents/epistex_$role.json" <<'PY' || fail "$seat: install exact seat-owned runtime config (no symlinks)"
 import pathlib, sys
 source, installed = map(pathlib.Path, sys.argv[1:])
-assert not installed.is_symlink() and installed.read_bytes() == source.read_bytes()
+sys.exit(installed.is_symlink() or not installed.is_file() or installed.read_bytes() != source.read_bytes())
 PY
-  fi
+  done
   jq -e '
     [.daemon.agentProfiles[]? as $p |
       .agents.providers[$p.provider] as $seat |

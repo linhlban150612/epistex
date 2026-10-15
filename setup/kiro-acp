@@ -9,10 +9,16 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.parse
 import uuid
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROLE = "peer"
+NAME = "Kiro Peer"
 MODE = "epistex_peer"
+# Exact Paseo 0.11 injection: {"type":"http","name":"paseo","url":"http://<loopback>:<port>
+# /mcp/agents?callerAgentId=<id>","headers":[] or one Bearer Authorization header}.
+PASEO_HOSTS = ("127.0.0.1", "localhost", "::1")
 MODELS = ("claude-opus-5.5", "claude-sonnet-5.5")
 EFFORTS = ("low", "medium")
 
@@ -23,26 +29,64 @@ def config(effort):
              "options": [{"value": e, "name": e.title()} for e in EFFORTS]}]
 
 
+def mcp_error(servers):
+    """Peer accepts no MCP server; Lead accepts [] probes or Paseo's injected loopback server."""
+    if ROLE == "peer":
+        return "Kiro Peer does not accept injected MCP servers" if servers else None
+    if (not isinstance(servers, list) or len(servers) > 1
+            or (servers and not isinstance(servers[0], dict))):
+        return "Kiro Lead requires an injected Paseo MCP server list"
+    if not servers:
+        return None  # Paseo probe session; prompts stay refused.
+    server = servers[0]
+    if (set(server) != {"type", "name", "url", "headers"} or server["type"] != "http"
+            or server["name"] != "paseo" or not isinstance(server["url"], str)):
+        return "Kiro Lead accepts only the Paseo HTTP MCP server"
+    try:
+        url = urllib.parse.urlsplit(server["url"])
+        port = url.port
+        query = urllib.parse.parse_qs(url.query, keep_blank_values=True, strict_parsing=True)
+    except ValueError:
+        return "Kiro Lead rejected a malformed Paseo MCP URL"
+    if (url.scheme != "http" or url.hostname not in PASEO_HOSTS or port is None
+            or url.username is not None or url.password is not None or url.path != "/mcp/agents"
+            or url.fragment or set(query) != {"callerAgentId"}
+            or len(query["callerAgentId"]) != 1 or not query["callerAgentId"][0]):
+        return "Kiro Lead accepts only the loopback Paseo /mcp/agents endpoint"
+    headers = server["headers"]
+    if headers == []:
+        return None
+    if (not isinstance(headers, list) or len(headers) != 1 or not isinstance(headers[0], dict)
+            or set(headers[0]) != {"name", "value"} or headers[0]["name"] != "Authorization"
+            or not isinstance(headers[0]["value"], str) or not headers[0]["value"].startswith("Bearer ")
+            or not headers[0]["value"][len("Bearer "):].strip()):
+        return "Kiro Lead accepts only Paseo's bearer Authorization header"
+    return None
+
+
 def runtime_error(cwd):
-    expected = (ROOT / "setup/kiro-peer.json").read_bytes()
-    installed = pathlib.Path.home() / ".kiro/agents/epistex_peer.json"
+    expected = (ROOT / f"setup/kiro-{ROLE}.json").read_bytes()
+    installed = pathlib.Path.home() / f".kiro/agents/{MODE}.json"
     if installed.is_symlink() or not installed.is_file() or installed.read_bytes() != expected:
-        return "Install the exact seat-owned ~/.kiro/agents/epistex_peer.json first"
+        return f"Install the exact seat-owned ~/.kiro/agents/{MODE}.json first"
     path = pathlib.Path(cwd)
     if not path.is_absolute() or not path.is_dir():
-        return "Kiro Peer requires an existing absolute CWD"
+        return f"{NAME} requires an existing absolute CWD"
     for parent in (path, *path.parents):
         agents = parent / ".kiro/agents"
         if any(candidate != installed and (candidate.exists() or candidate.is_symlink())
                for candidate in (agents / (MODE + suffix) for suffix in (".json", ".md"))):
-            return "Workspace agent overrides the seat-owned Kiro Peer configuration"
+            return f"Workspace agent overrides the seat-owned {NAME} configuration"
     return None
 
 
 def main():
-    if sys.argv[1:] != ["peer"]:
-        raise SystemExit("usage: kiro-acp peer")
-    instructions = (ROOT / "agents/PEER.md").read_text()
+    global ROLE, NAME, MODE
+    if sys.argv[1:] not in (["peer"], ["lead"]):
+        raise SystemExit("usage: kiro-acp <peer|lead>")
+    ROLE = sys.argv[1]
+    NAME, MODE = "Kiro " + ROLE.title(), "epistex_" + ROLE
+    instructions = (ROOT / f"agents/{ROLE.upper()}.md").read_text()
     failure = runtime_error(str(pathlib.Path.cwd()))
     if failure:
         raise SystemExit(failure)
@@ -76,7 +120,10 @@ def main():
     commands = {}
     client_caps = {}
     agent_caps = {}
-    allowed = set(json.loads((ROOT / "setup/kiro-peer.json").read_text())["tools"])
+    # Kiro advertises MCP tools with bare names; only the agent file uses @paseo/ prefixes.
+    declared = json.loads((ROOT / f"setup/kiro-{ROLE}.json").read_text())["tools"]
+    allowed = {t[len("@paseo/"):] if t.startswith("@paseo/") else t for t in declared}
+    required = {t[len("@paseo/"):] for t in declared if t.startswith("@paseo/")}
     prefix = "epistex-" + uuid.uuid4().hex + "-"
     serial = 0
 
@@ -110,8 +157,27 @@ def main():
 
     def safe_tools(sid):
         advertised = tools.get(sid)
+        session = sessions.get(sid)
         return (advertised is not None and set(advertised) <= allowed and
+                (not session or not session.get("paseo") or required <= set(advertised)) and
                 "/effort" in commands.get(sid, []))
+
+    def drop_sid(sid):
+        sessions.pop(sid, None)
+        tools.pop(sid, None)
+        commands.pop(sid, None)
+        for ident, state in list(pending.items()):
+            if (state.get("sid") == sid
+                    or state["request"].get("params", {}).get("sessionId") == sid):
+                del pending[ident]
+
+    def prompt_gate(message, sid):
+        session = sessions.get(sid)
+        if session and ROLE == "lead" and not session.get("paseo"):
+            return "Kiro Lead session has no injected Paseo MCP server; prompts are refused"
+        if not session or not session.get("effort") or not safe_tools(sid):
+            return f"{NAME} session/effort/tool policy is not confirmed"
+        return None
 
     try:
         while True:
@@ -133,7 +199,12 @@ def main():
                 child.stdin.close()
                 # Continue draining backend responses after client EOF.
                 continue
-            message = json.loads(line)
+            try:
+                message = json.loads(line)
+            except ValueError:
+                emit({"jsonrpc": "2.0", "id": None,
+                      "error": {"code": -32700, "message": "Parse error"}})
+                continue
             method = message.get("method")
             params = message.get("params", {})
             if source == "client":
@@ -141,24 +212,27 @@ def main():
                 if method == "initialize":
                     client_caps = params.get("clientCapabilities", {})
                     send(message)
-                elif method in ("session/new", "session/load"):
+                elif method in ("session/new", "session/load", "session/resume"):
                     failure = runtime_error(params.get("cwd", ""))
-                    if params.get("mcpServers"):
-                        error(message, "Kiro Peer does not accept injected MCP servers")
+                    servers = mcp_error(params.get("mcpServers"))
+                    if servers:
+                        error(message, servers)
                     elif failure:
                         error(message, failure)
                     elif method == "session/load" and not agent_caps.get("loadSession"):
                         error(message, "Backend did not advertise session/load", -32601)
+                    elif method == "session/resume":
+                        drop_sid(sid)
+                        send(message)
                     else:
                         if method == "session/load":
-                            tools.pop(sid, None)
-                            commands.pop(sid, None)
-                            sessions.pop(sid, None)
-                        internal(method, params, {"request": message, "stage": "session"})
+                            drop_sid(sid)
+                        internal(method, params, {"request": message, "stage": "session",
+                                                  "paseo": bool(params.get("mcpServers"))})
                 elif method == "session/set_config_option":
                     value = params.get("value")
                     if sid not in sessions or params.get("configId") != "epistex_effort" or value not in EFFORTS:
-                        error(message, "Unsupported Kiro Peer effort selection")
+                        error(message, f"Unsupported {NAME} effort selection")
                     elif any(s.get("sid") == sid for s in pending.values()):
                         error(message, "Kiro selection already in progress")
                     else:
@@ -169,7 +243,7 @@ def main():
                              "model": sessions[sid]["model"]})
                 elif method == "session/set_model":
                     if sid not in sessions or params.get("modelId") not in MODELS:
-                        error(message, "Unsupported Kiro Peer model selection")
+                        error(message, f"Unsupported {NAME} model selection")
                     elif not sessions[sid].get("effort"):
                         error(message, "Confirm effort before switching models")
                     elif any(s.get("sid") == sid for s in pending.values()):
@@ -180,14 +254,16 @@ def main():
                         internal(method, params, {"request": message, "stage": "model", "sid": sid,
                                                   "value": value, "model": params["modelId"]})
                 elif method == "session/set_mode":
-                    error(message, "Kiro Peer has a fixed mode; do not send modeId")
+                    error(message, f"{NAME} has a fixed mode; do not send modeId")
                 elif method == "_kiro.dev/commands/execute":
                     command = params.get("command", {})
                     if not isinstance(command, dict) or command.get("command") not in (
                             "context", "compact", "usage", "mcp", "tools", "prompts", "feedback"):
                         error(message, "Use standard ACP selection; native lifecycle commands are disabled")
                     elif command["command"] in ("mcp", "tools") and command.get("args") != {}:
-                        error(message, "Kiro Peer permits only argument-free MCP/tool inspection")
+                        error(message, f"{NAME} permits only argument-free MCP/tool inspection")
+                    elif command["command"] == "compact" and prompt_gate(message, sid):
+                        error(message, prompt_gate(message, sid))
                     else:
                         send(message)
                 elif method and (method.startswith("_session/") or method.startswith("_kiro.dev/subagent/")
@@ -195,19 +271,26 @@ def main():
                     error(message, "Paseo owns lifecycle and topology")
                 elif method == "session/prompt":
                     session = sessions.get(sid)
-                    if not session or not session.get("effort") or not safe_tools(sid):
-                        error(message, "Kiro Peer session/effort/tool policy is not confirmed")
+                    if not isinstance(params.get("prompt"), list):
+                        error(message, "session/prompt requires a prompt list")
+                    elif prompt_gate(message, sid):
+                        error(message, prompt_gate(message, sid))
                     else:
                         if not session.get("primed"):
                             params["prompt"].insert(0, {"type": "text", "text":
                                 "Role instructions for this session:\n" + instructions})
                             session["primed"] = True
                         send(message)
+                elif method in ("session/cancel", "authenticate"):
+                    send(message)
+                elif method is not None:
+                    error(message, f"Unsupported {NAME} request: {method}", -32601)
                 else:
                     send(message)
             else:
                 if method and "id" in message:
-                    supported = method == "session/request_permission"
+                    supported = (method == "session/request_permission"
+                                 and params.get("sessionId") in sessions)
                     if method in ("fs/read_text_file", "fs/write_text_file"):
                         key = "readTextFile" if method == "fs/read_text_file" else "writeTextFile"
                         supported = client_caps.get("fs", {}).get(key, False)
@@ -231,30 +314,39 @@ def main():
                             if safe_tools(sid):
                                 confirm(state)
                             else:
-                                error(state["request"], "Kiro exposed tools outside the Peer allowlist", -32603)
+                                error(state["request"], f"Kiro exposed tools outside the {ROLE.title()} allowlist", -32603)
+                    # An unsafe inventory update after confirmation revokes the session.
+                    if (sid in sessions and not safe_tools(sid)
+                            and not any(s.get("sid") == sid for s in pending.values())):
+                        del sessions[sid]
+                        send({"jsonrpc": "2.0", "method": "session/cancel",
+                              "params": {"sessionId": sid}})
                 elif message.get("id") in pending:
                     ident = message["id"]
                     state = pending.pop(ident)
                     request = state["request"]
+                    if state.get("sid") is not None and state["sid"] not in sessions:
+                        continue
                     if "error" in message:
                         message["id"] = request["id"]
                         emit(message)
                     elif state["stage"] == "session":
                         result = message["result"]
                         sid = result.get("sessionId", request["params"].get("sessionId"))
+                        sessions.pop(sid, None)
                         if (result.get("modes", {}).get("currentModeId") != MODE or
                                 result.get("models", {}).get("currentModelId") not in MODELS):
                             error(request, "Kiro restored an unsupported mode/model", -32603)
                             continue
                         result["modes"]["availableModes"] = [m for m in result["modes"]["availableModes"] if m["id"] == MODE]
                         result["models"]["availableModels"] = [m for m in result["models"]["availableModels"] if m["modelId"] in MODELS]
-                        sessions[sid] = {"effort": None}
+                        sessions[sid] = {"effort": None, "paseo": state["paseo"]}
                         state.update(sid=sid, response=result, model=result["models"]["currentModelId"])
                         if sid in tools:
                             if safe_tools(sid):
                                 confirm(state)
                             else:
-                                error(request, "Kiro exposed tools outside the Peer allowlist", -32603)
+                                error(request, f"Kiro exposed tools outside the {ROLE.title()} allowlist", -32603)
                         else:
                             state["stage"] = "tools"
                             pending[ident] = state
@@ -277,7 +369,7 @@ def main():
                         active = [o["value"] for o in options
                                   if o.get("label", "").endswith("  [active]")]
                         if not safe_tools(state["sid"]):
-                            error(request, "Kiro Peer inventory changed during confirmation", -32603)
+                            error(request, f"{NAME} inventory changed during confirmation", -32603)
                         elif not set(EFFORTS) <= {o["value"] for o in options} or len(active) != 1 or active[0] not in EFFORTS or (
                                 "value" in state and active[0] != state["value"]):
                             error(request, "Kiro did not confirm selected effort", -32603)

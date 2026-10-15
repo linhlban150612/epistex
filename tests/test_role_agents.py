@@ -45,6 +45,18 @@ class ProfilesTest(unittest.TestCase):
                     self.assertEqual(first, expected)
                     self.assertEqual(second, prompt)
 
+    def test_kiro_launcher_accepts_only_scoped_lead_and_peer_without_flags(self):
+        with tempfile.TemporaryDirectory() as folder:
+            for args in (("supervisor", "kiro"), ("lead", "kiro", "--extra"), ("peer", "kiro", "--extra")):
+                with self.subTest(args=args):
+                    result = subprocess.run(
+                        [sys.executable, str(ROOT / "setup" / "role-agent"), *args],
+                        input="", text=True, capture_output=True,
+                        env={**os.environ, "PATH": folder, "HOME": folder}, timeout=10)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("Kiro supports only the scoped Lead and Peer seats", result.stderr)
+
+
     def test_pi_and_omp_native_launchers_append_peer_prompt_and_preserve_rpc(self):
         with tempfile.TemporaryDirectory() as folder:
             for agent in ("pi", "omp"):

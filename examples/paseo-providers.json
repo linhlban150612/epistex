@@ -899,6 +899,24 @@
            "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]}
         ]
       },
+      "kiro-lead": {
+        "extends": "acp",
+        "label": "Kiro Lead Seat",
+        "description": "Lead — fixed v2 agent; only the injected Paseo MCP; confirmed backend effort",
+        "command": ["<KIT>/setup/role-agent", "lead", "kiro"],
+        "env": {},
+        "enabled": true,
+        "paseoTools": {
+          "enabled": true,
+          "disabledTools": ["archive_workspace", "browser_back", "browser_click", "browser_close_tab", "browser_drag", "browser_evaluate", "browser_fill", "browser_forward", "browser_hover", "browser_keypress", "browser_list_tabs", "browser_logs", "browser_navigate", "browser_new_tab", "browser_reload", "browser_resize", "browser_screenshot", "browser_scroll", "browser_select", "browser_snapshot", "browser_type", "browser_upload", "browser_wait", "capture_terminal", "create_heartbeat", "create_schedule", "create_terminal", "create_workspace", "delete_heartbeat", "delete_schedule", "inspect_provider", "inspect_schedule", "kill_agent", "kill_terminal", "list_schedules", "list_terminals", "list_workspace_scripts", "pause_schedule", "rename_workspace", "resume_schedule", "run_schedule_once", "schedule_logs", "send_terminal_keys", "start_workspace_script", "stop_workspace_script", "update_agent", "update_schedule"]
+        },
+        "models": [
+          {"id": "claude-opus-5.5", "label": "Claude Opus 5.5", "isDefault": true,
+           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
+          {"id": "claude-sonnet-5.5", "label": "Claude Sonnet 5.5", "isDefault": false,
+           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]}
+        ]
+      },
       "agy-peer": {
         "extends": "acp",
         "label": "Antigravity Peer Seat",
@@ -941,6 +959,10 @@
       {"id": "kiro-peer--claude-opus-5-5--medium", "name": "kiro-peer · claude-opus-5.5 · medium", "provider": "kiro-peer", "model": "claude-opus-5.5", "thinkingOptionId": "medium"},
       {"id": "kiro-peer--claude-sonnet-5-5--low", "name": "kiro-peer · claude-sonnet-5.5 · low", "provider": "kiro-peer", "model": "claude-sonnet-5.5", "thinkingOptionId": "low"},
       {"id": "kiro-peer--claude-sonnet-5-5--medium", "name": "kiro-peer · claude-sonnet-5.5 · medium", "provider": "kiro-peer", "model": "claude-sonnet-5.5", "thinkingOptionId": "medium"},
+      {"id": "kiro-lead--claude-opus-5-5--low", "name": "kiro-lead · claude-opus-5.5 · low", "provider": "kiro-lead", "model": "claude-opus-5.5", "thinkingOptionId": "low"},
+      {"id": "kiro-lead--claude-opus-5-5--medium", "name": "kiro-lead · claude-opus-5.5 · medium", "provider": "kiro-lead", "model": "claude-opus-5.5", "thinkingOptionId": "medium"},
+      {"id": "kiro-lead--claude-sonnet-5-5--low", "name": "kiro-lead · claude-sonnet-5.5 · low", "provider": "kiro-lead", "model": "claude-sonnet-5.5", "thinkingOptionId": "low"},
+      {"id": "kiro-lead--claude-sonnet-5-5--medium", "name": "kiro-lead · claude-sonnet-5.5 · medium", "provider": "kiro-lead", "model": "claude-sonnet-5.5", "thinkingOptionId": "medium"},
       {
         "id": "amp-peer--medium",
         "name": "amp-peer · medium",

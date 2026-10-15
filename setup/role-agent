@@ -67,8 +67,8 @@ def main() -> int:
     if agent == "kiro":
         import os
 
-        if role != "peer" or sys.argv[3:]:
-            raise SystemExit("Kiro supports only the scoped Peer seat, without extra launch flags")
+        if role not in ("lead", "peer") or sys.argv[3:]:
+            raise SystemExit("Kiro supports only the scoped Lead and Peer seats, without extra launch flags")
         os.execv(sys.executable, [sys.executable, str(ROOT / "setup/kiro-acp"), role])
     instructions = (ROOT / "agents" / f"{role.upper()}.md").read_text()
     claude_stream = agent == "claude" and any(

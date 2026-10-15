@@ -10,7 +10,7 @@ Chi tiết chọn project/runtime và tiền đề: [hướng dẫn runtime Code
 |---|---|
 | Claude Lead/Peer | [docs/setup/claude.md](docs/setup/claude.md) |
 | Amp Lead/Peer qua ACP | [docs/setup/amp.md](docs/setup/amp.md) |
-| Kiro Peer qua ACP (v2, effort bridge, không native subagents) | [docs/setup/kiro.md](docs/setup/kiro.md) |
+| Kiro Lead/Peer qua ACP (v2, effort bridge, Lead chỉ nhận Paseo MCP loopback, không native subagents) | [docs/setup/kiro.md](docs/setup/kiro.md) |
 | Antigravity Peer qua ACP | [docs/setup/antigravity.md](docs/setup/antigravity.md) |
 | Pi Peer, OMP Peer | [docs/setup/pi-omp.md](docs/setup/pi-omp.md) |
 | Devin Supervisor/Lead/Peer, Copilot Peer, Cursor Peer qua ACP | [docs/setup/devin-copilot-cursor.md](docs/setup/devin-copilot-cursor.md) |

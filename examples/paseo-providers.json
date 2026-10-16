@@ -193,13 +193,13 @@
         },
         "models": [
           {
-            "id": "fusion-claude-fable-5-1-medium-sidekick-swe-2-medium",
-            "label": "Fusion (Claude Fable 5.1 Medium + SWE-2 Medium)",
+            "id": "swe-2-high",
+            "label": "SWE-2 (High)",
             "isDefault": true,
             "thinkingOptions": [
               {
-                "id": "medium",
-                "label": "Medium",
+                "id": "high",
+                "label": "High",
                 "isDefault": true
               }
             ]
@@ -799,21 +799,9 @@
         "env": {},
         "models": [
           {
-            "id": "fusion-claude-opus-5-5-high-sidekick-swe-2-medium",
-            "label": "Fusion (Claude Opus 5.5 High + SWE-2 Medium)",
-            "isDefault": true,
-            "thinkingOptions": [
-              {
-                "id": "high",
-                "label": "High",
-                "isDefault": true
-              }
-            ]
-          },
-          {
             "id": "swe-2-high",
             "label": "SWE-2 (High)",
-            "isDefault": false,
+            "isDefault": true,
             "thinkingOptions": [
               {
                 "id": "high",
@@ -1502,7 +1490,9 @@
       {"id": "droid-lead--gemini-4-argon--low", "name": "droid-lead · gemini-4-argon · low", "provider": "droid-lead", "model": "gemini-4-argon", "thinkingOptionId": "low", "modeId": "normal"},
       {"id": "droid-lead--gemini-4-argon--medium", "name": "droid-lead · gemini-4-argon · medium", "provider": "droid-lead", "model": "gemini-4-argon", "thinkingOptionId": "medium", "modeId": "normal"},
       {"id": "amp-peer--low", "name": "amp-peer · low", "provider": "amp-peer", "model": "low"},
-      {"id": "amp-lead--medium", "name": "amp-lead · medium", "provider": "amp-lead", "model": "medium"}
+      {"id": "amp-lead--medium", "name": "amp-lead · medium", "provider": "amp-lead", "model": "medium"},
+      {"id": "devin-peer--swe-2-high--high", "name": "devin-peer · swe-2-high · high", "provider": "devin-peer", "model": "swe-2-high", "thinkingOptionId": "high"},
+      {"id": "devin-supervisor--swe-2-high--high", "name": "devin-supervisor · swe-2-high · high", "provider": "devin-supervisor", "model": "swe-2-high", "thinkingOptionId": "high"}
     ]
   }
 }

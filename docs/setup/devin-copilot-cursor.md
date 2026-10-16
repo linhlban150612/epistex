@@ -19,9 +19,9 @@ Giữ MCP injection bật ở daemon; Supervisor và Devin Lead expose Paseo too
 
 | Provider | `command` (thay `<KIT>` bằng đường dẫn tuyệt đối) | Model ID | Thinking mặc định | Paseo tools |
 |---|---|---|---|---|
-| `devin-supervisor` | `["<KIT>/setup/role-agent","supervisor","devin"]` | `fusion-claude-fable-5-1-medium-sidekick-swe-2-medium` | `medium` | Bật |
-| `devin-lead` | `["<KIT>/setup/role-agent","lead","devin"]` | `fusion-claude-fable-5-1-medium-sidekick-swe-2-medium` | `medium` | Bật |
-| `devin-peer` | `["<KIT>/setup/role-agent","peer","devin"]` | `fusion-claude-opus-5-5-high-sidekick-swe-2-medium` (mặc định), `swe-2-high` | `high` | Tắt |
+| `devin-supervisor` | `["<KIT>/setup/role-agent","supervisor","devin"]` | `swe-2-high` | `high` | Bật |
+| `devin-lead` | `["<KIT>/setup/role-agent","lead","devin"]` | `swe-2-high` | `high` | Bật |
+| `devin-peer` | `["<KIT>/setup/role-agent","peer","devin"]` | `swe-2-high` | `high` | Tắt |
 | `copilot-peer` | `["<KIT>/setup/role-agent","peer","copilot"]` | `gpt-6-luna` | `medium` | Tắt |
 | `cursor-peer` | `["<KIT>/setup/role-agent","peer","cursor"]` | `composer-2.5[fast=true]` | Không có | Tắt |
 
@@ -42,10 +42,7 @@ theo bảng. Đặt `models: [{"id":"<MODEL>","label":"<LABEL>","isDefault":true
 Devin/Copilot thêm `thinkingOptions: [{"id":"<EFFORT>","label":"<LABEL>","isDefault":true}]`
 vào model theo bảng. Không thêm thinking option cho Composer 2.5.
 
-ID rút gọn `fusion-claude-fable` không xuất hiện trong discovery tại lần cài này; ID đầy đủ
-ở bảng đúng tên Fusion (Claude Fable 5.1 Medium + SWE-2 Medium). Discovery summary báo
-Devin effort mặc định `medium`, nhưng phiên Fusion Opus High thực tế báo `high`; giữ `high`
-để khớp biến thể được yêu cầu. Cursor summary trả ID trần `composer-2.5`, nhưng ACP session
+Devin seats chỉ dùng `swe-2-high` với effort `high`; không cấu hình model Fusion. Cursor summary trả ID trần `composer-2.5`, nhưng ACP session
 catalog/set-model yêu cầu `composer-2.5[fast=true]`; ID trần bị từ chối và phiên đầu vẫn ở
 `default[]`. Kiểm lại catalog của phiên và metadata sau launch, không chỉ discovery summary.
 

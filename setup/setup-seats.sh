@@ -94,9 +94,9 @@ else
     .extends == "acp" and .enabled == true and
     .command == [$command, "supervisor", "devin"] and .paseoTools.enabled == true and
     ([.models[] | select(.isDefault == true)] | length) == 1 and
-    any(.models[]; .id == "fusion-claude-fable-5-1-medium-sidekick-swe-2-medium" and
-      .isDefault == true and
-      ([.thinkingOptions[] | select(.isDefault == true) | .id] == ["medium"]))
+    ([.models[].id]) == ["swe-2-high"] and
+    any(.models[]; .id == "swe-2-high" and .isDefault == true and
+      ([.thinkingOptions[] | select(.isDefault == true) | .id] == ["high"]))
   ' "$paseo_config" >/dev/null || fail 'devin-supervisor: wrong launcher, tools or model/effort'
   for seat in amp-supervisor claude-supervisor codex-supervisor; do
     case "$seat" in
@@ -191,6 +191,24 @@ else
       ' "$paseo_config" >/dev/null || fail "agy-lead: missing or wrong $model profile"
     done
   fi
+  jq -e --arg command "$kit/setup/role-agent" '
+    .agents.providers["devin-peer"] |
+    .extends == "acp" and .enabled == true and
+    .command == [$command, "peer", "devin"] and .paseoTools.enabled == false and
+    .env == {} and ([.models[].id]) == ["swe-2-high"] and
+    all(.models[]; ([.thinkingOptions[].id] | sort) == ["high"])
+  ' "$paseo_config" >/dev/null || fail 'devin-peer: wrong launcher, tools or model'
+  for seat in devin-peer devin-supervisor; do
+    jq -e --arg seat "$seat" '
+      [.daemon.agentProfiles[]? | select(.id == ($seat + "--swe-2-high--high"))] |
+      length == 1 and all(.[]; .provider == $seat and .model == "swe-2-high" and .thinkingOptionId == "high")
+    ' "$paseo_config" >/dev/null || fail "$seat: missing or wrong swe-2-high profile"
+  done
+  jq -e '
+    [ .agents.providers | to_entries[]? | select(.key | test("^(devin|amp|droid|agy|kiro|claude|codex)-"))
+      | .value.models[]?.id | select(test("fusion")) ] +
+    [ .daemon.agentProfiles[]?.id | select(test("fusion")) ] | length == 0
+  ' "$paseo_config" >/dev/null || fail 'fusion-* models/profiles must not be configured'
   if jq -e '.agents.providers["droid-lead"].enabled == true' "$paseo_config" >/dev/null; then
     jq -e --arg command "$kit/setup/role-agent" '
       .agents.providers["droid-lead"] |

@@ -158,13 +158,13 @@ class SetupSeatsTest(unittest.TestCase):
             if provider.get("paseoTools", {}).get("enabled") is True:
                 expected = DENY_SUPERVISOR if key.endswith("-supervisor") else DENY_LEAD
                 self.assertEqual(set(provider["paseoTools"]["disabledTools"]), expected, key)
-        self.assertEqual(len(example["daemon"]["agentProfiles"]), 97)
+        self.assertEqual(len(example["daemon"]["agentProfiles"]), 99)
         counts = Counter(p["provider"] for p in example["daemon"]["agentProfiles"])
         self.assertEqual(counts, Counter({"amp-peer": 1, "amp-lead": 1, "amp-supervisor": 2,
             "claude-peer": 6, "claude-supervisor": 5, "codex-peer": 2,
             "codex-supervisor": 4, "copilot-peer": 10, "omp-peer": 9,
             "pi-peer": 9, "agy-peer": 4, "agy-lead": 2, "kiro-peer": 4, "kiro-lead": 4,
-            "kiro-supervisor": 4, "droid-peer": 22, "droid-lead": 8}))
+            "kiro-supervisor": 4, "droid-peer": 22, "droid-lead": 8, "devin-peer": 1, "devin-supervisor": 1}))
         script = SCRIPT.read_text()
         match = re.search(r"expected_deny_lead='(\[.*?\])'", script)
         self.assertIsNotNone(match, "checker deny-list constant not found")
@@ -390,6 +390,17 @@ class SetupSeatsTest(unittest.TestCase):
     def test_missing_config_fails(self):
         self.assertNotEqual(self.run_check("--check").returncode, 0)
         self.assertFalse(self.config.exists())
+
+    def test_fusion_models_and_profiles_rejected(self):
+        providers = self.data["agents"]["providers"]
+        for seat in ("devin-peer", "devin-supervisor"):
+            models = providers[seat]["models"]
+            self.assertEqual([m["id"] for m in models], ["swe-2-high"])
+        providers["devin-peer"]["models"].append(
+            {"id": "fusion-x", "label": "x", "isDefault": False,
+             "thinkingOptions": [{"id": "high", "label": "High", "isDefault": True}]})
+        self.save()
+        self.assertNotEqual(self.run_check("--check").returncode, 0)
 
     def test_wrong_model_or_tools_fails(self):
         peer = self.data["agents"]["providers"]["codex-peer"]

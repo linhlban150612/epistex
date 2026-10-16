@@ -1,6 +1,6 @@
-# Factory Droid Peer seat
+# Factory Droid seats
 
-This guide adds `droid-peer`, a Paseo Peer backed by Factory Droid through the ACP proxy in
+This guide covers `droid-peer` and `droid-lead`, Paseo seats backed by Factory Droid through the ACP proxy in
 `setup/role-agent`. Paseo remains the only lifecycle/topology owner. The seat is a role-wrapped
 provider: do not use the plain `factory-droid` provider or attach Peer profiles to it, because that
 provider does not inject `agents/PEER.md`.
@@ -13,9 +13,7 @@ provider does not inject `agents/PEER.md`.
    in Droid's user state, never in this repository.
 3. Droid 0.241.1 reports `auto` ("Auto Model") with reasoning `none` only, and `gpt-6-luna`
    ("GPT-6 Luna") with `none`, `low`, `medium`, `high`, `xhigh`, `max`, default `medium`. The seat
-   keeps Paseo's `off` id for Droid's `none`. `auto` may still exist in the upstream catalog, but
-   it is no longer configured for the seat; `setup-seats.sh --check` rejects a `droid-peer` `auto`
-   model or profile.
+   keeps Paseo's `off` id for Droid's `none`.   The seat's model list contains exactly the models in the table below.
 
 ## Configure Paseo
 
@@ -28,7 +26,7 @@ Merge the `droid-peer` entry and its `droid-peer--*` profiles from
 | Command | `["<KIT>/setup/role-agent","peer","droid"]` |
 | Paseo tools | Disabled |
 | Default model | `gpt-6-luna`, default effort `low` (the seat default; upstream defaults to `medium`) |
-| Luna profiles | `droid-peer--gpt-6-luna--low`; `droid-peer--gpt-6-luna--medium` (unchanged) |
+| Luna profiles | `droid-peer--gpt-6-luna--low`; `droid-peer--gpt-6-luna--medium` |
 | Additional models/profiles | Ten models, 20 supported profiles listed below; each defaults to `low` |
 
 Luna retains its six thinking options. Each additional model exposes only its requested supported
@@ -66,12 +64,8 @@ profiles total: two existing Luna profiles plus 20 additions. The checker requir
 profiles and rejects missing models/choices, mismatched provider/model/effort, and fabricated medium
 options or profiles for the four low/high models.
 
-The updated Human-approved requirement selects high instead of medium for `glm-5.3-flash`,
-`glm-5.3`, `kimi-k3` and `deepseek-v4.1-flash`, matching their directly advertised ACP choices.
-Their high options/profiles are additions to round 1's low-only inventory, not renames of installed
-medium profiles. Medium remains unadvertised and rejected for those four models. The six other
-additional models retain low/medium. No new max profiles are added, and the pin, Luna
-default/options/profiles, wrapper and tool policy remain unchanged.
+For `glm-5.3-flash`, `glm-5.3`, `kimi-k3` and `deepseek-v4.1-flash` only `low` and `high` are
+offered because medium is not advertised for those models.
 
 Paseo's `factory-droid` metadata advertises generic thinking options across models; it is not the
 per-model capability source. Likewise, `droid exec --list-tools` exiting 0 with medium for the four
@@ -84,4 +78,12 @@ low/high models does not prove runtime medium support.
 - Droid does not support Paseo MCP through this configuration; Peers have Paseo tools disabled anyway.
 - Static checks do not prove authentication, the `acp` output mode, effort mapping or runtime
   integration. The operator merges/reloads the config and performs an actual Paseo launch.
-A `droid-lead` seat also exists: `role-agent lead droid`, Lead Paseo tool set (47 deny-list), models claude-opus-5-5, claude-sonnet-5-5, gpt-6.1-sol, gemini-4-argon with low/medium efforts, and `modeId` `normal` (Auto Off — auto-approves only read operations) so no tool is auto-approved.
+
+
+## droid-lead
+
+Provider `droid-lead`, command `["<KIT>/setup/role-agent","lead","droid"]`, Lead Paseo tool policy
+per SETUP.md (47-entry deny-list). Models `claude-opus-5-5`, `claude-sonnet-5-5`, `gpt-6.1-sol`,
+`gemini-4-argon` with low/medium effort. Profiles carry `modeId: "normal"` (Auto Off — only read
+operations are auto-approved). Droid's advertised modes: `normal`, `spec`, `auto-low`,
+`auto-medium`, `auto-high`.

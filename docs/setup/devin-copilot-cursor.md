@@ -20,7 +20,6 @@ Giữ MCP injection bật ở daemon; Supervisor và Devin Lead expose Paseo too
 | Provider | `command` (thay `<KIT>` bằng đường dẫn tuyệt đối) | Model ID | Thinking mặc định | Paseo tools |
 |---|---|---|---|---|
 | `devin-supervisor` | `["<KIT>/setup/role-agent","supervisor","devin"]` | `swe-2-high` | `high` | Bật |
-| `devin-lead` | `["<KIT>/setup/role-agent","lead","devin"]` | `swe-2-high` | `high` | Bật |
 | `devin-peer` | `["<KIT>/setup/role-agent","peer","devin"]` | `swe-2-high` | `high` | Tắt |
 | `copilot-peer` | `["<KIT>/setup/role-agent","peer","copilot"]` | `gpt-6-luna` | `medium` | Tắt |
 | `cursor-peer` | `["<KIT>/setup/role-agent","peer","cursor"]` | `composer-2.5[fast=true]` | Không có | Tắt |

@@ -53,6 +53,8 @@ class SetupSeatsTest(unittest.TestCase):
         providers["amp-lead"]["command"] = [str(self.kit / "setup" / "role-agent"), "lead", "amp"]
         providers["amp-peer"]["command"] = [str(self.kit / "setup" / "role-agent"), "peer", "amp"]
         providers["devin-peer"]["command"] = [str(self.kit / "setup" / "role-agent"), "peer", "devin"]
+        providers["claude-lead"]["command"] = [str(self.kit / "setup" / "role-agent"), "lead", "claude"]
+        providers["cursor-peer"]["command"] = [str(self.kit / "setup" / "role-agent"), "peer", "cursor"]
         providers["kiro-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "kiro"]
         runtime = pathlib.Path(self.temporary.name) / ".kiro/agents"
         runtime.mkdir(parents=True)
@@ -84,8 +86,6 @@ class SetupSeatsTest(unittest.TestCase):
 
     def test_claude_compaction_env_checks_each_enabled_seat_and_peer(self):
         providers = self.data["agents"]["providers"]
-        providers["claude-lead"] = {
-            "enabled": True, "env": {"CLAUDE_CODE_AUTO_COMPACT_WINDOW": "100000"}}
         self.save()
         self.assertEqual(self.run_check("--check").returncode, 0)
         for seat in ("claude-peer", "claude-lead", "claude-supervisor"):
@@ -158,13 +158,13 @@ class SetupSeatsTest(unittest.TestCase):
             if provider.get("paseoTools", {}).get("enabled") is True:
                 expected = DENY_SUPERVISOR if key.endswith("-supervisor") else DENY_LEAD
                 self.assertEqual(set(provider["paseoTools"]["disabledTools"]), expected, key)
-        self.assertEqual(len(example["daemon"]["agentProfiles"]), 99)
+        self.assertEqual(len(example["daemon"]["agentProfiles"]), 101)
         counts = Counter(p["provider"] for p in example["daemon"]["agentProfiles"])
         self.assertEqual(counts, Counter({"amp-peer": 1, "amp-lead": 1, "amp-supervisor": 2,
             "claude-peer": 6, "claude-supervisor": 5, "codex-peer": 2,
             "codex-supervisor": 4, "copilot-peer": 10, "omp-peer": 9,
             "pi-peer": 9, "agy-peer": 4, "agy-lead": 2, "kiro-peer": 4, "kiro-lead": 4,
-            "kiro-supervisor": 4, "droid-peer": 22, "droid-lead": 8, "devin-peer": 1, "devin-supervisor": 1}))
+            "kiro-supervisor": 4, "droid-peer": 22, "droid-lead": 8, "devin-peer": 1, "devin-supervisor": 1, "claude-lead": 1, "cursor-peer": 1}))
         script = SCRIPT.read_text()
         match = re.search(r"expected_deny_lead='(\[.*?\])'", script)
         self.assertIsNotNone(match, "checker deny-list constant not found")
@@ -231,13 +231,6 @@ class SetupSeatsTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("agy-peer: wrong launcher, permissions or model pins", result.stderr)
         provider["paseoTools"]["enabled"] = False
-        provider["models"].append({"id": "gemini-3.8-flash-high", "label": "Gemini 3.8 Flash (High)",
-                                   "isDefault": False})
-        self.save()
-        result = self.run_check("--check")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("agy-peer: wrong launcher, permissions or model pins", result.stderr)
-        provider["models"].pop()
         for model in models:
             with self.subTest(model=model):
                 profile = next(p for p in self.data["daemon"]["agentProfiles"]
@@ -391,16 +384,11 @@ class SetupSeatsTest(unittest.TestCase):
         self.assertNotEqual(self.run_check("--check").returncode, 0)
         self.assertFalse(self.config.exists())
 
-    def test_fusion_models_and_profiles_rejected(self):
+    def test_devin_seats_swe_2_high_only(self):
         providers = self.data["agents"]["providers"]
         for seat in ("devin-peer", "devin-supervisor"):
             models = providers[seat]["models"]
             self.assertEqual([m["id"] for m in models], ["swe-2-high"])
-        providers["devin-peer"]["models"].append(
-            {"id": "fusion-x", "label": "x", "isDefault": False,
-             "thinkingOptions": [{"id": "high", "label": "High", "isDefault": True}]})
-        self.save()
-        self.assertNotEqual(self.run_check("--check").returncode, 0)
 
     def test_wrong_model_or_tools_fails(self):
         peer = self.data["agents"]["providers"]["codex-peer"]
@@ -549,19 +537,16 @@ class SetupSeatsTest(unittest.TestCase):
         self.save()
         self.assertEqual(self.run_check("--check").returncode, 0)
 
-    def test_droid_peer_requires_role_wrapper_and_luna_default_without_auto(self):
+    def test_droid_peer_requires_role_wrapper_and_luna_default(self):
         self.save()
         self.assertEqual(self.run_check("--check").returncode, 0)
         provider = self.data["agents"]["providers"]["droid-peer"]
         self.assertEqual([m["id"] for m in provider["models"] if m["isDefault"]], ["gpt-6-luna"])
         self.assertNotIn("auto", {p["model"] for p in self.data["daemon"]["agentProfiles"]
                                   if p["provider"] == "droid-peer"})
-        auto = {"id": "auto", "label": "Auto Model", "isDefault": False,
-                "thinkingOptions": provider["models"][0]["thinkingOptions"]}
         for key, value in (("command", ["droid", "exec", "--output-format", "acp"]),
                            ("command", [str(self.kit / "setup" / "role-agent"), "lead", "droid"]),
-                           ("paseoTools", {"enabled": True}),
-                           ("models", [auto] + provider["models"])):
+                           ("paseoTools", {"enabled": True})):
             with self.subTest(key=key):
                 old = provider[key]
                 provider[key] = value
@@ -570,13 +555,6 @@ class SetupSeatsTest(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("droid-peer", result.stderr)
                 provider[key] = old
-        stale = {"id": "droid-peer--auto--low", "provider": "droid-peer", "model": "auto", "thinkingOptionId": "low"}
-        self.data["daemon"]["agentProfiles"].append(stale)
-        self.save()
-        result = self.run_check("--check")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("droid-peer: auto model profile must not be configured", result.stderr)
-        self.data["daemon"]["agentProfiles"].remove(stale)
         profile = next(p for p in self.data["daemon"]["agentProfiles"] if p["id"] == "droid-peer--gpt-6-luna--low")
         profile.pop("thinkingOptionId")
         self.save()

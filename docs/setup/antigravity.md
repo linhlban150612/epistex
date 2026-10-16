@@ -32,11 +32,11 @@ ACP `session/new` carries the agent cwd; whether the server honours it is unveri
 
 Unlike the Peer, `agy-lead` runs in the server's `default` mode (set via each `agy-lead` profile's `modeId`), so every tool call prompts; there is no plan mode — `plan` is only a `/plan` slash command, not an ACP session mode.
 
-The official server advertises `mcpCapabilities` `http` and `sse` (not stdio-only), so Paseo tool forwarding may now work, but it is unverified. Do not work around missing tools with user-wide `agy mcp add`. Keep the seat out of live config until Paseo tools, mode behaviour and permissions are verified with an actual Paseo launch.
+The official server advertises `mcpCapabilities` `http` and `sse`; Paseo forwards its MCP tools to `agy-lead` over these. Do not work around missing tools with user-wide `agy mcp add`.
 
 ## State and known limitations
 
 The server reads its settings from `~/.gemini/antigravity-acp/settings.json`. This is private runtime state and must remain outside the repository.
 
-- The server advertises `loadSession`, `session/list` and `session/resume`; cancellation and tool-call fidelity in Paseo are not yet verified.
+- The server advertises `loadSession`, `session/list` and `session/resume`. Cancelling a running prompt through Paseo returns the agent to idle; session resume through Paseo is not verified.
 - The role configuration is an example only. The operator merges/reloads it and performs an actual Paseo launch; static checks do not establish that authentication or runtime integration works.

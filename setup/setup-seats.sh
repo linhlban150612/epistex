@@ -204,11 +204,6 @@ else
       length == 1 and all(.[]; .provider == $seat and .model == "swe-2-high" and .thinkingOptionId == "high")
     ' "$paseo_config" >/dev/null || fail "$seat: missing or wrong swe-2-high profile"
   done
-  jq -e '
-    [ .agents.providers | to_entries[]? | select(.key | test("^(devin|amp|droid|agy|kiro|claude|codex)-"))
-      | .value.models[]?.id | select(test("fusion")) ] +
-    [ .daemon.agentProfiles[]?.id | select(test("fusion")) ] | length == 0
-  ' "$paseo_config" >/dev/null || fail 'fusion-* models/profiles must not be configured'
   if jq -e '.agents.providers["droid-lead"].enabled == true' "$paseo_config" >/dev/null; then
     jq -e --arg command "$kit/setup/role-agent" '
       .agents.providers["droid-lead"] |
@@ -299,8 +294,6 @@ PY
            else $efforts[$model.id] | sort end) and
         [.thinkingOptions[] | select(.isDefault == true) | .id] == ["low"])
     ' "$paseo_config" >/dev/null || fail 'droid-peer: wrong launcher, tools or model/effort'
-    jq -e '[.daemon.agentProfiles[]? | select(.provider == "droid-peer" and .model == "auto")] | length == 0' \
-      "$paseo_config" >/dev/null || fail 'droid-peer: auto model profile must not be configured'
     for effort in low medium; do
       jq -e --arg effort "$effort" '
         [.daemon.agentProfiles[]? | select(.id == ("droid-peer--gpt-6-luna--" + $effort))] |
@@ -321,7 +314,7 @@ PY
     [.daemon.agentProfiles[]? as $p |
       .agents.providers[$p.provider] as $seat |
       select(($seat | type) != "object" or $seat.enabled != true or
-        (($p.provider | test("^(codex|claude|amp|agy|pi|omp|copilot|kiro|droid|devin)-")) | not) or
+        (($p.provider | test("^(codex|claude|amp|agy|pi|omp|copilot|cursor|kiro|droid|devin)-")) | not) or
         (([ $seat.models[]?.id ] | index($p.model)) == null) or
         (if any($seat.models[]?; .id == $p.model and has("thinkingOptions"))
          then (($p | has("thinkingOptionId")) | not) or

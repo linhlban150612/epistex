@@ -1,8 +1,7 @@
 # Epistex — standalone agent roles on Paseo
 
-Epistex provides role prompts and launchers for Paseo; Seatworks is not required. The kit
-provides Codex Lead/Peer and Devin ACP Supervisor seats, with Paseo as the sole control plane.
-There is no desk, 21-provider installer, patrol, or `epx-*` profile.
+Epistex provides role prompts and launchers for Supervisor, Lead, and Peer seats across the
+backends listed below, with Paseo as the sole control plane.
 
 | Role | Responsibility | Paseo MCP in provider |
 |---|---|---|
@@ -99,13 +98,10 @@ actual CWD, or live recovery checks.
   not workspace-scoped. See [context compaction](docs/setup/context-compaction.md).
 
 - All roles run as the same Unix user; scope and tool visibility are not an OS sandbox (see above).
-- Paseo is the sole agent control plane and owns lifecycle and topology; the former desk control
-  plane and patrol installer were removed. Desk, patrol, daemon, timer, ledger, agent-ID and plan
-  details in Git history describe past state only; never treat them as instructions to inspect,
-  mutate, or recover retained external state. Inspect live state before operating.
+- Paseo is the sole agent control plane and owns lifecycle and topology. Inspect live state before
+  operating.
 - `setup/codex-room-sync` preserves private runtime data and canonical config, disables native
   multi-agent features, and rejects ambiguous or symlinked runtimes. These contracts are covered by
   `tests/test_codex_room_sync.py` and `tests/test_codex_room.py`; see the [runtime guide](docs/setup/codex-runtime.md).
-- ACP child-exit handling was a reported limitation: `setup/role-agent` forwards stdin until EOF,
-  so a backend that exits early may surface only on the next input. Not re-reproduced; reproduce
-  against current code before relying on it.
+- ACP child-exit limitation: `setup/role-agent` forwards stdin until EOF, so a backend that exits
+  early may surface only on the next input.

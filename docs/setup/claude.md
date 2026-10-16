@@ -27,12 +27,19 @@ Profile pins:
 
 Claude Lead dùng deny-list tại [SETUP.md §3](../../SETUP.md); không áp dụng cho Peer.
 
-Đặt label/description theo role và thay `<KIT>` bằng đường dẫn tuyệt đối. `role-agent` phải
-executable. Launcher giữ CWD của Paseo và dùng Claude home/auth hiện có; không sinh hai
+Đặt label/description theo role và thay `<KIT>` bằng đường dẫn tuyệt đối. `role-agent` và
+`claude-sdk` phải executable. `role-agent <role> claude` chuyển sang launcher riêng
+`setup/claude-sdk <role>` bằng `os.execv`, cùng quy ước với `kiro-acp`. Launcher giữ CWD của Paseo và dùng Claude home/auth hiện có; không sinh hai
 Codex runtime hay thay canonical Claude settings. Trong Claude SDK stream-json, launcher
 thêm prompt role vào `request.appendSystemPrompt` của bản tin `control_request` / `initialize`,
 giữ nguyên system prompt, append text và các field khác của SDK. Flag CLI
-`--append-system-prompt` đơn lẻ không đủ vì SDK initialize thay cấu hình prompt đó.
+`--append-system-prompt` đơn lẻ không đủ: field `appendSystemPrompt` trong `initialize` thay flag đó.
+Một field trong `initialize` chỉ thay flag CLI tương ứng; flag không có field tương ứng vẫn có hiệu lực.
+Paseo 0.11.4 gửi `initialize` với `hooks`, `appendSystemPrompt`, `forwardSubagentText`,
+`perTaskStopAffordance`, và tự đặt `--model`, `--effort`, `--permission-mode`, `--setting-sources`;
+không thêm các flag đó vào `command`. `claude-sdk` thêm `--disallowed-tools` cho `Agent`, `Task`,
+`Workflow`, `CronCreate`, `CronDelete`, `CronList`, `ScheduleWakeup`, `RemoteTrigger`: Paseo quản lý
+topology và seat không tạo schedule/heartbeat. Kiểm danh sách tool bằng launch thật.
 
 Sau `paseo reload`, tạo phiên mới với model, `thinking=low` và mode lấy từ discovery.
 Yêu cầu agent in heading role **từ system instructions đang hoạt động**, không đọc file prompt

@@ -9,6 +9,7 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 proxy = importlib.machinery.SourceFileLoader("role_agent", str(ROOT / "setup" / "role-agent")).load_module()
+claude_sdk = importlib.machinery.SourceFileLoader("claude_sdk", str(ROOT / "setup" / "claude-sdk")).load_module()
 
 
 class ProfilesTest(unittest.TestCase):
@@ -107,16 +108,17 @@ class ProfilesTest(unittest.TestCase):
                 expected["request"]["appendSystemPrompt"] = (
                     "Paseo session guidance\n\n# Peer — test role" if existing
                     else "# Peer — test role")
-                result = proxy.prime_claude((json.dumps(message) + "\n").encode(), "# Peer — test role")
+                result = claude_sdk.prime_claude((json.dumps(message) + "\n").encode(), "# Peer — test role")
                 self.assertEqual(json.loads(result), expected)
         for raw in (b'not json\n', b'[]\n', b'{"type":"user","message":{"content":"task"}}\n',
                     b'{"type":"control_request","request":{"subtype":"interrupt"}}\n'):
-            self.assertEqual(proxy.prime_claude(raw, "role"), raw)
+            self.assertEqual(claude_sdk.prime_claude(raw, "role"), raw)
 
     def test_claude_stream_launcher_injects_both_roles_and_forwards_messages(self):
         with tempfile.TemporaryDirectory() as folder:
             executable = pathlib.Path(folder) / "claude"
-            executable.write_text(f"#!{sys.executable}\nimport sys\n"
+            executable.write_text(f"#!{sys.executable}\nimport json, sys\n"
+                                  "print(json.dumps(sys.argv[1:]), flush=True)\n"
                                   "for line in sys.stdin.buffer:\n"
                                   "    sys.stdout.buffer.write(line)\n"
                                   "    sys.stdout.buffer.flush()\n")
@@ -133,7 +135,9 @@ class ProfilesTest(unittest.TestCase):
                         input=json.dumps(initialize) + "\n" + json.dumps(user) + "\n",
                         text=True, capture_output=True, env=env, timeout=10)
                     self.assertEqual(result.returncode, 0, result.stderr)
-                    first, second = map(json.loads, result.stdout.splitlines())
+                    args, first, second = map(json.loads, result.stdout.splitlines())
+                    self.assertEqual(args, ["--disallowed-tools", ",".join(claude_sdk.DISALLOWED),
+                                            "--input-format", "stream-json", "--output-format", "stream-json"])
                     instructions = (ROOT / "agents" / f"{role.upper()}.md").read_text()
                     self.assertEqual(first["request"]["appendSystemPrompt"], "keep me\n\n" + instructions)
                     self.assertEqual(first["request_id"], "init")

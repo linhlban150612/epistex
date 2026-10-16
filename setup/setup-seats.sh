@@ -32,7 +32,7 @@ for seat in LEAD PEER SUPERVISOR; do
   fi
 done
 
-for name in codex-room codex-room-sync role-agent kiro-acp; do
+for name in codex-room codex-room-sync role-agent kiro-acp claude-sdk; do
   wrapper="$kit/setup/$name"
   if [[ ! -f "$wrapper" ]]; then
     fail "missing $wrapper"

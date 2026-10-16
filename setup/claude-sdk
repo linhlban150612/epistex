@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+"""Seat-local Claude launcher. Append role instructions to the SDK initialize request."""
+import json
+import os
+import pathlib
+import shutil
+import subprocess
+import sys
+import threading
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROLES = ("supervisor", "lead", "peer")
+# Paseo owns topology; AGENTS.md forbids schedules and heartbeats. Paseo's initialize carries no tool
+# fields, so this CLI deny-list survives the SDK handshake.
+DISALLOWED = ("Agent", "Task", "Workflow", "CronCreate", "CronDelete", "CronList", "ScheduleWakeup", "RemoteTrigger")
+
+
+def prime_claude(line: bytes, instructions: str) -> bytes:
+    try:
+        message = json.loads(line)
+    except (ValueError, UnicodeDecodeError):
+        return line
+    if not isinstance(message, dict) or message.get("type") != "control_request":
+        return line
+    request = message.get("request")
+    if not isinstance(request, dict) or request.get("subtype") != "initialize":
+        return line
+    existing = request.get("appendSystemPrompt") or ""
+    if not isinstance(existing, str):
+        raise ValueError("Claude initialize appendSystemPrompt must be a string")
+    request["appendSystemPrompt"] = existing + ("\n\n" if existing else "") + instructions
+    return (json.dumps(message, ensure_ascii=False) + "\n").encode()
+
+
+def main() -> int:
+    if len(sys.argv) < 2 or sys.argv[1] not in ROLES:
+        raise SystemExit("usage: claude-sdk <supervisor|lead|peer> [claude args...]")
+    role, args = sys.argv[1], sys.argv[2:]
+    instructions = (ROOT / "agents" / f"{role.upper()}.md").read_text()
+    stream = any(flag == "--input-format" and value == "stream-json" for flag, value in zip(args, args[1:]))
+    if shutil.which("claude") is None:
+        raise SystemExit("agent executable not found: claude")
+    deny = ["--disallowed-tools", ",".join(DISALLOWED)]
+    if not stream:
+        # The SDK initialize request replaces a CLI prompt, so this path serves only plain CLI use.
+        command = ["claude", *args] if args == ["--version"] else ["claude", "--append-system-prompt", instructions, *deny, *args]
+        os.execvp(command[0], command)
+    child = subprocess.Popen(["claude", *deny, *args], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+
+    def output() -> None:
+        assert child.stdout is not None
+        for line in child.stdout:
+            sys.stdout.buffer.write(line)
+            sys.stdout.buffer.flush()
+
+    forwarding = threading.Thread(target=output)
+    forwarding.start()
+    assert child.stdin is not None
+    try:
+        for line in sys.stdin.buffer:
+            child.stdin.write(prime_claude(line, instructions))
+            child.stdin.flush()
+    except BrokenPipeError:
+        pass
+    finally:
+        child.stdin.close()
+    forwarding.join()
+    return child.wait()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

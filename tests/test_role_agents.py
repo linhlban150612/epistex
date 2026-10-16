@@ -45,17 +45,36 @@ class ProfilesTest(unittest.TestCase):
                     self.assertEqual(first, expected)
                     self.assertEqual(second, prompt)
 
+    def test_droid_acp_launcher_uses_installed_binary_and_injects_peer_role(self):
+        with tempfile.TemporaryDirectory() as folder:
+            executable = pathlib.Path(folder) / "droid"
+            executable.write_text(f"#!{sys.executable}\nimport json, sys\n"
+                                  "print(json.dumps(sys.argv[1:]), flush=True)\n"
+                                  "for line in sys.stdin:\n"
+                                  "    print(line, end='', flush=True)\n")
+            executable.chmod(0o755)
+            prompt = {"jsonrpc": "2.0", "id": 3, "method": "session/prompt",
+                      "params": {"sessionId": "droid", "prompt": [{"type": "text", "text": "task"}]}}
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "setup" / "role-agent"), "peer", "droid"],
+                input=json.dumps(prompt) + "\n", text=True, capture_output=True,
+                env={**os.environ, "PATH": folder}, timeout=10)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            args, first = map(json.loads, result.stdout.splitlines())
+            self.assertEqual(args, ["exec", "--output-format", "acp"])
+            self.assertTrue(first["params"]["prompt"][0]["text"].startswith("Role instructions for this session:\n"))
+            self.assertEqual(first["params"]["prompt"][1:], prompt["params"]["prompt"])
+
     def test_kiro_launcher_accepts_only_scoped_lead_and_peer_without_flags(self):
         with tempfile.TemporaryDirectory() as folder:
-            for args in (("supervisor", "kiro"), ("lead", "kiro", "--extra"), ("peer", "kiro", "--extra")):
+            for args in (("lead", "kiro", "--extra"), ("peer", "kiro", "--extra")):
                 with self.subTest(args=args):
                     result = subprocess.run(
                         [sys.executable, str(ROOT / "setup" / "role-agent"), *args],
                         input="", text=True, capture_output=True,
                         env={**os.environ, "PATH": folder, "HOME": folder}, timeout=10)
                     self.assertNotEqual(result.returncode, 0)
-                    self.assertIn("Kiro supports only the scoped Lead and Peer seats", result.stderr)
-
+                    self.assertIn("Kiro supports only the scoped Supervisor, Lead and Peer seats", result.stderr)
 
     def test_pi_and_omp_native_launchers_append_peer_prompt_and_preserve_rpc(self):
         with tempfile.TemporaryDirectory() as folder:

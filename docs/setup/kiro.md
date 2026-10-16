@@ -149,3 +149,4 @@ Nguồn authoritative (running capabilities thắng ví dụ tài liệu):
 [ACP](https://kiro.dev/docs/acp/), [V2 ACP](https://kiro.dev/docs/cli/acp/),
 [V3 migration](https://kiro.dev/docs/cli/v3/acp-migration/),
 [custom agents](https://kiro.dev/docs/custom-agents/).
+A `kiro-supervisor` seat also exists: `role-agent supervisor kiro`, `setup/kiro-supervisor.json`, installed agent `~/.kiro/agents/epistex_supervisor.json`, Supervisor Paseo tool set (keeps `create_workspace`).

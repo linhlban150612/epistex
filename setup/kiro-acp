@@ -82,8 +82,8 @@ def runtime_error(cwd):
 
 def main():
     global ROLE, NAME, MODE
-    if sys.argv[1:] not in (["peer"], ["lead"]):
-        raise SystemExit("usage: kiro-acp <peer|lead>")
+    if sys.argv[1:] not in (["peer"], ["lead"], ["supervisor"]):
+        raise SystemExit("usage: kiro-acp <peer|lead|supervisor>")
     ROLE = sys.argv[1]
     NAME, MODE = "Kiro " + ROLE.title(), "epistex_" + ROLE
     instructions = (ROOT / f"agents/{ROLE.upper()}.md").read_text()

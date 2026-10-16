@@ -110,6 +110,6 @@ Linux Desktop: nếu `paseo` là symlink tới `/opt/Paseo/Paseo` và `paseo run
 | `setup/codex-room`, `setup/codex-room-sync` | Select runtime/resume and generate Codex config |
 | `setup/setup-seats.sh`, `examples/paseo-providers.json` | Three role seats and provider check |
 | `SETUP.md` | Setup entry point: common steps, Codex seats, live verification |
-| `docs/setup/*.md` | Backend-specific seats: Claude, Amp, Pi/OMP, Devin/Copilot/Cursor |
+| `docs/setup/*.md` | Backend-specific seats: Claude, Amp, Pi/OMP, Devin/Copilot/Cursor, Droid |
 | `examples/AGENTS_MD_SNIPPET.md`, `examples/WORKSPACE_PROTOCOL.md` | Contract/policy templates for target repos |
 | `tests/` | Runtime, role launcher, and seat-checker regression tests |

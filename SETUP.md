@@ -9,11 +9,12 @@ Chi tiết chọn project/runtime và tiền đề: [hướng dẫn runtime Code
 | Backend | Hướng dẫn |
 |---|---|
 | Claude Lead/Peer | [docs/setup/claude.md](docs/setup/claude.md) |
-| Amp Lead/Peer qua ACP | [docs/setup/amp.md](docs/setup/amp.md) |
-| Kiro Lead/Peer qua ACP (v2, effort bridge, Lead chỉ nhận Paseo MCP loopback, không native subagents) | [docs/setup/kiro.md](docs/setup/kiro.md) |
-| Antigravity Peer qua ACP | [docs/setup/antigravity.md](docs/setup/antigravity.md) |
+| Amp Supervisor/Lead/Peer qua ACP | [docs/setup/amp.md](docs/setup/amp.md) |
+| Kiro Supervisor/Lead/Peer qua ACP (v2, effort bridge, Lead chỉ nhận Paseo MCP loopback, không native subagents) | [docs/setup/kiro.md](docs/setup/kiro.md) |
+| Antigravity Lead/Peer qua ACP (modeId auto_edit/default) | [docs/setup/antigravity.md](docs/setup/antigravity.md) |
+| Factory Droid Lead/Peer qua ACP | [docs/setup/droid.md](docs/setup/droid.md) |
 | Pi Peer, OMP Peer | [docs/setup/pi-omp.md](docs/setup/pi-omp.md) |
-| Devin Supervisor/Lead/Peer, Copilot Peer, Cursor Peer qua ACP | [docs/setup/devin-copilot-cursor.md](docs/setup/devin-copilot-cursor.md) |
+| Devin Supervisor/Peer, Copilot Peer, Cursor Peer qua ACP | [docs/setup/devin-copilot-cursor.md](docs/setup/devin-copilot-cursor.md) |
 
 Context compaction và giới hạn từng backend: [context-compaction.md](docs/setup/context-compaction.md).
 
@@ -43,7 +44,7 @@ dùng `injectIntoProviders`; field đó không phải cơ chế policy provider 
 Lead dùng `paseoTools.disabledTools` để chặn catalog, giữ đúng 14 tool: `list_agents`,
 `list_workspaces`, `list_providers`, `list_models`, `list_profiles`, `create_agent`, `send_agent_prompt`,
 `get_agent_activity`, `get_agent_status`, `cancel_agent`, `archive_agent`,
-`list_pending_permissions`, `respond_to_permission`, `set_agent_mode`. Supervisor giữ thêm `create_workspace` (15 tool được giữ; 46 bị chặn), còn Lead giữ 14 tool (47 bị chặn).
+`list_pending_permissions`, `respond_to_permission`, `set_agent_mode`. Supervisor giữ thêm `create_workspace` (15 tool được giữ; 46 bị chặn), còn Lead giữ 14 tool (47 bị chặn). Kiro Supervisor/Lead và Droid Lead dùng cùng chính sách.
 Các nhóm bị chặn ở Lead: 11 schedule/heartbeat, 22 browser, 5 terminal, 9 workspace/agent/provider;
 ở Supervisor nhóm workspace/agent/provider còn 8 (xem danh sách trong
 [ví dụ provider](examples/paseo-providers.json)). Cần Paseo 0.11.1; daemon và CLI cùng phiên bản.

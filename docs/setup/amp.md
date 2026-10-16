@@ -45,3 +45,4 @@ Lead điều phối bằng `amp-peer`, không dùng provider Amp gốc.
 
 `setup-seats.sh --check` xác nhận supervisor launcher, tools và pin model. Profile inventory gồm Amp Peer medium và Supervisor medium/high. Kiểm riêng hai Amp provider và live launch;
 không thay global Amp config, credentials hoặc state để tạo role separation.
+`amp-peer` now pins only the `low` model (`amp-peer--low`); an `amp-lead` seat pins `medium` with the Lead Paseo tool set.

@@ -9,13 +9,17 @@ with the Lead.
 | Agent (verified version) | Mechanism | Scope | Effective threshold | Status |
 |---|---|---|---|---|
 | Codex 0.161.0, all roles | `model_auto_compact_token_limit=100000` in generated room TOML | Project/role runtime only | 100,000 | Configured in sync; CLI update blocked by the no-`~/.codex`-writes constraint |
-| Claude 2.1.294, all enabled Claude seats + Peer | `CLAUDE_CODE_AUTO_COMPACT_WINDOW=100000` | Epistex role-provider env | 100k window; backend buffer may trigger earlier | Configured in example for Peer/Supervisor and applied live on all three Claude seats; Paseo launch probe on 2.1.294 showed the env value `100000` in the Claude process |
+| Claude 2.1.294, all enabled Claude seats (Supervisor, Lead, Peer) | `CLAUDE_CODE_AUTO_COMPACT_WINDOW=100000` | Epistex role-provider env | 100k window; backend buffer may trigger earlier | Configured in example for Peer/Supervisor and applied live on all three Claude seats; Paseo launch probe on 2.1.294 showed the env value `100000` in the Claude process |
 | Pi 1.1.0, Peer | `.pi/settings.json`, per-model `reserveTokens` | Checkout | 100,000 for the five sourced pins below | Configured; Haiku window unknown — skipped (default compaction) |
 | OMP 18.8.4, Peer | `.omp/config.yml`, `compaction.enabled=true`, `thresholdTokens=100000` | Checkout | 100,000 (clamped below model window) | Configured; use `/home/linhlb/.bun/bin/omp`, not stale `~/.local/bin/omp` |
 | Copilot 1.0.93, Peer | Proposed `COPILOT_BACKGROUND_COMPACTION_THRESHOLD=0.5` | Would be role-provider env | Not applied | Blocked: no installed-binary/help evidence for this variable; no env or checker requirement added |
-| Amp 0.0.1791432144, all roles | No exposed threshold in settings reference | — | Backend default | Not configurable through the inspected CLI schema/help |
+| Amp 0.0.1791432144, Supervisor/Lead/Peer | No exposed threshold in settings reference | — | Backend default | Not configurable through the inspected CLI schema/help |
 | Cursor Agent 2026.10.01-e373342, Peer | No exposed threshold in help/bundled JS search | — | Backend default | Not configurable through the inspected local surfaces |
-| Devin 3000.11.3, all roles | `agent.compaction_threshold_tokens=100000` in `~/.config/devin/config.json` | User-wide, **not workspace-scoped** | 100,000 | Applied user-wide (Human opt-in); existing file left untouched |
+| Devin 3000.11.3, Supervisor/Peer | `agent.compaction_threshold_tokens=100000` in `~/.config/devin/config.json` | User-wide, **not workspace-scoped** | 100,000 | Applied user-wide (Human opt-in); existing file left untouched |
+| Kiro 2.30 (kiro-cli acp v2), Supervisor/Lead/Peer | No exposed compaction threshold in `setup/kiro-*.json` agent schema | — | Backend default | Not configurable through the seat-owned agent JSON |
+| Factory Droid 0.241.1, Lead/Peer | No exposed threshold in `droid exec --help` / ACP surface | — | Backend default | Not configurable through the inspected CLI help |
+| Antigravity (agy_acp_server.par), Lead/Peer | No exposed threshold in probed session/new result | — | Backend default | Not configurable through the probed ACP surface |
+| GLM (glm-acp-agent), no seat installed | Not installed on this machine | — | Unknown | Blocked: binary not installed; no evidence gathered |
 
 ## Installed evidence
 

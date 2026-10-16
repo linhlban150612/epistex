@@ -45,12 +45,20 @@ class SetupSeatsTest(unittest.TestCase):
         providers["devin-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "devin"]
         providers["amp-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "amp"]
         providers["agy-peer"]["command"] = [str(self.kit / "setup" / "role-agent"), "peer", "agy"]
+        providers["agy-lead"]["command"] = [str(self.kit / "setup" / "role-agent"), "lead", "agy"]
         providers["kiro-peer"]["command"] = [str(self.kit / "setup" / "role-agent"), "peer", "kiro"]
         providers["kiro-lead"]["command"] = [str(self.kit / "setup" / "role-agent"), "lead", "kiro"]
+        providers["droid-peer"]["command"] = [str(self.kit / "setup" / "role-agent"), "peer", "droid"]
+        providers["droid-lead"]["command"] = [str(self.kit / "setup" / "role-agent"), "lead", "droid"]
+        providers["amp-lead"]["command"] = [str(self.kit / "setup" / "role-agent"), "lead", "amp"]
+        providers["amp-peer"]["command"] = [str(self.kit / "setup" / "role-agent"), "peer", "amp"]
+        providers["devin-peer"]["command"] = [str(self.kit / "setup" / "role-agent"), "peer", "devin"]
+        providers["kiro-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "kiro"]
         runtime = pathlib.Path(self.temporary.name) / ".kiro/agents"
         runtime.mkdir(parents=True)
         shutil.copyfile(self.kit / "setup/kiro-peer.json", runtime / "epistex_peer.json")
         shutil.copyfile(self.kit / "setup/kiro-lead.json", runtime / "epistex_lead.json")
+        shutil.copyfile(self.kit / "setup/kiro-supervisor.json", runtime / "epistex_supervisor.json")
         providers["claude-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "claude"]
         providers["codex-supervisor"]["command"] = [str(self.kit / "setup" / "codex-room"), "supervisor"]
         profiles = example["daemon"]["agentProfiles"]
@@ -150,12 +158,13 @@ class SetupSeatsTest(unittest.TestCase):
             if provider.get("paseoTools", {}).get("enabled") is True:
                 expected = DENY_SUPERVISOR if key.endswith("-supervisor") else DENY_LEAD
                 self.assertEqual(set(provider["paseoTools"]["disabledTools"]), expected, key)
-        self.assertEqual(len(example["daemon"]["agentProfiles"]), 53)
+        self.assertEqual(len(example["daemon"]["agentProfiles"]), 97)
         counts = Counter(p["provider"] for p in example["daemon"]["agentProfiles"])
-        self.assertEqual(counts, Counter({"amp-peer": 1, "amp-supervisor": 2,
-            "claude-peer": 6, "claude-supervisor": 1, "codex-peer": 2,
-            "codex-supervisor": 2, "copilot-peer": 10, "omp-peer": 9,
-            "pi-peer": 9, "agy-peer": 3, "kiro-peer": 4, "kiro-lead": 4}))
+        self.assertEqual(counts, Counter({"amp-peer": 1, "amp-lead": 1, "amp-supervisor": 2,
+            "claude-peer": 6, "claude-supervisor": 5, "codex-peer": 2,
+            "codex-supervisor": 4, "copilot-peer": 10, "omp-peer": 9,
+            "pi-peer": 9, "agy-peer": 4, "agy-lead": 2, "kiro-peer": 4, "kiro-lead": 4,
+            "kiro-supervisor": 4, "droid-peer": 22, "droid-lead": 8}))
         script = SCRIPT.read_text()
         match = re.search(r"expected_deny_lead='(\[.*?\])'", script)
         self.assertIsNotNone(match, "checker deny-list constant not found")
@@ -202,6 +211,11 @@ class SetupSeatsTest(unittest.TestCase):
 
     def test_agy_peer_requires_models_permissions_and_profiles(self):
         provider = self.data["agents"]["providers"]["agy-peer"]
+        models = ("gemini-3.8-flash-low", "gemini-3.8-flash-medium",
+                  "gemini-4-argon-low", "gemini-4-argon-medium")
+        self.assertEqual([m["id"] for m in provider["models"]], list(models))
+        self.assertEqual([m["id"] for m in provider["models"] if m["isDefault"]],
+                         ["gemini-3.8-flash-low"])
         self.save()
         result = self.run_check("--check")
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -210,13 +224,118 @@ class SetupSeatsTest(unittest.TestCase):
         result = self.run_check("--check")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("agy-peer: wrong launcher, permissions or model pins", result.stderr)
-        provider["env"]["AGY_EXTRA_ARGS"] = "--mode accept-edits"
-        profile = next(p for p in self.data["daemon"]["agentProfiles"] if p["id"] == "agy-peer--gemini-3.8-flash-high")
-        self.data["daemon"]["agentProfiles"].remove(profile)
+        provider["env"] = {}
+        provider["paseoTools"]["enabled"] = True
         self.save()
         result = self.run_check("--check")
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("agy-peer: missing or wrong gemini-3.8-flash-high profile", result.stderr)
+        self.assertIn("agy-peer: wrong launcher, permissions or model pins", result.stderr)
+        provider["paseoTools"]["enabled"] = False
+        provider["models"].append({"id": "gemini-3.8-flash-high", "label": "Gemini 3.8 Flash (High)",
+                                   "isDefault": False})
+        self.save()
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("agy-peer: wrong launcher, permissions or model pins", result.stderr)
+        provider["models"].pop()
+        for model in models:
+            with self.subTest(model=model):
+                profile = next(p for p in self.data["daemon"]["agentProfiles"]
+                               if p["id"] == f"agy-peer--{model}")
+                self.assertEqual(profile["provider"], "agy-peer")
+                self.assertEqual(profile["model"], model)
+                self.assertEqual(profile["modeId"], "auto_edit")
+                self.assertNotIn("thinkingOptionId", profile)
+                self.data["daemon"]["agentProfiles"].remove(profile)
+                self.save()
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(f"agy-peer: missing or wrong {model} profile", result.stderr)
+                self.data["daemon"]["agentProfiles"].append(profile)
+        for model in ("gemini-4-argon-low", "gemini-4-argon-medium"):
+            cell = next(m for m in provider["models"] if m["id"] == model)
+            for mutation in ("missing", "default"):
+                with self.subTest(model=model, mutation=mutation):
+                    if mutation == "missing":
+                        provider["models"].remove(cell)
+                    else:
+                        cell["isDefault"] = True
+                    self.save()
+                    result = self.run_check("--check")
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("agy-peer: wrong launcher, permissions or model pins", result.stderr)
+                    if mutation == "missing":
+                        provider["models"].append(cell)
+                    else:
+                        cell["isDefault"] = False
+            profile = next(p for p in self.data["daemon"]["agentProfiles"]
+                           if p["id"] == f"agy-peer--{model}")
+            for key, value in (("provider", "agy-lead"), ("model", "gemini-3.8-flash-low"),
+                               ("modeId", "yolo"), ("modeId", "default"),
+                               ("thinkingOptionId", "low")):
+                with self.subTest(model=model, key=key):
+                    original = dict(profile)
+                    profile[key] = value
+                    self.save()
+                    result = self.run_check("--check")
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(f"agy-peer: missing or wrong {model} profile", result.stderr)
+                    profile.clear()
+                    profile.update(original)
+
+    def test_agy_lead_requires_lead_policy_default_mode_and_argon_profiles(self):
+        provider = self.data["agents"]["providers"]["agy-lead"]
+        self.assertTrue(provider["enabled"])
+        self.assertEqual(set(provider["paseoTools"]["disabledTools"]), DENY_LEAD)
+        self.save()
+        result = self.run_check("--check")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for key, value in (("AGY_EXTRA_ARGS", "--dangerously-skip-permissions"),
+                           ("AGY_EXTRA_ARGS", "--mode accept-edits")):
+            with self.subTest(value=value):
+                provider["env"][key] = value
+                self.save()
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("agy-lead: wrong launcher, permissions or model pins", result.stderr)
+        provider["env"] = {}
+        provider["command"][1] = "peer"
+        self.save()
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("agy-lead: wrong launcher, permissions or model pins", result.stderr)
+        provider["command"][1] = "lead"
+        provider["paseoTools"]["disabledTools"].remove("kill_agent")
+        self.save()
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("agy-lead", result.stderr)
+        provider["paseoTools"]["disabledTools"].append("kill_agent")
+        for model in ("gemini-4-argon-low", "gemini-4-argon-medium"):
+            with self.subTest(model=model):
+                profile = next(p for p in self.data["daemon"]["agentProfiles"] if p["id"] == f"agy-lead--{model}")
+                self.assertEqual(profile["modeId"], "default")
+                for bad_mode in ("yolo", "auto_edit"):
+                    with self.subTest(model=model, modeId=bad_mode):
+                        original = profile["modeId"]
+                        profile["modeId"] = bad_mode
+                        self.save()
+                        result = self.run_check("--check")
+                        self.assertNotEqual(result.returncode, 0)
+                        self.assertIn(f"agy-lead: missing or wrong {model} profile", result.stderr)
+                        profile["modeId"] = original
+                self.data["daemon"]["agentProfiles"].remove(profile)
+                self.save()
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(f"agy-lead: missing or wrong {model} profile", result.stderr)
+                self.data["daemon"]["agentProfiles"].append(profile)
+        del self.data["agents"]["providers"]["agy-lead"]
+        self.data["daemon"]["agentProfiles"] = [p for p in self.data["daemon"]["agentProfiles"]
+                                                if p["provider"] != "agy-lead"]
+        self.save()
+        result = self.run_check("--check")
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_enabled_provider_requires_exact_denylist(self):
         self.save()
@@ -330,7 +449,7 @@ class SetupSeatsTest(unittest.TestCase):
         self.assertIn("agentProfiles", result.stderr)
         profile.pop("thinkingOptionId")
         amp_profile = next(p for p in self.data["daemon"]["agentProfiles"]
-                           if p["id"] == "amp-peer--medium")
+                           if p["id"] == "amp-peer--low")
         amp_profile["thinkingOptionId"] = "low"
         self.save()
         result = self.run_check("--check")
@@ -418,3 +537,171 @@ class SetupSeatsTest(unittest.TestCase):
         self.data["daemon"]["agentProfiles"] = [p for p in profiles if p["provider"] != "kiro-lead"]
         self.save()
         self.assertEqual(self.run_check("--check").returncode, 0)
+
+    def test_droid_peer_requires_role_wrapper_and_luna_default_without_auto(self):
+        self.save()
+        self.assertEqual(self.run_check("--check").returncode, 0)
+        provider = self.data["agents"]["providers"]["droid-peer"]
+        self.assertEqual([m["id"] for m in provider["models"] if m["isDefault"]], ["gpt-6-luna"])
+        self.assertNotIn("auto", {p["model"] for p in self.data["daemon"]["agentProfiles"]
+                                  if p["provider"] == "droid-peer"})
+        auto = {"id": "auto", "label": "Auto Model", "isDefault": False,
+                "thinkingOptions": provider["models"][0]["thinkingOptions"]}
+        for key, value in (("command", ["droid", "exec", "--output-format", "acp"]),
+                           ("command", [str(self.kit / "setup" / "role-agent"), "lead", "droid"]),
+                           ("paseoTools", {"enabled": True}),
+                           ("models", [auto] + provider["models"])):
+            with self.subTest(key=key):
+                old = provider[key]
+                provider[key] = value
+                self.save()
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("droid-peer", result.stderr)
+                provider[key] = old
+        stale = {"id": "droid-peer--auto--low", "provider": "droid-peer", "model": "auto", "thinkingOptionId": "low"}
+        self.data["daemon"]["agentProfiles"].append(stale)
+        self.save()
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("droid-peer: auto model profile must not be configured", result.stderr)
+        self.data["daemon"]["agentProfiles"].remove(stale)
+        profile = next(p for p in self.data["daemon"]["agentProfiles"] if p["id"] == "droid-peer--gpt-6-luna--low")
+        profile.pop("thinkingOptionId")
+        self.save()
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("agentProfiles", result.stderr)
+        profile["thinkingOptionId"] = "low"
+        profile["provider"] = "factory-droid"
+        self.save()
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("agentProfiles", result.stderr)
+
+    def test_droid_peer_luna_cell_and_profiles_required(self):
+        provider = self.data["agents"]["providers"]["droid-peer"]
+        cell = next(m for m in provider["models"] if m["id"] == "gpt-6-luna")
+        self.assertTrue(cell["isDefault"])
+        self.assertEqual([o["id"] for o in cell["thinkingOptions"]], ["off", "low", "medium", "high", "xhigh", "max"])
+        self.assertEqual([o["id"] for o in cell["thinkingOptions"] if o["isDefault"]], ["low"])
+        for flag in ("isDefault", "effort"):
+            with self.subTest(default=flag):
+                target = cell if flag == "isDefault" else next(o for o in cell["thinkingOptions"] if o["id"] == "low")
+                target["isDefault"] = False
+                self.save()
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("droid-peer: wrong launcher, tools or model/effort", result.stderr)
+                target["isDefault"] = True
+        for effort in ("low", "medium"):
+            with self.subTest(effort=effort):
+                profile = next(p for p in self.data["daemon"]["agentProfiles"]
+                               if p["id"] == f"droid-peer--gpt-6-luna--{effort}")
+                self.assertEqual((profile["provider"], profile["model"], profile["thinkingOptionId"]),
+                                 ("droid-peer", "gpt-6-luna", effort))
+                self.data["daemon"]["agentProfiles"].remove(profile)
+                self.save()
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(f"droid-peer: missing or wrong GPT-6 Luna {effort} profile", result.stderr)
+                self.data["daemon"]["agentProfiles"].append(profile)
+
+    def test_droid_peer_supported_model_inventory_and_required_choices(self):
+        expected = {
+            "gemini-4-argon": ["low", "medium"], "gemini-3.8-flash": ["low", "medium"],
+            "claude-opus-5-5": ["low", "medium"], "claude-sonnet-5-5": ["low", "medium"],
+            "claude-haiku-5-5": ["low", "medium"], "gpt-6.1-sol": ["low", "medium"],
+            "glm-5.3-flash": ["low", "high"], "glm-5.3": ["low", "high"],
+            "kimi-k3": ["low", "high"], "deepseek-v4.1-flash": ["low", "high"],
+        }
+        models = self.data["agents"]["providers"]["droid-peer"]["models"]
+        added = [m for m in models if m["id"] != "gpt-6-luna"]
+        self.assertEqual({m["id"]: [o["id"] for o in m["thinkingOptions"]] for m in added}, expected)
+        for model in added:
+            self.assertFalse(model["isDefault"])
+            self.assertEqual([o["id"] for o in model["thinkingOptions"] if o["isDefault"]], ["low"])
+        profiles = [p for p in self.data["daemon"]["agentProfiles"]
+                    if p["provider"] == "droid-peer" and p["model"] != "gpt-6-luna"]
+        self.assertEqual(sorted((p["id"], p["model"], p["thinkingOptionId"]) for p in profiles),
+                         sorted((f"droid-peer--{model.replace('.', '-')}--{effort}", model, effort)
+                                for model, efforts in expected.items() for effort in efforts))
+        for model_id, effort in (("gemini-4-argon", None), ("claude-opus-5-5", "medium"),
+                                 ("gpt-6.1-sol", "low"), ("glm-5.3-flash", "high")):
+            with self.subTest(model=model_id, missing=effort):
+                model = next(m for m in models if m["id"] == model_id)
+                if effort is None:
+                    models.remove(model)
+                else:
+                    options = model["thinkingOptions"]
+                    model["thinkingOptions"] = [o for o in options if o["id"] != effort]
+                self.save()
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("droid-peer: wrong launcher, tools or model/effort", result.stderr)
+                if effort is None:
+                    models.append(model)
+                else:
+                    model["thinkingOptions"] = options
+
+    def test_droid_peer_new_profiles_required_and_bound_to_exact_choices(self):
+        profiles = self.data["daemon"]["agentProfiles"]
+        for profile_id in ("droid-peer--gemini-3-8-flash--low", "droid-peer--gpt-6-1-sol--medium",
+                           "droid-peer--glm-5-3--low", "droid-peer--kimi-k3--high"):
+            with self.subTest(missing=profile_id):
+                profile = next(p for p in profiles if p["id"] == profile_id)
+                profiles.remove(profile)
+                self.save()
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("droid-peer: missing or wrong supported model/effort profile", result.stderr)
+                profiles.append(profile)
+        profile = next(p for p in profiles if p["id"] == "droid-peer--claude-sonnet-5-5--medium")
+        for key, value in (("provider", "claude-peer"), ("model", "claude-haiku-5-5"),
+                           ("thinkingOptionId", "low")):
+            with self.subTest(mismatch=key):
+                original = profile[key]
+                profile[key] = value
+                self.save()
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("droid-peer: missing or wrong supported model/effort profile", result.stderr)
+                profile[key] = original
+
+        profile = next(p for p in profiles if p["id"] == "droid-peer--deepseek-v4-1-flash--high")
+        profile["thinkingOptionId"] = "low"
+        self.save()
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("droid-peer: missing or wrong supported model/effort profile", result.stderr)
+
+    def test_droid_peer_low_high_models_reject_fabricated_medium(self):
+        models = self.data["agents"]["providers"]["droid-peer"]["models"]
+        profiles = self.data["daemon"]["agentProfiles"]
+        for model_id in ("glm-5.3-flash", "glm-5.3", "kimi-k3", "deepseek-v4.1-flash"):
+            with self.subTest(model=model_id):
+                model = next(m for m in models if m["id"] == model_id)
+                medium = {"id": "medium", "label": "Medium", "isDefault": False}
+                profile = {"id": f"droid-peer--{model_id.replace('.', '-')}--medium",
+                           "provider": "droid-peer", "model": model_id, "thinkingOptionId": "medium"}
+                model["thinkingOptions"].append(medium)
+                profiles.append(profile)
+                self.save()
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("droid-peer: wrong launcher, tools or model/effort", result.stderr)
+                model["thinkingOptions"].remove(medium)
+                self.save()
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("agentProfiles: invalid seat, model or thinking option", result.stderr)
+                profiles.remove(profile)
+
+    def test_droid_peer_absent_or_disabled_is_not_required(self):
+        providers = self.data["agents"]["providers"]
+        providers.pop("droid-peer")
+        self.data["daemon"]["agentProfiles"] = [p for p in self.data["daemon"]["agentProfiles"]
+                                                if p["provider"] != "droid-peer"]
+        self.save()
+        result = self.run_check("--check")
+        self.assertEqual(result.returncode, 0, result.stderr)

@@ -1,37 +1,42 @@
-# Antigravity Peer seat
+# Antigravity Peer and Lead seats
 
-This guide adds `agy-peer`, a Paseo Peer backed by Google's Antigravity CLI (`agy`) through the vendored ACP adapter. Paseo remains the only lifecycle/topology owner: `agy-acp` starts one `agy --print` subprocess per prompt; it does not spawn agents or run a daemon. Do not enable `agy remote-control`.
+This guide adds `agy-peer`, a Paseo Peer, and an example `agy-lead` seat (see [Lead seat](#lead-seat)), each backed by Google's official Antigravity ACP server (`antigravity-acp`, listed in the [ACP registry](https://github.com/agentclientprotocol/registry/blob/main/antigravity-acp/agent.json)). Paseo remains the only lifecycle/topology owner. Do not enable `agy remote-control`.
 
-## Prerequisites and build
+## Prerequisites and install
 
-1. Install Google Antigravity CLI and ensure `agy` is on the PATH inherited by Paseo. Authenticate it using the supported `agy` login flow before launching a seat; authentication credentials remain in the CLI's user state, never in this repository.
-2. Confirm `agy models` prints the configured model IDs. The example pins `gemini-3.8-flash-low` as default and also exposes `gemini-3.8-flash-medium` and `gemini-3.8-flash-high`.
-3. Install Rust/Cargo, then build and install the checked-in adapter source:
+1. Download the pinned registry release for your platform (Linux x86_64, version 1.4.0):
 
    ```sh
-   cd /path/to/epistex/tools/agy-acp
-   cargo build --release
-   install -m 755 target/release/agy-acp ~/.local/bin/agy-acp
+   curl -fsSLO https://dl.google.com/agy-extensions/releases/linux/agy-acp-server-1.4.0-linux-x86_64.zip
+   sha256sum agy-acp-server-1.4.0-linux-x86_64.zip
+   # fbb2d54dd94fb897845308d3b6b46187c627f1c60078ded81adeeaf8b90c5d7a
+   unzip agy-acp-server-1.4.0-linux-x86_64.zip
+   install -m 755 agy_acp_server.par localharness_external ~/.local/bin/
    ```
 
-   Ensure `~/.local/bin` is on Paseo's PATH. Cargo build output (`target/`) is ignored and must not be committed.
-
-The vendored crate is sourced from `/home/linhlb/Downloads/agy-acp.zip`, SHA-256 `6cc6fe3622153eb9e373272485ac7f258350904feb5f94f853991a331e90f17d` (received 2026-10-08). Its `Cargo.lock`, README, and AGENTS instructions are retained alongside source for repeatable builds.
+   Other platforms use the archives listed in the registry `agent.json`. Ensure `~/.local/bin` is on Paseo's PATH. The archive and binaries are not tracked in this repository.
+2. `setup/role-agent <role> agy` runs `agy_acp_server.par --uid=` (the registry's Linux arguments; `--uid=` keeps the server from switching user when run as root).
+3. Authenticate the server yourself before launching a seat: set `auth.type` in `~/.gemini/antigravity-acp/settings.json` (`oauth-personal`, `gemini-api-key` with `GEMINI_API_KEY`, `oauth-business`, `agent-platform` or `gateway`) or complete ACP `authenticate`. Without it, `session/new` fails with `Authentication required`. This state is separate from the `agy` CLI's `~/.gemini/antigravity-cli/` and must never be copied into tracked files.
 
 ## Configure Paseo
 
-Merge the `agy-peer` entry and its three model profiles from `examples/paseo-providers.json`; replace `<KIT>` with the absolute repository path. The provider extends `acp`, invokes `setup/role-agent peer agy`, and has Paseo tools disabled. Its `AGY_EXTRA_ARGS=--mode accept-edits` selects Antigravity's accept-edits execution mode for non-interactive print turns. Do not describe this as file-edits-only: in the real Paseo probe, a shell `run_command` creating, reading and deleting a file executed without a permission prompt. `agy --help` lists `accept-edits` as a `--mode` value but does not specify the mode's detailed tool policy; the observed shell command establishes that it permits commands as well as file edits in this setup. Do not replace it with `--dangerously-skip-permissions`, which `agy --help` says auto-approves all tool permission requests. The adapter accepts additional `AGY_EXTRA_ARGS` as whitespace-separated arguments.
+Merge the `agy-peer` entry and its model profiles from `examples/paseo-providers.json`; replace `<KIT>` with the absolute repository path. The provider extends `acp`, invokes `setup/role-agent peer agy`, and has Paseo tools disabled.
 
-`agy-acp` inherits its initial working directory from its parent process; it does not use an ACP `session/new` cwd value. It passes that working directory to `agy` via `--add-dir` and sets it as the subprocess current directory. Paseo supplies the agent cwd as the adapter's process cwd; the real launch probe confirmed `pwd` inside the turn matched the agent cwd. This seat does not use `agy remote-control`.
+**Pending verification:** the server's `session/new` advertises modes `default`, `auto_edit` (auto-approve file edit tools) and `yolo` (auto-approve everything — never used here), and the model IDs above. The seat's mode is selected via `modeId` on each `daemon.agentProfiles` entry (`auto_edit` for `agy-peer`, `default` for `agy-lead`), which Paseo applies when creating the agent; the orchestrator must copy `modeId` into `create_agent` alongside `provider` and `model`. `auto_edit` auto-approves file edits only — shell commands still prompt — and the seat has no plan mode: `plan` exists only as a `/plan` slash command. Whether the mode lands and how permissions behave in practice remain unverified; re-verify the mode/permission policy with an actual Paseo launch before relying on either seat.
+
+ACP `session/new` carries the agent cwd; whether the server honours it is unverified. Never use `--dangerously-skip-permissions`. Paseo's built-in `antigravity` provider always passes it; do not use it for a Lead.
+
+## Lead seat
+
+`agy-lead` invokes `setup/role-agent lead agy`, so every session's first prompt carries `agents/LEAD.md`. It enables Paseo tools with the same 47-tool `disabledTools` deny-list as every other `*-lead` seat; `setup-seats.sh --check` enforces the exact list. It also requires `daemon.mcp.injectIntoAgents`.
+
+Unlike the Peer, `agy-lead` runs in the server's `default` mode (set via each `agy-lead` profile's `modeId`), so every tool call prompts; there is no plan mode — `plan` is only a `/plan` slash command, not an ACP session mode.
+
+The official server advertises `mcpCapabilities` `http` and `sse` (not stdio-only), so Paseo tool forwarding may now work, but it is unverified. Do not work around missing tools with user-wide `agy mcp add`. Keep the seat out of live config until Paseo tools, mode behaviour and permissions are verified with an actual Paseo launch.
 
 ## State and known limitations
 
-The adapter keeps its session mapping under `~/.openab/agy-acp/sessions.json` and reads Antigravity conversation databases under `~/.gemini/antigravity-cli/conversations/`. These are private runtime state and must remain outside the repository. Do not edit or copy Antigravity settings or credentials into tracked files.
+The server reads its settings from `~/.gemini/antigravity-acp/settings.json`. This is private runtime state and must remain outside the repository.
 
-- ACP `session/cancel` sets the active prompt's cancellation flag (`tools/agy-acp/src/main.rs:121-130`). The adapter observes it, kills and waits for the direct `agy` child process, then reports `stopReason: "cancelled"` (`tools/agy-acp/src/adapter.rs:717-726, 806-814`). It does not erase the Antigravity conversation or roll back tool effects already made; if the conversation ID was bound, the adapter still updates and persists its session mapping. This stops the direct child, not necessarily any subprocesses it may have started. There is no cancellation-specific unit test in `tools/agy-acp/src/tests.rs`. The vendored `tools/agy-acp/AGENTS.md` still calls cancellation a no-op; that statement is stale relative to the implementation.
-- **Fidelity limits:**
-  - ACP text and thought updates are read by polling Antigravity's SQLite conversation DB every 500 ms (`tools/agy-acp/src/adapter.rs:701-714`), not by consuming `agy`'s native `stream-json` output. Updates can therefore lag the underlying action.
-  - In the real Paseo probe, a `run_command` step executed but did not appear as a tool-call entry in Paseo's timeline, although thought and text streamed there.
-  - ACP `session/new` does not consume its `cwd`; the adapter process cwd is used instead. Paseo supplied the agent cwd as process cwd in the probe (see Configure Paseo).
-- `agy --print` has a bridge-owned 24-hour timeout by default (`AGY_PRINT_TIMEOUT` overrides it). Long-running prompts may therefore occupy a turn for a substantial time.
+- The server advertises `loadSession`, `session/list` and `session/resume`; cancellation and tool-call fidelity in Paseo are not yet verified.
 - The role configuration is an example only. The operator merges/reloads it and performs an actual Paseo launch; static checks do not establish that authentication or runtime integration works.

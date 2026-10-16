@@ -306,6 +306,24 @@
                 "isDefault": true
               }
             ]
+          },
+          {
+            "id": "claude-opus-5-5",
+            "label": "Claude Opus 5.5",
+            "isDefault": false,
+            "thinkingOptions": [
+              {"id": "low", "label": "Low", "isDefault": true},
+              {"id": "medium", "label": "Medium", "isDefault": false}
+            ]
+          },
+          {
+            "id": "claude-sonnet-5-5",
+            "label": "Claude Sonnet 5.5",
+            "isDefault": false,
+            "thinkingOptions": [
+              {"id": "low", "label": "Low", "isDefault": true},
+              {"id": "medium", "label": "Medium", "isDefault": false}
+            ]
           }
         ],
         "paseoTools": {
@@ -387,6 +405,15 @@
                 "isDefault": false
               }
             ]
+          },
+          {
+            "id": "gpt-6.1-sol",
+            "label": "GPT-6.1 Sol",
+            "isDefault": false,
+            "thinkingOptions": [
+              {"id": "low", "label": "Low", "isDefault": true},
+              {"id": "medium", "label": "Medium", "isDefault": false}
+            ]
           }
         ],
         "paseoTools": {
@@ -441,6 +468,25 @@
           ]
         }
       },
+      "amp-lead": {
+        "extends": "acp",
+        "label": "Amp Lead Seat",
+        "description": "Lead — framing, delegation, review and acceptance",
+        "command": ["<KIT>/setup/role-agent", "lead", "amp"],
+        "env": {},
+        "enabled": true,
+        "paseoTools": {
+          "enabled": true,
+          "disabledTools": ["archive_workspace", "browser_back", "browser_click", "browser_close_tab", "browser_drag", "browser_evaluate", "browser_fill", "browser_forward", "browser_hover", "browser_keypress", "browser_list_tabs", "browser_logs", "browser_navigate", "browser_new_tab", "browser_reload", "browser_resize", "browser_screenshot", "browser_scroll", "browser_select", "browser_snapshot", "browser_type", "browser_upload", "browser_wait", "capture_terminal", "create_heartbeat", "create_schedule", "create_terminal", "create_workspace", "delete_heartbeat", "delete_schedule", "inspect_provider", "inspect_schedule", "kill_agent", "kill_terminal", "list_schedules", "list_terminals", "list_workspace_scripts", "pause_schedule", "rename_workspace", "resume_schedule", "run_schedule_once", "schedule_logs", "send_terminal_keys", "start_workspace_script", "stop_workspace_script", "update_agent", "update_schedule"]
+        },
+        "models": [
+          {
+            "id": "medium",
+            "label": "Medium",
+            "isDefault": true
+          }
+        ]
+      },
       "amp-peer": {
         "extends": "acp",
         "label": "Amp Peer Seat",
@@ -453,8 +499,8 @@
         "env": {},
         "models": [
           {
-            "id": "medium",
-            "label": "Medium",
+            "id": "low",
+            "label": "Low",
             "isDefault": true
           }
         ],
@@ -884,6 +930,24 @@
         },
         "enabled": true
       },
+      "kiro-supervisor": {
+        "extends": "acp",
+        "label": "Kiro Supervisor Seat",
+        "description": "Supervisor — fixed v2 agent; only the injected Paseo MCP; confirmed backend effort",
+        "command": ["<KIT>/setup/role-agent", "supervisor", "kiro"],
+        "env": {},
+        "enabled": true,
+        "paseoTools": {
+          "enabled": true,
+          "disabledTools": ["archive_workspace", "browser_back", "browser_click", "browser_close_tab", "browser_drag", "browser_evaluate", "browser_fill", "browser_forward", "browser_hover", "browser_keypress", "browser_list_tabs", "browser_logs", "browser_navigate", "browser_new_tab", "browser_reload", "browser_resize", "browser_screenshot", "browser_scroll", "browser_select", "browser_snapshot", "browser_type", "browser_upload", "browser_wait", "capture_terminal", "create_heartbeat", "create_schedule", "create_terminal", "delete_heartbeat", "delete_schedule", "inspect_provider", "inspect_schedule", "kill_agent", "kill_terminal", "list_schedules", "list_terminals", "list_workspace_scripts", "pause_schedule", "rename_workspace", "resume_schedule", "run_schedule_once", "schedule_logs", "send_terminal_keys", "start_workspace_script", "stop_workspace_script", "update_agent", "update_schedule"]
+        },
+        "models": [
+          {"id": "claude-opus-5.5", "label": "Claude Opus 5.5", "isDefault": true,
+           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
+          {"id": "claude-sonnet-5.5", "label": "Claude Sonnet 5.5", "isDefault": false,
+           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]}
+        ]
+      },
       "kiro-peer": {
         "extends": "acp",
         "label": "Kiro Peer Seat",
@@ -926,9 +990,7 @@
           "peer",
           "agy"
         ],
-        "env": {
-          "AGY_EXTRA_ARGS": "--mode accept-edits"
-        },
+        "env": {},
         "enabled": true,
         "paseoTools": {
           "enabled": false
@@ -945,10 +1007,86 @@
             "isDefault": false
           },
           {
-            "id": "gemini-3.8-flash-high",
-            "label": "Gemini 3.8 Flash (High)",
+            "id": "gemini-4-argon-low",
+            "label": "Gemini 4 Argon (Low)",
+            "isDefault": false
+          },
+          {
+            "id": "gemini-4-argon-medium",
+            "label": "Gemini 4 Argon (Medium)",
             "isDefault": false
           }
+        ]
+      },
+      "agy-lead": {
+        "extends": "acp",
+        "label": "Antigravity Lead Seat",
+        "description": "Lead — framing, delegation, review and acceptance",
+        "command": ["<KIT>/setup/role-agent", "lead", "agy"],
+        "env": {},
+        "enabled": true,
+        "paseoTools": {
+          "enabled": true,
+          "disabledTools": ["archive_workspace", "browser_back", "browser_click", "browser_close_tab", "browser_drag", "browser_evaluate", "browser_fill", "browser_forward", "browser_hover", "browser_keypress", "browser_list_tabs", "browser_logs", "browser_navigate", "browser_new_tab", "browser_reload", "browser_resize", "browser_screenshot", "browser_scroll", "browser_select", "browser_snapshot", "browser_type", "browser_upload", "browser_wait", "capture_terminal", "create_heartbeat", "create_schedule", "create_terminal", "create_workspace", "delete_heartbeat", "delete_schedule", "inspect_provider", "inspect_schedule", "kill_agent", "kill_terminal", "list_schedules", "list_terminals", "list_workspace_scripts", "pause_schedule", "rename_workspace", "resume_schedule", "run_schedule_once", "schedule_logs", "send_terminal_keys", "start_workspace_script", "stop_workspace_script", "update_agent", "update_schedule"]
+        },
+        "models": [
+          {"id": "gemini-4-argon-low", "label": "Gemini 4 Argon (Low)", "isDefault": true},
+          {"id": "gemini-4-argon-medium", "label": "Gemini 4 Argon (Medium)", "isDefault": false}
+        ]
+      },
+      "droid-lead": {
+        "extends": "acp",
+        "label": "Factory Droid Lead Seat",
+        "description": "Lead — framing, delegation, review and acceptance; mode ask never auto-approves",
+        "command": ["<KIT>/setup/role-agent", "lead", "droid"],
+        "env": {},
+        "enabled": true,
+        "paseoTools": {
+          "enabled": true,
+          "disabledTools": ["archive_workspace", "browser_back", "browser_click", "browser_close_tab", "browser_drag", "browser_evaluate", "browser_fill", "browser_forward", "browser_hover", "browser_keypress", "browser_list_tabs", "browser_logs", "browser_navigate", "browser_new_tab", "browser_reload", "browser_resize", "browser_screenshot", "browser_scroll", "browser_select", "browser_snapshot", "browser_type", "browser_upload", "browser_wait", "capture_terminal", "create_heartbeat", "create_schedule", "create_terminal", "create_workspace", "delete_heartbeat", "delete_schedule", "inspect_provider", "inspect_schedule", "kill_agent", "kill_terminal", "list_schedules", "list_terminals", "list_workspace_scripts", "pause_schedule", "rename_workspace", "resume_schedule", "run_schedule_once", "schedule_logs", "send_terminal_keys", "start_workspace_script", "stop_workspace_script", "update_agent", "update_schedule"]
+        },
+        "models": [
+          {"id": "claude-opus-5-5", "label": "Claude Opus 5.5", "isDefault": true,
+           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
+          {"id": "claude-sonnet-5-5", "label": "Claude Sonnet 5.5", "isDefault": false,
+           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
+          {"id": "gpt-6.1-sol", "label": "GPT-6.1 Sol", "isDefault": false,
+           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
+          {"id": "gemini-4-argon", "label": "Gemini 4 Argon", "isDefault": false,
+           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]}
+        ]
+      },
+      "droid-peer": {
+        "extends": "acp",
+        "label": "Factory Droid Peer Seat",
+        "description": "Peer — implementation, evidence and handoff",
+        "command": ["<KIT>/setup/role-agent", "peer", "droid"],
+        "env": {},
+        "enabled": true,
+        "paseoTools": {"enabled": false},
+        "models": [
+          {"id": "gpt-6-luna", "label": "GPT-6 Luna", "isDefault": true,
+           "thinkingOptions": [{"id": "off", "label": "Off", "isDefault": false}, {"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false},{"id": "high", "label": "High", "isDefault": false}, {"id": "xhigh", "label": "XHigh", "isDefault": false}, {"id": "max", "label": "Max", "isDefault": false}]},
+          {"id": "gemini-4-argon", "label": "Gemini 4 Argon", "isDefault": false,
+           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
+          {"id": "gemini-3.8-flash", "label": "Gemini 3.8 Flash", "isDefault": false,
+           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
+          {"id": "claude-opus-5-5", "label": "Claude Opus 5.5", "isDefault": false,
+           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
+          {"id": "claude-sonnet-5-5", "label": "Claude Sonnet 5.5", "isDefault": false,
+           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
+          {"id": "claude-haiku-5-5", "label": "Claude Haiku 5.5", "isDefault": false,
+           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
+          {"id": "gpt-6.1-sol", "label": "GPT-6.1 Sol", "isDefault": false,
+           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
+          {"id": "glm-5.3-flash", "label": "GLM 5.3 Flash", "isDefault": false,
+           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "high", "label": "High", "isDefault": false}]},
+          {"id": "glm-5.3", "label": "GLM 5.3", "isDefault": false,
+           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "high", "label": "High", "isDefault": false}]},
+          {"id": "kimi-k3", "label": "Kimi K3", "isDefault": false,
+           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "high", "label": "High", "isDefault": false}]},
+          {"id": "deepseek-v4.1-flash", "label": "DeepSeek V4.1 Flash", "isDefault": false,
+           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "high", "label": "High", "isDefault": false}]}
         ]
       }
     }
@@ -963,13 +1101,28 @@
       {"id": "kiro-lead--claude-opus-5-5--medium", "name": "kiro-lead · claude-opus-5.5 · medium", "provider": "kiro-lead", "model": "claude-opus-5.5", "thinkingOptionId": "medium"},
       {"id": "kiro-lead--claude-sonnet-5-5--low", "name": "kiro-lead · claude-sonnet-5.5 · low", "provider": "kiro-lead", "model": "claude-sonnet-5.5", "thinkingOptionId": "low"},
       {"id": "kiro-lead--claude-sonnet-5-5--medium", "name": "kiro-lead · claude-sonnet-5.5 · medium", "provider": "kiro-lead", "model": "claude-sonnet-5.5", "thinkingOptionId": "medium"},
-      {
-        "id": "amp-peer--medium",
-        "name": "amp-peer · medium",
-        "provider": "amp-peer",
-        "model": "medium",
-        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
-      },
+      {"id": "droid-peer--gpt-6-luna--low", "name": "droid-peer · gpt-6-luna · low", "provider": "droid-peer", "model": "gpt-6-luna", "thinkingOptionId": "low", "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."},
+      {"id": "droid-peer--gpt-6-luna--medium", "name": "droid-peer · gpt-6-luna · medium", "provider": "droid-peer", "model": "gpt-6-luna", "thinkingOptionId": "medium", "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."},
+      {"id": "droid-peer--gemini-4-argon--low", "name": "droid-peer · gemini-4-argon · low", "provider": "droid-peer", "model": "gemini-4-argon", "thinkingOptionId": "low"},
+      {"id": "droid-peer--gemini-4-argon--medium", "name": "droid-peer · gemini-4-argon · medium", "provider": "droid-peer", "model": "gemini-4-argon", "thinkingOptionId": "medium"},
+      {"id": "droid-peer--gemini-3-8-flash--low", "name": "droid-peer · gemini-3.8-flash · low", "provider": "droid-peer", "model": "gemini-3.8-flash", "thinkingOptionId": "low"},
+      {"id": "droid-peer--gemini-3-8-flash--medium", "name": "droid-peer · gemini-3.8-flash · medium", "provider": "droid-peer", "model": "gemini-3.8-flash", "thinkingOptionId": "medium"},
+      {"id": "droid-peer--claude-opus-5-5--low", "name": "droid-peer · claude-opus-5-5 · low", "provider": "droid-peer", "model": "claude-opus-5-5", "thinkingOptionId": "low"},
+      {"id": "droid-peer--claude-opus-5-5--medium", "name": "droid-peer · claude-opus-5-5 · medium", "provider": "droid-peer", "model": "claude-opus-5-5", "thinkingOptionId": "medium"},
+      {"id": "droid-peer--claude-sonnet-5-5--low", "name": "droid-peer · claude-sonnet-5-5 · low", "provider": "droid-peer", "model": "claude-sonnet-5-5", "thinkingOptionId": "low"},
+      {"id": "droid-peer--claude-sonnet-5-5--medium", "name": "droid-peer · claude-sonnet-5-5 · medium", "provider": "droid-peer", "model": "claude-sonnet-5-5", "thinkingOptionId": "medium"},
+      {"id": "droid-peer--claude-haiku-5-5--low", "name": "droid-peer · claude-haiku-5-5 · low", "provider": "droid-peer", "model": "claude-haiku-5-5", "thinkingOptionId": "low"},
+      {"id": "droid-peer--claude-haiku-5-5--medium", "name": "droid-peer · claude-haiku-5-5 · medium", "provider": "droid-peer", "model": "claude-haiku-5-5", "thinkingOptionId": "medium"},
+      {"id": "droid-peer--gpt-6-1-sol--low", "name": "droid-peer · gpt-6.1-sol · low", "provider": "droid-peer", "model": "gpt-6.1-sol", "thinkingOptionId": "low"},
+      {"id": "droid-peer--gpt-6-1-sol--medium", "name": "droid-peer · gpt-6.1-sol · medium", "provider": "droid-peer", "model": "gpt-6.1-sol", "thinkingOptionId": "medium"},
+      {"id": "droid-peer--glm-5-3-flash--low", "name": "droid-peer · glm-5.3-flash · low", "provider": "droid-peer", "model": "glm-5.3-flash", "thinkingOptionId": "low"},
+      {"id": "droid-peer--glm-5-3-flash--high", "name": "droid-peer · glm-5.3-flash · high", "provider": "droid-peer", "model": "glm-5.3-flash", "thinkingOptionId": "high"},
+      {"id": "droid-peer--glm-5-3--low", "name": "droid-peer · glm-5.3 · low", "provider": "droid-peer", "model": "glm-5.3", "thinkingOptionId": "low"},
+      {"id": "droid-peer--glm-5-3--high", "name": "droid-peer · glm-5.3 · high", "provider": "droid-peer", "model": "glm-5.3", "thinkingOptionId": "high"},
+      {"id": "droid-peer--kimi-k3--low", "name": "droid-peer · kimi-k3 · low", "provider": "droid-peer", "model": "kimi-k3", "thinkingOptionId": "low"},
+      {"id": "droid-peer--kimi-k3--high", "name": "droid-peer · kimi-k3 · high", "provider": "droid-peer", "model": "kimi-k3", "thinkingOptionId": "high"},
+      {"id": "droid-peer--deepseek-v4-1-flash--low", "name": "droid-peer · deepseek-v4.1-flash · low", "provider": "droid-peer", "model": "deepseek-v4.1-flash", "thinkingOptionId": "low"},
+      {"id": "droid-peer--deepseek-v4-1-flash--high", "name": "droid-peer · deepseek-v4.1-flash · high", "provider": "droid-peer", "model": "deepseek-v4.1-flash", "thinkingOptionId": "high"},
       {
         "id": "amp-supervisor--medium",
         "name": "amp-supervisor · medium",
@@ -1301,22 +1454,55 @@
         "name": "agy-peer · gemini-3.8-flash-low",
         "provider": "agy-peer",
         "model": "gemini-3.8-flash-low",
-        "notes": "Peer: cheap/fast. Effort is encoded in the model id; no thinkingOptionId. Orchestrator must copy provider and model into create_agent."
+        "modeId": "auto_edit",
+        "notes": "Peer: cheap/fast. Effort is encoded in the model id; no thinkingOptionId. Orchestrator must copy provider, model, and modeId into create_agent."
       },
       {
         "id": "agy-peer--gemini-3.8-flash-medium",
         "name": "agy-peer · gemini-3.8-flash-medium",
         "provider": "agy-peer",
         "model": "gemini-3.8-flash-medium",
-        "notes": "Peer: balanced. Effort is encoded in the model id; no thinkingOptionId. Orchestrator must copy provider and model into create_agent."
+        "modeId": "auto_edit",
+        "notes": "Peer: balanced. Effort is encoded in the model id; no thinkingOptionId. Orchestrator must copy provider, model, and modeId into create_agent."
       },
       {
-        "id": "agy-peer--gemini-3.8-flash-high",
-        "name": "agy-peer · gemini-3.8-flash-high",
+        "id": "agy-peer--gemini-4-argon-low",
+        "name": "agy-peer · gemini-4-argon-low",
         "provider": "agy-peer",
-        "model": "gemini-3.8-flash-high",
-        "notes": "Peer: careful. Effort is encoded in the model id; no thinkingOptionId. Orchestrator must copy provider and model into create_agent."
-      }
+        "model": "gemini-4-argon-low",
+        "modeId": "auto_edit",
+        "notes": "Peer: cheap/fast. Effort is encoded in the model id; no thinkingOptionId. Orchestrator must copy provider, model, and modeId into create_agent."
+      },
+      {
+        "id": "agy-peer--gemini-4-argon-medium",
+        "name": "agy-peer · gemini-4-argon-medium",
+        "provider": "agy-peer",
+        "model": "gemini-4-argon-medium",
+        "modeId": "auto_edit",
+        "notes": "Peer: balanced. Effort is encoded in the model id; no thinkingOptionId. Orchestrator must copy provider, model, and modeId into create_agent."
+      },
+      {"id": "agy-lead--gemini-4-argon-low", "name": "agy-lead · gemini-4-argon-low", "provider": "agy-lead", "model": "gemini-4-argon-low", "modeId": "default", "notes": "Lead: cheap/fast. Effort is encoded in the model id; no thinkingOptionId."},
+      {"id": "agy-lead--gemini-4-argon-medium", "name": "agy-lead · gemini-4-argon-medium", "provider": "agy-lead", "model": "gemini-4-argon-medium", "modeId": "default", "notes": "Lead: careful. Effort is encoded in the model id; no thinkingOptionId."},
+      {"id": "claude-supervisor--claude-opus-5-5--low", "name": "claude-supervisor · claude-opus-5-5 · low", "provider": "claude-supervisor", "model": "claude-opus-5-5", "thinkingOptionId": "low"},
+      {"id": "claude-supervisor--claude-opus-5-5--medium", "name": "claude-supervisor · claude-opus-5-5 · medium", "provider": "claude-supervisor", "model": "claude-opus-5-5", "thinkingOptionId": "medium"},
+      {"id": "claude-supervisor--claude-sonnet-5-5--low", "name": "claude-supervisor · claude-sonnet-5-5 · low", "provider": "claude-supervisor", "model": "claude-sonnet-5-5", "thinkingOptionId": "low"},
+      {"id": "claude-supervisor--claude-sonnet-5-5--medium", "name": "claude-supervisor · claude-sonnet-5-5 · medium", "provider": "claude-supervisor", "model": "claude-sonnet-5-5", "thinkingOptionId": "medium"},
+      {"id": "codex-supervisor--gpt-6.1-sol--low", "name": "codex-supervisor · gpt-6.1-sol · low", "provider": "codex-supervisor", "model": "gpt-6.1-sol", "thinkingOptionId": "low"},
+      {"id": "codex-supervisor--gpt-6.1-sol--medium", "name": "codex-supervisor · gpt-6.1-sol · medium", "provider": "codex-supervisor", "model": "gpt-6.1-sol", "thinkingOptionId": "medium"},
+      {"id": "kiro-supervisor--claude-opus-5-5--low", "name": "kiro-supervisor · claude-opus-5.5 · low", "provider": "kiro-supervisor", "model": "claude-opus-5.5", "thinkingOptionId": "low"},
+      {"id": "kiro-supervisor--claude-opus-5-5--medium", "name": "kiro-supervisor · claude-opus-5.5 · medium", "provider": "kiro-supervisor", "model": "claude-opus-5.5", "thinkingOptionId": "medium"},
+      {"id": "kiro-supervisor--claude-sonnet-5-5--low", "name": "kiro-supervisor · claude-sonnet-5.5 · low", "provider": "kiro-supervisor", "model": "claude-sonnet-5.5", "thinkingOptionId": "low"},
+      {"id": "kiro-supervisor--claude-sonnet-5-5--medium", "name": "kiro-supervisor · claude-sonnet-5.5 · medium", "provider": "kiro-supervisor", "model": "claude-sonnet-5.5", "thinkingOptionId": "medium"},
+      {"id": "droid-lead--claude-opus-5-5--low", "name": "droid-lead · claude-opus-5-5 · low", "provider": "droid-lead", "model": "claude-opus-5-5", "thinkingOptionId": "low", "modeId": "normal"},
+      {"id": "droid-lead--claude-opus-5-5--medium", "name": "droid-lead · claude-opus-5-5 · medium", "provider": "droid-lead", "model": "claude-opus-5-5", "thinkingOptionId": "medium", "modeId": "normal"},
+      {"id": "droid-lead--claude-sonnet-5-5--low", "name": "droid-lead · claude-sonnet-5-5 · low", "provider": "droid-lead", "model": "claude-sonnet-5-5", "thinkingOptionId": "low", "modeId": "normal"},
+      {"id": "droid-lead--claude-sonnet-5-5--medium", "name": "droid-lead · claude-sonnet-5-5 · medium", "provider": "droid-lead", "model": "claude-sonnet-5-5", "thinkingOptionId": "medium", "modeId": "normal"},
+      {"id": "droid-lead--gpt-6-1-sol--low", "name": "droid-lead · gpt-6.1-sol · low", "provider": "droid-lead", "model": "gpt-6.1-sol", "thinkingOptionId": "low", "modeId": "normal"},
+      {"id": "droid-lead--gpt-6-1-sol--medium", "name": "droid-lead · gpt-6.1-sol · medium", "provider": "droid-lead", "model": "gpt-6.1-sol", "thinkingOptionId": "medium", "modeId": "normal"},
+      {"id": "droid-lead--gemini-4-argon--low", "name": "droid-lead · gemini-4-argon · low", "provider": "droid-lead", "model": "gemini-4-argon", "thinkingOptionId": "low", "modeId": "normal"},
+      {"id": "droid-lead--gemini-4-argon--medium", "name": "droid-lead · gemini-4-argon · medium", "provider": "droid-lead", "model": "gemini-4-argon", "thinkingOptionId": "medium", "modeId": "normal"},
+      {"id": "amp-peer--low", "name": "amp-peer · low", "provider": "amp-peer", "model": "low"},
+      {"id": "amp-lead--medium", "name": "amp-lead · medium", "provider": "amp-lead", "model": "medium"}
     ]
   }
 }

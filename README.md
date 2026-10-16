@@ -36,7 +36,7 @@ Requires a configured Paseo CLI/daemon, Python **3.11+**, Bash, Git, `jq`, Codex
 credentials for the selected backend. Preserve the existing Paseo/Codex configuration and
 runtime state; the kit is not an OS sandbox and configuration checks do not prove a live launch.
 Follow [SETUP.md](SETUP.md) for installation and live verification; backend-specific instructions
-are in [docs/setup/](docs/setup/), including [Antigravity](docs/setup/antigravity.md).
+are in [docs/setup/](docs/setup/), including [Antigravity](docs/setup/antigravity.md) and [Factory Droid](docs/setup/droid.md).
 
 ## Paseo-only workflow
 

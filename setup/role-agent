@@ -2,6 +2,7 @@
 """Start a role-configured agent; inject Claude SDK and ACP instructions."""
 
 import json
+import os
 import pathlib
 import shutil
 import subprocess
@@ -15,9 +16,9 @@ ACP = {
     "copilot": ["copilot", "--acp"],
     "cursor": ["cursor-agent", "acp"],
     "amp": ["amp-acp"],
-    "agy": ["agy-acp"],
-    "glm": ["npx", "-y", "glm-acp-agent@1.3.0"],
-    "droid": ["npx", "-y", "droid@0.179.0", "exec", "--output-format", "acp-daemon"],
+    "agy": ["agy_acp_server.par", "--uid="],
+    "glm": ["glm-acp-agent"],
+    "droid": ["droid", "exec", "--output-format", "acp"],
 }
 
 
@@ -65,10 +66,8 @@ def main() -> int:
         raise SystemExit("usage: role-agent <supervisor|lead|peer> <claude|pi|omp|devin|copilot|cursor|amp|agy|glm|droid|kiro>")
     role, agent = sys.argv[1:3]
     if agent == "kiro":
-        import os
-
-        if role not in ("lead", "peer") or sys.argv[3:]:
-            raise SystemExit("Kiro supports only the scoped Lead and Peer seats, without extra launch flags")
+        if role not in ("lead", "peer", "supervisor") or sys.argv[3:]:
+            raise SystemExit("Kiro supports only the scoped Supervisor, Lead and Peer seats, without extra launch flags")
         os.execv(sys.executable, [sys.executable, str(ROOT / "setup/kiro-acp"), role])
     instructions = (ROOT / "agents" / f"{role.upper()}.md").read_text()
     claude_stream = agent == "claude" and any(
@@ -84,8 +83,6 @@ def main() -> int:
     if shutil.which(command[0]) is None:
         raise SystemExit(f"agent executable not found: {command[0]}")
     if agent in ("pi", "omp") or (agent == "claude" and not claude_stream):
-        import os
-
         os.execvp(command[0], command)
     child = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 

@@ -112,8 +112,10 @@ else
       any(.models[]; .id == $model and .isDefault == true and
         (if has("thinkingOptions") then ([.thinkingOptions[] | select(.isDefault == true) | .id] == [$effort]) else $effort == "" end)) and
       (if $id == "amp-supervisor" then ([.models[].id] | sort) == ["high","medium"] else true end) and
-      (if $id == "claude-supervisor" then any(.models[]; .id == $model and ([.thinkingOptions[].id] | sort) == ["medium"]) else true end) and
-      (if $id == "codex-supervisor" then any(.models[]; .id == $model and ([.thinkingOptions[].id] | sort) == ["low","medium"]) else true end)
+      (if $id == "claude-supervisor" then ([.models[].id] | sort) == ["claude-fable-5-1","claude-opus-5-5","claude-sonnet-5-5"] and
+        all(.models[] | select(.id != "claude-fable-5-1"); ([.thinkingOptions[].id] | sort) == ["low","medium"]) else true end) and
+      (if $id == "codex-supervisor" then ([.models[].id] | sort) == ["gpt-6-astra","gpt-6.1-sol"] and
+        all(.models[]; ([.thinkingOptions[].id] | sort) == ["low","medium"]) else true end)
     ' "$paseo_config" >/dev/null || fail "$seat: wrong launcher, tools or model/effort"
   done
   for seat in lead peer; do
@@ -157,24 +159,86 @@ else
     $p.label == "Antigravity Peer Seat" and
     $p.command == [$command, "peer", "agy"] and
     $p.paseoTools.enabled == false and
-    $p.env.AGY_EXTRA_ARGS == "--mode accept-edits" and
-    ([ $p.models[] | select(.id == "gemini-3.8-flash-low" and .isDefault == true) ] | length) == 1 and
-    ([ $p.models[].id ] | sort) == ["gemini-3.8-flash-high", "gemini-3.8-flash-low", "gemini-3.8-flash-medium"]
+    $p.env == {} and
+    ([ $p.models[] | select(.isDefault == true) | .id ]) == ["gemini-3.8-flash-low"] and
+    ([ $p.models[].id ] | sort) == ["gemini-3.8-flash-low", "gemini-3.8-flash-medium", "gemini-4-argon-low", "gemini-4-argon-medium"]
   ' "$paseo_config" >/dev/null || fail 'agy-peer: wrong launcher, permissions or model pins'
-  for model in gemini-3.8-flash-low gemini-3.8-flash-medium gemini-3.8-flash-high; do
+  for model in gemini-3.8-flash-low gemini-3.8-flash-medium gemini-4-argon-low gemini-4-argon-medium; do
     jq -e --arg model "$model" '
       [.daemon.agentProfiles[]? | select(.id == ("agy-peer--" + $model))] |
-      length == 1 and all(.[]; .provider == "agy-peer" and .model == $model and (has("thinkingOptionId") | not))
+      length == 1 and all(.[];
+        .provider == "agy-peer" and .model == $model and .modeId == "auto_edit" and
+        .modeId != "yolo" and (has("thinkingOptionId") | not))
     ' "$paseo_config" >/dev/null || fail "agy-peer: missing or wrong $model profile"
   done
-  for role in peer lead; do
+  if jq -e '.agents.providers | has("agy-lead")' "$paseo_config" >/dev/null; then
+    jq -e --arg command "$kit/setup/role-agent" '
+      .agents.providers["agy-lead"] as $p |
+      $p.extends == "acp" and $p.enabled == true and
+      $p.label == "Antigravity Lead Seat" and
+      $p.command == [$command, "lead", "agy"] and
+      $p.paseoTools.enabled == true and
+      $p.env == {} and
+      ([ $p.models[] | select(.id == "gemini-4-argon-low" and .isDefault == true) ] | length) == 1 and
+      ([ $p.models[].id ] | sort) == ["gemini-4-argon-low", "gemini-4-argon-medium"]
+    ' "$paseo_config" >/dev/null || fail 'agy-lead: wrong launcher, permissions or model pins'
+    for model in gemini-4-argon-low gemini-4-argon-medium; do
+      jq -e --arg model "$model" '
+        [.daemon.agentProfiles[]? | select(.id == ("agy-lead--" + $model))] |
+        length == 1 and all(.[];
+          .provider == "agy-lead" and .model == $model and .modeId == "default" and
+          .modeId != "yolo" and (has("thinkingOptionId") | not))
+      ' "$paseo_config" >/dev/null || fail "agy-lead: missing or wrong $model profile"
+    done
+  fi
+  if jq -e '.agents.providers["droid-lead"].enabled == true' "$paseo_config" >/dev/null; then
+    jq -e --arg command "$kit/setup/role-agent" '
+      .agents.providers["droid-lead"] |
+      .extends == "acp" and .command == [$command,"lead","droid"] and
+      .paseoTools.enabled == true and .env == {} and
+      ([.models[].id] | sort) == ["claude-opus-5-5","claude-sonnet-5-5","gemini-4-argon","gpt-6.1-sol"] and
+      all(.models[]; ([.thinkingOptions[].id] | sort) == ["low","medium"])
+    ' "$paseo_config" >/dev/null || fail 'droid-lead: wrong launcher, tools or model/effort'
+    for model in claude-opus-5-5 claude-sonnet-5-5 gpt-6.1-sol gemini-4-argon; do
+      for effort in low medium; do
+        jq -e --arg model "$model" --arg effort "$effort" '
+          [.daemon.agentProfiles[]? | select(.id == ("droid-lead--" + ($model | gsub("\\.";"-")) + "--" + $effort))] |
+          length == 1 and all(.[];
+            .provider == "droid-lead" and .model == $model and .thinkingOptionId == $effort and
+            .modeId == "normal" and (.modeId | test("^auto") | not))
+        ' "$paseo_config" >/dev/null || fail "droid-lead: missing, wrong or auto-approving $model $effort profile"
+      done
+    done
+  fi
+  if jq -e '.agents.providers["amp-lead"].enabled == true' "$paseo_config" >/dev/null; then
+    jq -e --arg command "$kit/setup/role-agent" '
+      .agents.providers["amp-lead"] |
+      .extends == "acp" and .command == [$command,"lead","amp"] and
+      .paseoTools.enabled == true and .env == {} and
+      ([.models[].id]) == ["medium"]
+    ' "$paseo_config" >/dev/null || fail 'amp-lead: wrong launcher, tools or model'
+    jq -e '
+      [.daemon.agentProfiles[]? | select(.id == "amp-lead--medium")] |
+      length == 1 and all(.[]; .provider == "amp-lead" and .model == "medium")
+    ' "$paseo_config" >/dev/null || fail 'amp-lead: missing or wrong medium profile'
+  fi
+  jq -e --arg command "$kit/setup/role-agent" '
+    .agents.providers["amp-peer"] |
+    .extends == "acp" and .command == [$command,"peer","amp"] and
+    .paseoTools.enabled == false and .env == {} and ([.models[].id]) == ["low"]
+  ' "$paseo_config" >/dev/null || fail 'amp-peer: wrong launcher, tools or model'
+  jq -e '
+    [.daemon.agentProfiles[]? | select(.id == "amp-peer--low")] |
+    length == 1 and all(.[]; .provider == "amp-peer" and .model == "low")
+  ' "$paseo_config" >/dev/null || fail 'amp-peer: missing or wrong low profile'
+  for role in peer lead supervisor; do
     seat="kiro-$role"
     jq -e --arg seat "$seat" '.agents.providers[$seat].enabled == true' "$paseo_config" >/dev/null || continue
     # Lead keeps Paseo tools (deny-list enforced above); Peer has none.
     jq -e --arg command "$kit/setup/role-agent" --arg seat "$seat" --arg role "$role" '
       .agents.providers[$seat] |
       .extends == "acp" and .command == [$command,$role,"kiro"] and
-      .paseoTools.enabled == ($role == "lead") and .env == {} and
+      .paseoTools.enabled == ($role != "peer") and .env == {} and
       ([.models[].id] | sort) == ["claude-opus-5.5","claude-sonnet-5.5"] and
       ([.models[] | select(.isDefault == true) | .id] == ["claude-opus-5.5"]) and
       all(.models[]; ([.thinkingOptions[].id] | sort) == ["low","medium"] and
@@ -194,11 +258,52 @@ source, installed = map(pathlib.Path, sys.argv[1:])
 sys.exit(installed.is_symlink() or not installed.is_file() or installed.read_bytes() != source.read_bytes())
 PY
   done
+  if jq -e '.agents.providers["droid-peer"].enabled == true' "$paseo_config" >/dev/null; then
+    # Requested efforts advertised by Droid ACP, not generic Paseo metadata.
+    droid_efforts='{
+      "gemini-4-argon":["low","medium"], "gemini-3.8-flash":["low","medium"],
+      "claude-opus-5-5":["low","medium"], "claude-sonnet-5-5":["low","medium"],
+      "claude-haiku-5-5":["low","medium"], "gpt-6.1-sol":["low","medium"],
+      "glm-5.3-flash":["low","high"], "glm-5.3":["low","high"],
+      "kimi-k3":["low","high"], "deepseek-v4.1-flash":["low","high"]
+    }'
+    jq -e --arg command "$kit/setup/role-agent" --argjson efforts "$droid_efforts" '
+      .agents.providers["droid-peer"] |
+      .extends == "acp" and .label == "Factory Droid Peer Seat" and
+      .command == [$command,"peer","droid"] and
+      .paseoTools.enabled == false and .env == {} and
+      ([.models[].id] | sort) == ((["gpt-6-luna"] + ($efforts | keys)) | sort) and
+      [.models[] | select(.isDefault == true) | .id] == ["gpt-6-luna"] and
+      all(.models[]; . as $model |
+        .isDefault == (.id == "gpt-6-luna") and
+        ([.thinkingOptions[].id] | sort) ==
+          (if .id == "gpt-6-luna" then ["off","low","medium","high","xhigh","max"] | sort
+           else $efforts[$model.id] | sort end) and
+        [.thinkingOptions[] | select(.isDefault == true) | .id] == ["low"])
+    ' "$paseo_config" >/dev/null || fail 'droid-peer: wrong launcher, tools or model/effort'
+    jq -e '[.daemon.agentProfiles[]? | select(.provider == "droid-peer" and .model == "auto")] | length == 0' \
+      "$paseo_config" >/dev/null || fail 'droid-peer: auto model profile must not be configured'
+    for effort in low medium; do
+      jq -e --arg effort "$effort" '
+        [.daemon.agentProfiles[]? | select(.id == ("droid-peer--gpt-6-luna--" + $effort))] |
+        length == 1 and all(.[]; .provider == "droid-peer" and .model == "gpt-6-luna" and .thinkingOptionId == $effort)
+      ' "$paseo_config" >/dev/null || fail "droid-peer: missing or wrong GPT-6 Luna $effort profile"
+    done
+    jq -e --argjson efforts "$droid_efforts" '
+      . as $config |
+      all($efforts | to_entries[]; . as $entry |
+        all(.value[]; . as $effort |
+          [$config.daemon.agentProfiles[]? |
+            select(.id == ("droid-peer--" + ($entry.key | gsub("\\.";"-")) + "--" + $effort))] |
+          length == 1 and all(.[]; .provider == "droid-peer" and
+            .model == $entry.key and .thinkingOptionId == $effort)))
+    ' "$paseo_config" >/dev/null || fail 'droid-peer: missing or wrong supported model/effort profile'
+  fi
   jq -e '
     [.daemon.agentProfiles[]? as $p |
       .agents.providers[$p.provider] as $seat |
       select(($seat | type) != "object" or $seat.enabled != true or
-        (($p.provider | test("^(codex|claude|amp|agy|pi|omp|copilot|kiro)-")) | not) or
+        (($p.provider | test("^(codex|claude|amp|agy|pi|omp|copilot|kiro|droid|devin)-")) | not) or
         (([ $seat.models[]?.id ] | index($p.model)) == null) or
         (if any($seat.models[]?; .id == $p.model and has("thinkingOptions"))
          then (($p | has("thinkingOptionId")) | not) or

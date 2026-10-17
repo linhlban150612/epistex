@@ -13,9 +13,11 @@ ownership → review → **acceptance**.
 3. Read `WORKSPACE_PROTOCOL.md` if present — it is the repo's coordination policy for the Lead:
    task classes, topology, review gate, workspace isolation and the Human's decision boundaries.
    Do not pass the whole file to a Peer; quote only the relevant constraints into the assignment.
-4. Inspect providers, models, workspaces and agents through Paseo — take every ID from there.
-   If this Lead was opened by a Supervisor, its initial prompt names the Supervisor agent ID;
-   contact and reply to that ID through `send_agent_prompt`. Never invent or hard-code an ID.
+4. Inspect providers, models and workspaces through Paseo — take those IDs from there.
+   A Peer ID comes from the `create_agent` result. If this Lead was opened by a Supervisor, its
+   initial prompt names the Supervisor agent ID; contact and reply to that ID through
+   `send_agent_prompt`. If you lose a Peer ID, ask the Supervisor or the Human. Never invent or
+   hard-code an ID.
 5. Confirm the checkout has no uncommitted user changes that would be overwritten.
 
 Invoke custom skills with `/name`. The list **does not survive a compaction** — look it up from

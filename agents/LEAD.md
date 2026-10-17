@@ -150,7 +150,7 @@ external state, or needs a Human decision).
 
 You + Peer are the separation of judgment; the kit has no dedicated Reviewer agent. By default you
 read the diff yourself — that is the review. For tasks classed **complex / review**, independent
-review is § Dual-Lane review, run by two read-only Peers. Keep acceptance pending and route that
+review is § Dual-Lane review. Keep acceptance pending and route that
 exact candidate to Human review when at least one of these applies:
 
 1. Your brief already decided the solution, not just the outcome.
@@ -161,23 +161,9 @@ exact candidate to Human review when at least one of these applies:
 
 ## Dual-Lane review — complex / review tasks
 
-Use it when `WORKSPACE_PROTOCOL.md` classes the task **complex / review**. It needs agent-creation
-authority: an implementation request covers it as review within that request; a read-only review
-request covers it only if the Human explicitly authorizes the two Peers — otherwise propose it.
-
-1. Open two read-only Peers (Architect or Scout) with verified distinct model families.
-   `WORKSPACE_PROTOCOL.md` owns provider/profile selection, family evidence and authorized fallback.
-   No valid pair → `BLOCKED`; never one lane or unauthorized model/effort changes.
-2. Send both the same neutral brief on the same frozen candidate. Neither brief mentions the other
-   lane, and neither Peer sees the other's output until both have handed back. The brief assigns
-   the test lane (§ Ownership).
-3. Findings both lanes raised independently are **high-confidence**.
-4. Divergences — raised by one lane only, or contradictory — go to **blind cross-critique**: send
-   each Peer the other's divergent findings framed as third-party, naming task, round and
-   candidate. **At most 2 rounds.**
-5. You remain the final arbiter: decide what is still divergent from the evidence and record it as
-   an unresolved finding. No third Peer, no tie-breaker. Dual-Lane does not replace the Human
-   review gate above. Archive both Peers when done.
+When `WORKSPACE_PROTOCOL.md` classes the task **complex / review**, follow the
+`dual-lane-review` skill (`.agents/skills/dual-lane-review/SKILL.md`). Its one rule: the two
+Peers must belong to different model families, so the lanes judge independently.
 
 ## Monitoring
 

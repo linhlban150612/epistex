@@ -80,6 +80,7 @@ neutral source. Every assignment states:
 
 ```
 Project / Task ID
+Round (assigned by Lead)
 Repository root + workspace (separate worktree if there are parallel writers)
 Disposition
 Objective

@@ -117,7 +117,8 @@ Artifact identity alone, stale mail or a general continuation is not write autho
 
 After finishing or clearly recording what is unfinished, return the six-cell handoff in your
 current session for your Lead to retrieve and review. Identify the current task and assigned round;
-do not change the round. The Lead reads only your last message and checks task, round and exact
+do not change the round. If no round is assigned, report `BLOCKED` with `Round: not assigned`;
+do not choose a default or start writing. The Lead reads only your last message and checks task, round and exact
 candidate. Keep it within 4000 characters where possible so the finish notification is complete;
 do not drop required cells or evidence to fit. A notification or idle status is not acceptance.
 
@@ -125,6 +126,8 @@ Six cells, every turn, including failed turns. The handoff must be your **last m
 turn, complete in that one message: no tool call or text after it, no cell only earlier in the turn.
 
 ```
+Task ID: … | Round: …
+
 Outcome            complete | partial | blocked | reopen; Done: …; Not done: …
 Candidate          base SHA + candidate SHA + branch + worktree; or baseline and candidate snapshot/diff, each with checksum + path if not committing
 Scope              files changed / read, concrete paths

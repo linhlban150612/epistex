@@ -14,7 +14,9 @@
   before relying on history.
 - `SETUP.md`: role-seat installation entry point and live verification.
 - `docs/setup/claude.md`, `docs/setup/amp.md`, `docs/setup/pi-omp.md`,
-  `docs/setup/devin-copilot-cursor.md`, `docs/setup/antigravity.md`: backend-specific role-seat setup.
+  `docs/setup/devin-copilot-cursor.md`, `docs/setup/antigravity.md`, `docs/setup/droid.md`,
+  `docs/setup/kiro.md`: backend-specific role-seat setup.
+- `docs/setup/context-compaction.md`: per-backend compaction thresholds and limits.
 - `docs/setup/codex-runtime.md`: Codex runtime/resume, environment compatibility,
   project prerequisites, and key files.
 

@@ -22,15 +22,15 @@ This guide adds `agy-peer`, a Paseo Peer, and an example `agy-lead` seat (see [L
 
 Merge the `agy-peer` entry and its model profiles from `examples/paseo-providers.json`; replace `<KIT>` with the absolute repository path. The provider extends `acp`, invokes `setup/role-agent peer agy`, and has Paseo tools disabled.
 
-**Pending verification:** the server's `session/new` advertises modes `default`, `auto_edit` (auto-approve file edit tools) and `yolo` (auto-approve everything — used only by `agy-lead`), and the model IDs above. The seat's mode is selected via `modeId` on each `daemon.agentProfiles` entry (`auto_edit` for `agy-peer`, `yolo` for `agy-lead`), which Paseo applies when creating the agent; the orchestrator must copy `modeId` into `create_agent` alongside `provider` and `model`. `auto_edit` auto-approves file edits only — shell commands still prompt — and the seat has no plan mode: `plan` exists only as a `/plan` slash command. Whether the mode lands and how permissions behave in practice remain unverified; re-verify the mode/permission policy with an actual Paseo launch before relying on either seat.
+The server's `session/new` advertises modes `default`, `auto_edit` (auto-approve file edit tools) and `yolo` (auto-approve everything). Each `daemon.agentProfiles` entry selects the mode with `modeId` (`auto_edit` for `agy-peer`, `yolo` for `agy-lead`); the orchestrator must copy `modeId` into `create_agent` alongside `provider` and `model`. `auto_edit` auto-approves file edits only, so Peer shell commands still prompt. The seat has no plan mode: `plan` exists only as a `/plan` slash command.
 
-ACP `session/new` carries the agent cwd; whether the server honours it is unverified. Never use `--dangerously-skip-permissions`. Paseo's built-in `antigravity` provider always passes it; do not use it for a Lead.
+The server honours the agent cwd from ACP `session/new`; a real Paseo launch with a non-repo cwd confirmed this. Never use `--dangerously-skip-permissions`. Paseo's built-in `antigravity` provider always passes it and skips `setup/role-agent`, so do not use it for any Epistex seat; `agy-lead` gets auto-approval from `yolo` mode instead.
 
 ## Lead seat
 
 `agy-lead` invokes `setup/role-agent lead agy`, so every session's first prompt carries `agents/LEAD.md`. It enables Paseo tools with the same 50-tool `disabledTools` deny-list as every other `*-lead` seat; `setup-seats.sh --check` enforces the exact list. It also requires `daemon.mcp.injectIntoAgents`.
 
-Unlike the Peer, `agy-lead` runs in the server's `yolo` mode (set via each `agy-lead` profile's `modeId`), so no tool call prompts; there is no plan mode — `plan` is only a `/plan` slash command, not an ACP session mode.
+`agy-lead` runs in `yolo` mode, so no tool call prompts; a real Paseo launch confirmed this.
 
 The official server advertises `mcpCapabilities` `http` and `sse`; Paseo forwards its MCP tools to `agy-lead` over these. Do not work around missing tools with user-wide `agy mcp add`.
 

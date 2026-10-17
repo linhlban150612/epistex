@@ -14,7 +14,9 @@ Chi tiết chọn project/runtime và tiền đề: [hướng dẫn runtime Code
 | Antigravity Lead/Peer qua ACP (modeId auto_edit/yolo) | [docs/setup/antigravity.md](docs/setup/antigravity.md) |
 | Factory Droid Lead/Peer qua ACP | [docs/setup/droid.md](docs/setup/droid.md) |
 | Pi Peer, OMP Peer | [docs/setup/pi-omp.md](docs/setup/pi-omp.md) |
-| Devin Supervisor/Peer, Copilot Peer, Cursor Peer qua ACP | [docs/setup/devin-copilot-cursor.md](docs/setup/devin-copilot-cursor.md) |
+| Devin Peer qua ACP | [docs/setup/devin.md](docs/setup/devin.md) |
+| GitHub Copilot Peer qua ACP | [docs/setup/copilot.md](docs/setup/copilot.md) |
+| Cursor Peer qua ACP | [docs/setup/cursor.md](docs/setup/cursor.md) |
 
 Context compaction và giới hạn từng backend: [context-compaction.md](docs/setup/context-compaction.md).
 
@@ -117,6 +119,25 @@ lại một phần links đã đổi (chi tiết: [Codex runtime and resume](doc
 user, chia sẻ skills/plugins và vẫn có shell. Peer bị cấm gọi Paseo theo prompt; việc ẩn Paseo MCP
 không ngăn tuyệt đối một shell gọi CLI.
 
+## ACP proxy seats
+
+Phần chung cho Devin, Copilot và Cursor ([devin.md](docs/setup/devin.md),
+[copilot.md](docs/setup/copilot.md), [cursor.md](docs/setup/cursor.md)).
+
+- **Merge:** backup rồi merge vào `.agents.providers`, không thay backend gốc hay
+  credential/config home của chúng.
+- **MCP:** giữ injection bật ở daemon (§3). Các seat này là Peer: `paseoTools.enabled=false`.
+- **Schema entry:** `extends: "acp"`, `enabled: true`, `env: {}`, `command` dạng
+  `["<KIT>/setup/role-agent","peer","<backend>"]`; `models: [{"id":"<MODEL>","label":"<LABEL>","isDefault":true}]`,
+  thêm `thinkingOptions: [{"id":"<EFFORT>","label":"<LABEL>","isDefault":true}]` khi backend có effort.
+- **Inject prompt:** `role-agent` chuyển sang `setup/<backend>-acp` bằng `os.execv`; launcher dùng
+  proxy ACP thêm role instructions vào prompt đầu tiên của mỗi session, không phải system prompt.
+  Không thêm project policy vào provider hoặc sửa global instructions của backend.
+- **Live verify:** sau `paseo reload`, tạo phiên mới với model/effort và mode thực tế từ discovery.
+  Kiểm heading role từ context agent thực sự nhận, CWD bằng `pwd`, model/effort và inventory kể
+  cả deferred discovery; Peer không thấy Paseo tools. Không bật delegation trong smoke test.
+  Native tool/subagent của backend không đồng nghĩa với Paseo MCP; role/tool visibility không
+  phải OS sandbox. Checker Codex và diagnostic không thay thế live verification.
 
 ## 9. Vận hành
 

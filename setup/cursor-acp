@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+"""Start a Cursor seat through cursor-agent ACP and inject role instructions into each ACP session."""
+
+import importlib.machinery
+import pathlib
+import sys
+
+sys.dont_write_bytecode = True
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROLES = ("supervisor", "lead", "peer")
+
+
+def main() -> int:
+    if len(sys.argv) < 2 or sys.argv[1] not in ROLES:
+        raise SystemExit("usage: cursor-acp <supervisor|lead|peer> [cursor-agent args...]")
+    role_agent = importlib.machinery.SourceFileLoader("role_agent", str(ROOT / "setup/role-agent")).load_module()
+    return role_agent.run_acp(["cursor-agent", "acp", *sys.argv[2:]], sys.argv[1])
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -99,15 +99,24 @@ Dual-Lane review: xem `.agents/skills/dual-lane-review/SKILL.md`.
 Linux Desktop: nếu `paseo` là symlink tới `/opt/Paseo/Paseo` và `paseo run` mở GUI, dùng launcher
 đi kèm `/opt/Paseo/resources/bin/paseo` cho các lệnh CLI; không cần đổi symlink hay restart daemon.
 
+### Supervisor pin
+
+| Seat | Launcher args | Model | Thinking/profile pins |
+|---|---|---|---|
+| `codex-supervisor` | `codex-room supervisor` | `gpt-6-astra` | low, medium |
+
+Không pin CWD của Supervisor bằng env: workspace `~/work/SUPERVISOR` để trống và prompt tự xác nhận CWD.
+
 ### Key files
 
 | Path | Role |
 |---|---|
 | `agents/*.md` | Supervisor, Lead, and Peer prompts |
 | `setup/role-agent` | Native Claude/Pi launcher and ACP instruction proxy |
+| `setup/{amp,devin,copilot,cursor}-acp` | Per-backend ACP launchers |
 | `setup/codex-room` | Select runtime/resume and generate Codex config |
 | `setup/setup-seats.sh`, `examples/paseo-providers.json` | Three role seats and provider check |
 | `SETUP.md` | Setup entry point: common steps, Codex seats, live verification |
-| `docs/setup/*.md` | Backend-specific seats: Claude, Amp, Pi/OMP, Devin/Copilot/Cursor, Droid |
+| `docs/setup/*.md` | Backend-specific seats: Claude, Amp, Pi/OMP, Devin, Copilot, Cursor, Droid |
 | `examples/AGENTS_MD_SNIPPET.md`, `examples/WORKSPACE_PROTOCOL.md` | Contract/policy templates for target repos |
 | `tests/` | Runtime, role launcher, and seat-checker regression tests |

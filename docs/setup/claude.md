@@ -25,6 +25,12 @@ Profile pins:
 | `claude-peer` | `claude-opus-5-5` | `low`, `medium` |
 | `claude-supervisor` | `claude-fable-5-1` | `medium` (unverified: provider credits) |
 
+Supervisor pin:
+
+| Seat | Launcher args | Model | Thinking/profile pins |
+|---|---|---|---|
+| `claude-supervisor` | `role-agent supervisor claude` | `claude-fable-5-1` | medium (unverified: provider credits) |
+
 Claude Lead dùng deny-list tại [SETUP.md §3](../../SETUP.md); không áp dụng cho Peer.
 Profile `claude-lead` dùng `modeId: "bypassPermissions"`.
 

@@ -32,7 +32,7 @@ for seat in LEAD PEER SUPERVISOR; do
   fi
 done
 
-for name in codex-room role-agent kiro-acp claude-sdk; do
+for name in codex-room role-agent kiro-acp claude-sdk devin-acp copilot-acp cursor-acp; do
   wrapper="$kit/setup/$name"
   if [[ ! -f "$wrapper" ]]; then
     fail "missing $wrapper"
@@ -90,15 +90,6 @@ else
   done < <(jq -r '.agents.providers | to_entries[] | select(.value.paseoTools.enabled == true) | .key' "$paseo_config")
   jq -e '.daemon.mcp.enabled != false and .daemon.mcp.injectIntoAgents == true' \
     "$paseo_config" >/dev/null || fail 'Paseo MCP injection is not enabled'
-  jq -e --arg command "$kit/setup/role-agent" '
-    .agents.providers["devin-supervisor"] |
-    .extends == "acp" and .enabled == true and
-    .command == [$command, "supervisor", "devin"] and .paseoTools.enabled == true and
-    ([.models[] | select(.isDefault == true)] | length) == 1 and
-    ([.models[].id]) == ["swe-2-high"] and
-    any(.models[]; .id == "swe-2-high" and .isDefault == true and
-      ([.thinkingOptions[] | select(.isDefault == true) | .id] == ["high"]))
-  ' "$paseo_config" >/dev/null || fail 'devin-supervisor: wrong launcher, tools or model/effort'
   for seat in amp-supervisor claude-supervisor codex-supervisor; do
     case "$seat" in
       amp-supervisor) command="$kit/setup/role-agent"; args='["supervisor","amp"]'; model=medium; effort= ;;
@@ -209,7 +200,7 @@ else
     .env == {} and ([.models[].id]) == ["swe-2-high"] and
     all(.models[]; ([.thinkingOptions[].id] | sort) == ["high"])
   ' "$paseo_config" >/dev/null || fail 'devin-peer: wrong launcher, tools or model'
-  for seat in devin-peer devin-supervisor; do
+  for seat in devin-peer; do
     jq -e --arg seat "$seat" '
       [.daemon.agentProfiles[]? | select(.id == ($seat + "--swe-2-high--high"))] |
       length == 1 and all(.[]; .provider == $seat and .model == "swe-2-high" and .thinkingOptionId == "high")

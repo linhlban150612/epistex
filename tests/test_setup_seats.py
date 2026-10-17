@@ -42,7 +42,6 @@ class SetupSeatsTest(unittest.TestCase):
         providers = example["agents"]["providers"]
         for role in ("lead", "peer"):
             providers[f"codex-{role}"]["command"] = [str(self.kit / "setup" / "codex-room"), role]
-        providers["devin-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "devin"]
         providers["amp-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "amp"]
         providers["agy-peer"]["command"] = [str(self.kit / "setup" / "role-agent"), "peer", "agy"]
         providers["agy-lead"]["command"] = [str(self.kit / "setup" / "role-agent"), "lead", "agy"]
@@ -158,13 +157,13 @@ class SetupSeatsTest(unittest.TestCase):
             if provider.get("paseoTools", {}).get("enabled") is True:
                 expected = DENY_SUPERVISOR if key.endswith("-supervisor") else DENY_LEAD
                 self.assertEqual(set(provider["paseoTools"]["disabledTools"]), expected, key)
-        self.assertEqual(len(example["daemon"]["agentProfiles"]), 103)
+        self.assertEqual(len(example["daemon"]["agentProfiles"]), 102)
         counts = Counter(p["provider"] for p in example["daemon"]["agentProfiles"])
         self.assertEqual(counts, Counter({"amp-peer": 1, "amp-lead": 1, "amp-supervisor": 2,
             "claude-peer": 6, "claude-supervisor": 5, "codex-lead": 2, "codex-peer": 2,
             "codex-supervisor": 4, "copilot-peer": 10, "omp-peer": 9,
             "pi-peer": 9, "agy-peer": 4, "agy-lead": 2, "kiro-peer": 4, "kiro-lead": 4,
-            "kiro-supervisor": 4, "droid-peer": 22, "droid-lead": 8, "devin-peer": 1, "devin-supervisor": 1, "claude-lead": 1, "cursor-peer": 1}))
+            "kiro-supervisor": 4, "droid-peer": 22, "droid-lead": 8, "devin-peer": 1, "claude-lead": 1, "cursor-peer": 1}))
         script = SCRIPT.read_text()
         match = re.search(r"expected_deny_lead='(\[.*?\])'", script)
         self.assertIsNotNone(match, "checker deny-list constant not found")
@@ -384,11 +383,10 @@ class SetupSeatsTest(unittest.TestCase):
         self.assertNotEqual(self.run_check("--check").returncode, 0)
         self.assertFalse(self.config.exists())
 
-    def test_devin_seats_swe_2_high_only(self):
-        providers = self.data["agents"]["providers"]
-        for seat in ("devin-peer", "devin-supervisor"):
-            models = providers[seat]["models"]
-            self.assertEqual([m["id"] for m in models], ["swe-2-high"])
+    def test_devin_peer_swe_2_high_only(self):
+        models = self.data["agents"]["providers"]["devin-peer"]["models"]
+        self.assertEqual([m["id"] for m in models], ["swe-2-high"])
+        self.assertNotIn("devin-supervisor", self.data["agents"]["providers"])
 
     def test_wrong_model_or_tools_fails(self):
         peer = self.data["agents"]["providers"]["codex-peer"]
@@ -419,12 +417,12 @@ class SetupSeatsTest(unittest.TestCase):
         self.assertNotEqual(self.run_check("--check").returncode, 0)
 
     def test_missing_or_wrong_supervisor_seat_fails(self):
-        supervisor = self.data["agents"]["providers"].pop("devin-supervisor")
+        supervisor = self.data["agents"]["providers"].pop("codex-supervisor")
         self.save()
         result = self.run_check("--check")
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("devin-supervisor", result.stderr)
-        self.data["agents"]["providers"]["devin-supervisor"] = supervisor
+        self.assertIn("codex-supervisor", result.stderr)
+        self.data["agents"]["providers"]["codex-supervisor"] = supervisor
         supervisor["paseoTools"]["enabled"] = False
         self.save()
         self.assertNotEqual(self.run_check("--check").returncode, 0)

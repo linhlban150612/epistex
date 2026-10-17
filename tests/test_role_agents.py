@@ -16,10 +16,10 @@ class ProfilesTest(unittest.TestCase):
     def test_devin_copilot_cursor_acp_launchers_forward_args_and_inject_role(self):
         with tempfile.TemporaryDirectory() as folder:
             for backend, binary, acp_arg, role in (
-                ("devin", "devin", "acp", "lead"),
                 ("devin", "devin", "acp", "peer"),
                 ("copilot", "copilot", "--acp", "peer"),
                 ("cursor", "cursor-agent", "acp", "peer"),
+                ("cursor", "cursor-agent", "acp", "lead"),
             ):
                 executable = pathlib.Path(folder) / binary
                 executable.write_text(f"#!{sys.executable}\nimport json, sys\n"
@@ -32,19 +32,33 @@ class ProfilesTest(unittest.TestCase):
                     prompt = {"jsonrpc": "2.0", "id": 9, "method": "session/prompt",
                               "params": {"sessionId": "seat", "prompt": [{"type": "text", "text": "task"}]}}
                     raw = json.dumps(prompt) + "\n"
-                    result = subprocess.run(
-                        [sys.executable, str(ROOT / "setup" / "role-agent"), role, backend, "--extra"],
-                        input=raw * 2, text=True, capture_output=True,
-                        env={**os.environ, "PATH": folder}, timeout=10)
-                    self.assertEqual(result.returncode, 7, result.stderr)
-                    args, first, second = map(json.loads, result.stdout.splitlines())
-                    self.assertEqual(args, [acp_arg, "--extra"])
-                    expected = json.loads(raw)
-                    instructions = (ROOT / "agents" / f"{role.upper()}.md").read_text()
-                    expected["params"]["prompt"].insert(0, {
-                        "type": "text", "text": "Role instructions for this session:\n" + instructions})
-                    self.assertEqual(first, expected)
-                    self.assertEqual(second, prompt)
+                    for launcher in (["role-agent", role, backend], [f"{backend}-acp", role]):
+                        result = subprocess.run(
+                            [sys.executable, str(ROOT / "setup" / launcher[0]), *launcher[1:], "--extra"],
+                            input=raw * 2, text=True, capture_output=True,
+                            env={**os.environ, "PATH": folder}, timeout=10)
+                        self.assertEqual(result.returncode, 7, result.stderr)
+                        args, first, second = map(json.loads, result.stdout.splitlines())
+                        self.assertEqual(args, [acp_arg, "--extra"])
+                        expected = json.loads(raw)
+                        instructions = (ROOT / "agents" / f"{role.upper()}.md").read_text()
+                        expected["params"]["prompt"].insert(0, {
+                            "type": "text", "text": "Role instructions for this session:\n" + instructions})
+                        self.assertEqual(first, expected)
+                        self.assertEqual(second, prompt)
+
+    def test_devin_and_copilot_launchers_reject_non_peer_roles(self):
+        with tempfile.TemporaryDirectory() as folder:
+            for backend in ("devin", "copilot"):
+                for role in ("lead", "supervisor"):
+                    for launcher in (["role-agent", role, backend], [f"{backend}-acp", role]):
+                        with self.subTest(launcher=launcher):
+                            result = subprocess.run(
+                                [sys.executable, str(ROOT / "setup" / launcher[0]), *launcher[1:]],
+                                input="", text=True, capture_output=True,
+                                env={**os.environ, "PATH": folder}, timeout=10)
+                            self.assertNotEqual(result.returncode, 0)
+                            self.assertIn(f"usage: {backend}-acp peer", result.stderr)
 
     def test_droid_acp_launcher_uses_installed_binary_and_injects_peer_role(self):
         with tempfile.TemporaryDirectory() as folder:

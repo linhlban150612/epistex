@@ -171,5 +171,17 @@ class ProfilesTest(unittest.TestCase):
         self.assertIn("# Peer", json.loads(proxy.prime((json.dumps(prompt) + "\n").encode(), "peer", seen))["params"]["prompt"][0]["text"])
         self.assertEqual(proxy.prime(b'{"method":"session/update"}\n', "peer", seen), b'{"method":"session/update"}\n')
 
+    def test_acp_pins_session_cwd_when_requested(self):
+        new = {"jsonrpc": "2.0", "id": 1, "method": "session/new", "params": {"cwd": "/work/project", "mcpServers": []}}
+        self.assertEqual(proxy.session_cwd((json.dumps(new) + "\n").encode()), "/work/project")
+        self.assertIsNone(proxy.session_cwd(b'{"method":"session/prompt","params":{"cwd":"/x"}}\n'))
+        self.assertIsNone(proxy.session_cwd(b"not json\n"))
+        prompt = {"method": "session/prompt", "params": {"sessionId": "a", "prompt": [{"type": "text", "text": "task"}]}}
+        raw = (json.dumps(prompt) + "\n").encode()
+        text = json.loads(proxy.prime(raw, "lead", set(), "/work/project"))["params"]["prompt"][0]["text"]
+        self.assertTrue(text.startswith("Session working directory: /work/project."))
+        self.assertIn("# Lead", text)
+        self.assertNotIn("Session working directory", json.loads(proxy.prime(raw, "lead", set()))["params"]["prompt"][0]["text"])
+
 if __name__ == "__main__":
     unittest.main()

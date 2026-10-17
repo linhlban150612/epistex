@@ -18,7 +18,7 @@ ACP = {
 }
 
 
-def prime(line: bytes, role: str, seen: set[str]) -> bytes:
+def prime(line: bytes, role: str, seen: set[str], cwd: str | None = None) -> bytes:
     try:
         message = json.loads(line)
     except (ValueError, UnicodeDecodeError):
@@ -35,12 +35,27 @@ def prime(line: bytes, role: str, seen: set[str]) -> bytes:
     if not isinstance(prompt, list):
         return line
     instructions = (ROOT / "agents" / f"{role.upper()}.md").read_text()
-    params["prompt"] = [{"type": "text", "text": "Role instructions for this session:\n" + instructions}, *prompt]
+    text = "Role instructions for this session:\n" + instructions
+    if cwd:
+        text = f"Session working directory: {cwd}. Run every shell command in that directory.\n\n" + text
+    params["prompt"] = [{"type": "text", "text": text}, *prompt]
     seen.add(session)
     return (json.dumps(message, ensure_ascii=False) + "\n").encode()
 
 
-def run_acp(command: list[str], role: str) -> int:
+def session_cwd(line: bytes) -> str | None:
+    try:
+        message = json.loads(line)
+    except (ValueError, UnicodeDecodeError):
+        return None
+    if not isinstance(message, dict) or message.get("method") not in ("session/new", "session/load"):
+        return None
+    params = message.get("params")
+    cwd = params.get("cwd") if isinstance(params, dict) else None
+    return cwd if isinstance(cwd, str) else None
+
+
+def run_acp(command: list[str], role: str, pin_cwd: bool = False) -> int:
     if shutil.which(command[0]) is None:
         raise SystemExit(f"agent executable not found: {command[0]}")
     child = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -55,9 +70,12 @@ def run_acp(command: list[str], role: str) -> int:
     forwarding.start()
     assert child.stdin is not None
     seen: set[str] = set()
+    cwd = None
     try:
         for line in sys.stdin.buffer:
-            child.stdin.write(prime(line, role, seen))
+            if pin_cwd:
+                cwd = session_cwd(line) or cwd
+            child.stdin.write(prime(line, role, seen, cwd))
             child.stdin.flush()
     except BrokenPipeError:
         pass
@@ -84,7 +102,8 @@ def main() -> int:
         if shutil.which(command[0]) is None:
             raise SystemExit(f"agent executable not found: {command[0]}")
         os.execvp(command[0], command)
-    return run_acp([*ACP[agent], *sys.argv[3:]], role)
+    # The Antigravity server runs shell commands in its own skills directory, not the session cwd.
+    return run_acp([*ACP[agent], *sys.argv[3:]], role, pin_cwd=agent == "agy")
 
 
 if __name__ == "__main__":

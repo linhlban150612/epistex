@@ -24,7 +24,7 @@ Merge the `agy-peer` entry and its model profiles from `examples/paseo-providers
 
 The server's `session/new` advertises modes `default`, `auto_edit` (auto-approve file edit tools) and `yolo` (auto-approve everything). Each `daemon.agentProfiles` entry selects the mode with `modeId` (`auto_edit` for `agy-peer`, `yolo` for `agy-lead`); the orchestrator must copy `modeId` into `create_agent` alongside `provider` and `model`. `auto_edit` auto-approves file edits only, so Peer shell commands still prompt. The seat has no plan mode: `plan` exists only as a `/plan` slash command.
 
-The server honours the agent cwd from ACP `session/new`; a real Paseo launch with a non-repo cwd confirmed this. Never use `--dangerously-skip-permissions`. Paseo's built-in `antigravity` provider always passes it and skips `setup/role-agent`, so do not use it for any Epistex seat; `agy-lead` gets auto-approval from `yolo` mode instead.
+The server lists the ACP `session/new` cwd as a workspace but runs shell commands from its own `~/.gemini/antigravity-cli/skills` directory. `role-agent` therefore states the session cwd in each session's first prompt, together with the role instructions; a real Paseo launch confirmed `pwd` then reports the project root. Never use `--dangerously-skip-permissions`. Paseo's built-in `antigravity` provider always passes it and skips `setup/role-agent`, so do not use it for any Epistex seat; `agy-lead` gets auto-approval from `yolo` mode instead.
 
 ## Lead seat
 

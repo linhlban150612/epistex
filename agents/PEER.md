@@ -93,8 +93,8 @@ decision and risk recorded; never turn skipped into passed.
 
 After finishing or clearly recording what is unfinished, return the six-cell handoff in your
 current session for your Lead to retrieve and review. Identify the current task and assigned round;
-do not change the round. The Lead must obtain your actual response through Paseo
-`get_agent_activity` and check its full content, task, round and exact candidate. A notification or
+do not change the round. The Lead reads only your last message (Paseo `get_agent_activity`,
+`limit` 1) and checks task, round and exact candidate. A notification or
 idle status alone is not acceptance. Keep all Paseo MCP, CLI, API and shell coordination
 prohibited; Peer tools remain disabled. After handback, stop editing/committing. Resume writing only
 when your Lead sends one explicit `send_agent_prompt` through Paseo in the same session naming the
@@ -104,10 +104,11 @@ and rejected snapshot/diff by checksum and path. Keep the same baseline and pres
 candidate when returning a new candidate. Artifact identity alone, stale mail or a continuation
 without all those details does not grant write authority. Human owns authority changes.
 
-Six cells, every turn, including failed turns:
+Six cells, every turn, including failed turns. The handoff must be your **last message** of the
+turn, complete in that one message: no tool call or text after it, no cell only earlier in the turn.
 
 ```
-Outcome            complete | partial | blocked | reopen
+Outcome            complete | partial | blocked | reopen; Done: …; Not done: …
 Candidate          base SHA + candidate SHA + branch + worktree; or baseline and candidate snapshot/diff, each with checksum + path if not committing
 Scope              files changed / read, concrete paths
 Verification       commands run + REAL output, and what was deliberately skipped

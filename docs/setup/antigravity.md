@@ -28,7 +28,7 @@ ACP `session/new` carries the agent cwd; whether the server honours it is unveri
 
 ## Lead seat
 
-`agy-lead` invokes `setup/role-agent lead agy`, so every session's first prompt carries `agents/LEAD.md`. It enables Paseo tools with the same 47-tool `disabledTools` deny-list as every other `*-lead` seat; `setup-seats.sh --check` enforces the exact list. It also requires `daemon.mcp.injectIntoAgents`.
+`agy-lead` invokes `setup/role-agent lead agy`, so every session's first prompt carries `agents/LEAD.md`. It enables Paseo tools with the same 49-tool `disabledTools` deny-list as every other `*-lead` seat; `setup-seats.sh --check` enforces the exact list. It also requires `daemon.mcp.injectIntoAgents`.
 
 Unlike the Peer, `agy-lead` runs in the server's `default` mode (set via each `agy-lead` profile's `modeId`), so every tool call prompts; there is no plan mode — `plan` is only a `/plan` slash command, not an ACP session mode.
 

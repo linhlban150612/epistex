@@ -41,11 +41,11 @@ dùng `injectIntoProviders`; field đó không phải cơ chế policy provider 
 
 ### Chính sách Paseo tools cho Lead và Supervisor
 
-Lead dùng `paseoTools.disabledTools` để chặn catalog, giữ đúng 14 tool: `list_agents`,
+Lead dùng `paseoTools.disabledTools` để chặn catalog, giữ đúng 12 tool:
 `list_workspaces`, `list_providers`, `list_models`, `list_profiles`, `create_agent`, `send_agent_prompt`,
-`get_agent_activity`, `get_agent_status`, `cancel_agent`, `archive_agent`,
-`list_pending_permissions`, `respond_to_permission`, `set_agent_mode`. Supervisor giữ thêm `create_workspace` (15 tool được giữ; 46 bị chặn), còn Lead giữ 14 tool (47 bị chặn). Kiro Supervisor/Lead và Droid Lead dùng cùng chính sách.
-Các nhóm bị chặn ở Lead: 11 schedule/heartbeat, 22 browser, 5 terminal, 9 workspace/agent/provider;
+`get_agent_activity`, `cancel_agent`, `archive_agent`,
+`list_pending_permissions`, `respond_to_permission`, `set_agent_mode`. Supervisor giữ thêm `create_workspace`, `get_agent_status` và `list_agents` (15 tool được giữ; 46 bị chặn), còn Lead giữ 12 tool (49 bị chặn). Lead không có `get_agent_status` và `list_agents` để Lead chờ notification thay vì poll. Kiro Supervisor/Lead và Droid Lead dùng cùng chính sách.
+Các nhóm bị chặn ở Lead: 11 schedule/heartbeat, 22 browser, 5 terminal, 11 workspace/agent/provider;
 ở Supervisor nhóm workspace/agent/provider còn 8 (xem danh sách trong
 [ví dụ provider](examples/paseo-providers.json)). Cần Paseo 0.11.1; daemon và CLI cùng phiên bản.
 `speak` không thể bị chặn và nằm ngoài catalog. Test pin catalog 61 tên để buộc review khi nâng

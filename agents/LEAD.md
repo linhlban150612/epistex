@@ -191,9 +191,8 @@ request covers it only if the Human explicitly authorizes the two Peers — othe
 
 ## Monitoring
 
-Event-driven. Confirm the agent has started, then **wait for notifications**. Do not poll: it eats
-context and you lose the dependency map. No timers, schedules, heartbeats or periodic checks —
-not even to detect a stuck agent.
+Event-driven. After create/send, end the turn and **wait for notifications**. Call `get_agent_activity` only once per notification, never to check progress.
+No timers, schedules, heartbeats or periodic checks — not even to detect a stuck agent.
 
 **Loop detection counts events, never time.** An event is a handoff, a notification, a failed
 tool call or a Peer report. For the same symptom (same command, error or finding):

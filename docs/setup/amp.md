@@ -30,7 +30,8 @@ Profile pins:
 
 | Seat | Model | Profile pins | Thinking options |
 |---|---|---|---|
-| `amp-peer` | `medium` | `amp-peer--medium` | Không có |
+| `amp-lead` | `medium` | `amp-lead--medium` | Không có |
+| `amp-peer` | `low` | `amp-peer--low` | Không có |
 | `amp-supervisor` | `medium`, `high` | `amp-supervisor--medium`, `amp-supervisor--high` | Không có |
 
 Chọn permission mode từ discovery (adapter hiện có `default` và `bypass`); dùng `default`
@@ -43,6 +44,5 @@ CWD thực tế và tool inventory: Lead phải gọi được một Paseo tool 
 Paseo tools. Không yêu cầu agent đọc file prompt rồi coi đó là proof injection.
 Lead điều phối bằng `amp-peer`, không dùng provider Amp gốc.
 
-`setup-seats.sh --check` xác nhận supervisor launcher, tools và pin model. Profile inventory gồm Amp Peer medium và Supervisor medium/high. Kiểm riêng hai Amp provider và live launch;
+`setup-seats.sh --check` xác nhận supervisor launcher, tools và pin model. Profile inventory gồm Amp Lead medium, Amp Peer low và Supervisor medium/high. Kiểm riêng hai Amp provider và live launch;
 không thay global Amp config, credentials hoặc state để tạo role separation.
-`amp-peer` now pins only the `low` model (`amp-peer--low`); an `amp-lead` seat pins `medium` with the Lead Paseo tool set.

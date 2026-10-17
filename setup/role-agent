@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Start a role-configured agent; inject ACP instructions. Claude and Kiro use seat-local launchers."""
+"""Start a role-configured agent; inject ACP instructions. Claude, Kiro and Amp use seat-local launchers."""
 
 import json
 import os
@@ -15,7 +15,6 @@ ACP = {
     "devin": ["devin", "acp"],
     "copilot": ["copilot", "--acp"],
     "cursor": ["cursor-agent", "acp"],
-    "amp": ["amp-acp"],
     "agy": ["agy_acp_server.par", "--uid="],
     "glm": ["glm-acp-agent"],
     "droid": ["droid", "exec", "--output-format", "acp"],
@@ -44,24 +43,9 @@ def prime(line: bytes, role: str, seen: set[str]) -> bytes:
     return (json.dumps(message, ensure_ascii=False) + "\n").encode()
 
 
-def main() -> int:
-    if len(sys.argv) < 3 or sys.argv[1] not in ROLES or sys.argv[2] not in (*ACP, "claude", "pi", "omp", "kiro"):
-        raise SystemExit("usage: role-agent <supervisor|lead|peer> <claude|pi|omp|devin|copilot|cursor|amp|agy|glm|droid|kiro>")
-    role, agent = sys.argv[1:3]
-    if agent == "kiro":
-        if role not in ("lead", "peer", "supervisor") or sys.argv[3:]:
-            raise SystemExit("Kiro supports only the scoped Supervisor, Lead and Peer seats, without extra launch flags")
-        os.execv(sys.executable, [sys.executable, str(ROOT / "setup/kiro-acp"), role])
-    if agent == "claude":
-        os.execv(sys.executable, [sys.executable, str(ROOT / "setup/claude-sdk"), role, *sys.argv[3:]])
-    if agent in ("pi", "omp"):
-        command = [agent, "--append-system-prompt", str(ROOT / "agents" / f"{role.upper()}.md"), *sys.argv[3:]]
-    else:
-        command = [*ACP[agent], *sys.argv[3:]]
+def run_acp(command: list[str], role: str) -> int:
     if shutil.which(command[0]) is None:
         raise SystemExit(f"agent executable not found: {command[0]}")
-    if agent in ("pi", "omp"):
-        os.execvp(command[0], command)
     child = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 
     def output() -> None:
@@ -84,6 +68,26 @@ def main() -> int:
         child.stdin.close()
     forwarding.join()
     return child.wait()
+
+
+def main() -> int:
+    if len(sys.argv) < 3 or sys.argv[1] not in ROLES or sys.argv[2] not in (*ACP, "claude", "pi", "omp", "kiro", "amp"):
+        raise SystemExit("usage: role-agent <supervisor|lead|peer> <claude|pi|omp|devin|copilot|cursor|amp|agy|glm|droid|kiro>")
+    role, agent = sys.argv[1:3]
+    if agent == "kiro":
+        if role not in ("lead", "peer", "supervisor") or sys.argv[3:]:
+            raise SystemExit("Kiro supports only the scoped Supervisor, Lead and Peer seats, without extra launch flags")
+        os.execv(sys.executable, [sys.executable, str(ROOT / "setup/kiro-acp"), role])
+    if agent == "claude":
+        os.execv(sys.executable, [sys.executable, str(ROOT / "setup/claude-sdk"), role, *sys.argv[3:]])
+    if agent == "amp":
+        os.execv(sys.executable, [sys.executable, str(ROOT / "setup/amp-acp"), role, *sys.argv[3:]])
+    if agent in ("pi", "omp"):
+        command = [agent, "--append-system-prompt", str(ROOT / "agents" / f"{role.upper()}.md"), *sys.argv[3:]]
+        if shutil.which(command[0]) is None:
+            raise SystemExit(f"agent executable not found: {command[0]}")
+        os.execvp(command[0], command)
+    return run_acp([*ACP[agent], *sys.argv[3:]], role)
 
 
 if __name__ == "__main__":

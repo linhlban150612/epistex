@@ -370,6 +370,11 @@ def main():
                                   if o.get("label", "").endswith("  [active]")]
                         if not safe_tools(state["sid"]):
                             error(request, f"{NAME} inventory changed during confirmation", -32603)
+                        elif "value" not in state and not active and set(EFFORTS) <= {o["value"] for o in options}:
+                            # Some models (Sonnet 5.5) report no default effort; pin the lowest, then confirm again.
+                            state.update(value=EFFORTS[0], stage="effort")
+                            internal("_kiro.dev/commands/execute", {"sessionId": state["sid"],
+                                "command": {"command": "effort", "args": {"level": EFFORTS[0]}}}, state)
                         elif not set(EFFORTS) <= {o["value"] for o in options} or len(active) != 1 or active[0] not in EFFORTS or (
                                 "value" in state and active[0] != state["value"]):
                             error(request, "Kiro did not confirm selected effort", -32603)

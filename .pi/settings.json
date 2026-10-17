@@ -4,8 +4,8 @@
       "openrouter/deepseek/deepseek-v4.1-flash": {
         "reserveTokens": 948576
       },
-      "github-copilot/gpt-6-luna": {
-        "reserveTokens": 900000
+      "openai-codex/gpt-6-luna": {
+        "reserveTokens": 172000
       },
       "openrouter/moonshotai/kimi-k3": {
         "reserveTokens": 948576

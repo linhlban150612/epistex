@@ -93,7 +93,7 @@ else
   for seat in amp-supervisor claude-supervisor codex-supervisor; do
     case "$seat" in
       amp-supervisor) command="$kit/setup/role-agent"; args='["supervisor","amp"]'; model=medium; effort= ;;
-      claude-supervisor) command="$kit/setup/role-agent"; args='["supervisor","claude"]'; model=claude-fable-5-1; effort=medium ;;
+      claude-supervisor) command="$kit/setup/role-agent"; args='["supervisor","claude"]'; model=claude-sonnet-5-5; effort=low ;;
       codex-supervisor) command="$kit/setup/codex-room"; args='["supervisor"]'; model=gpt-6-astra; effort=low ;;
     esac
     jq -e --arg id "$seat" --arg command "$command" --argjson args "$args" --arg model "$model" --arg effort "$effort" '
@@ -122,7 +122,7 @@ else
       ([.models[] | select(.isDefault == true)] | length) == 1 and
       any(.models[]; .id == $model and .isDefault == ($role == "lead" or $model == "gpt-6-luna") and
         (if $role == "lead" then ([.thinkingOptions[] | select(.isDefault == true) | .id] == ["low"])
-         else ([.thinkingOptions[].id] | sort) == ["low"] end)) and
+         else ([.thinkingOptions[].id] | sort) == ["low","medium"] end)) and
       (if $role == "peer" then any(.models[]; .id == "gpt-6.1-sol" and .isDefault != true and ([.thinkingOptions[].id] | sort) == ["low","medium"]) else true end)
     ' "$paseo_config" >/dev/null || fail "codex-$seat: wrong wrapper, tool permissions or model/effort"
   done
@@ -136,22 +136,37 @@ else
         .thinkingOptionId == $effort and .modeId == "full-access")
     ' "$paseo_config" >/dev/null || fail "codex-lead: missing or wrong gpt-6.1-sol $effort profile"
   done
+  for effort in low medium; do
+    jq -e --arg effort "$effort" '
+      [.daemon.agentProfiles[]? | select(.id == ("codex-peer--gpt-6-luna--" + $effort))] |
+      length == 1 and all(.[]; .provider == "codex-peer" and .model == "gpt-6-luna" and
+        .thinkingOptionId == $effort)
+    ' "$paseo_config" >/dev/null || fail "codex-peer: missing or wrong gpt-6-luna $effort profile"
+  done
   jq -e '
     .agents.providers["omp-peer"].models |
-    [ .[] | select(.id == "github-copilot/gpt-6-luna") ] == [{
-      "id": "github-copilot/gpt-6-luna", "label": "GPT-6 Luna", "isDefault": false,
+    [ .[] | select(.id == "openai-codex/gpt-6-luna") ] == [{
+      "id": "openai-codex/gpt-6-luna", "label": "GPT-6 Luna", "isDefault": true,
       "thinkingOptions": [
         {"id": "low", "label": "Low", "isDefault": true},
         {"id": "medium", "label": "Medium", "isDefault": false}
       ]
     }]
   ' "$paseo_config" >/dev/null || fail 'omp-peer: wrong GPT-6 Luna model/effort pin'
+  jq -e '
+    ([.agents.providers["omp-peer"].models[] | select(.isDefault == true) |
+      {id, effort: [.thinkingOptions[] | select(.isDefault == true) | .id]}]) ==
+      [{"id": "openai-codex/gpt-6-luna", "effort": ["low"]}] and
+    ([.agents.providers["pi-peer"].models[] | select(.isDefault == true) |
+      {id, effort: [.thinkingOptions[] | select(.isDefault == true) | .id]}]) ==
+      [{"id": "openai-codex/gpt-6-luna", "effort": ["low"]}]
+  ' "$paseo_config" >/dev/null || fail 'omp-peer/pi-peer: default must be openai-codex GPT-6 Luna, low effort'
   for effort in low medium; do
     jq -e --arg effort "$effort" '
       [.daemon.agentProfiles[]? |
-        select(.id == ("omp-peer--github-copilot-gpt-6-luna--" + $effort))] |
+        select(.id == ("omp-peer--openai-codex-gpt-6-luna--" + $effort))] |
       length == 1 and all(.[];
-        .provider == "omp-peer" and .model == "github-copilot/gpt-6-luna" and
+        .provider == "omp-peer" and .model == "openai-codex/gpt-6-luna" and
         .thinkingOptionId == $effort)
     ' "$paseo_config" >/dev/null || fail "omp-peer: missing or wrong GPT-6 Luna $effort profile"
   done
@@ -167,7 +182,7 @@ else
   ' "$paseo_config" >/dev/null || fail 'agy-peer: wrong launcher, permissions or model pins'
   for model in gemini-3.8-flash-low gemini-3.8-flash-medium gemini-4-argon-low gemini-4-argon-medium; do
     jq -e --arg model "$model" '
-      [.daemon.agentProfiles[]? | select(.id == ("agy-peer--" + $model))] |
+      [.daemon.agentProfiles[]? | select(.id == ("agy-peer--" + ($model | gsub("\\.";"-"))))] |
       length == 1 and all(.[];
         .provider == "agy-peer" and .model == $model and .modeId == "auto_edit" and
         .modeId != "yolo" and (has("thinkingOptionId") | not))
@@ -248,14 +263,16 @@ else
   ' "$paseo_config" >/dev/null || fail 'amp-peer: missing or wrong low profile'
   for role in peer lead supervisor; do
     seat="kiro-$role"
+    kiro_default=claude-sonnet-5.5
+    [[ "$role" != lead ]] || kiro_default=claude-opus-5.5
     jq -e --arg seat "$seat" '.agents.providers[$seat].enabled == true' "$paseo_config" >/dev/null || continue
     # Lead keeps Paseo tools (deny-list enforced above); Peer has none.
-    jq -e --arg command "$kit/setup/role-agent" --arg seat "$seat" --arg role "$role" '
+    jq -e --arg command "$kit/setup/role-agent" --arg seat "$seat" --arg role "$role" --arg default "$kiro_default" '
       .agents.providers[$seat] |
       .extends == "acp" and .command == [$command,$role,"kiro"] and
       .paseoTools.enabled == ($role != "peer") and .env == {} and
       ([.models[].id] | sort) == ["claude-opus-5.5","claude-sonnet-5.5"] and
-      ([.models[] | select(.isDefault == true) | .id] == ["claude-opus-5.5"]) and
+      ([.models[] | select(.isDefault == true) | .id] == [$default]) and
       all(.models[]; ([.thinkingOptions[].id] | sort) == ["low","medium"] and
         ([.thinkingOptions[] | select(.isDefault == true) | .id] == ["low"]))
     ' "$paseo_config" >/dev/null || fail "$seat: wrong launcher, tools or model/effort"

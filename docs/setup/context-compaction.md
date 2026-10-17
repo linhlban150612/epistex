@@ -12,14 +12,13 @@ with the Lead.
 | Claude 2.1.294, all enabled Claude seats (Supervisor, Lead, Peer) | `CLAUDE_CODE_AUTO_COMPACT_WINDOW=100000` | Epistex role-provider env | 100k window; backend buffer may trigger earlier | Configured in example for Peer/Supervisor and applied live on all three Claude seats; Paseo launch probe on 2.1.294 showed the env value `100000` in the Claude process |
 | Pi 1.1.0, Peer | `.pi/settings.json`, per-model `reserveTokens` | Checkout | 100,000 for the five sourced pins below | Configured; Haiku window unknown — skipped (default compaction) |
 | OMP 18.8.4, Peer | `.omp/config.yml`, `compaction.enabled=true`, `thresholdTokens=100000` | Checkout | 100,000 (clamped below model window) | Configured; ensure the `omp` on Paseo's PATH is 18.8.4 or newer (`omp --version`) |
-| Copilot 1.0.93, Peer | No verified threshold variable in installed binary/help | — | Backend default | Not configurable through inspected surfaces |
-| Amp 0.0.1791432144, Supervisor/Lead/Peer | No exposed threshold in settings reference | — | Backend default | Not configurable through the inspected CLI schema/help |
-| Cursor Agent 2026.10.01-e373342, Peer | No exposed threshold in help/bundled JS search | — | Backend default | Not configurable through the inspected local surfaces |
-| Devin 3000.11.3, Supervisor/Peer | `agent.compaction_threshold_tokens=100000` in `~/.config/devin/config.json` | User-wide, **not workspace-scoped** | 100,000 | Applied user-wide (Human opt-in); existing file left untouched |
-| Kiro 2.30 (kiro-cli acp v2), Supervisor/Lead/Peer | No exposed compaction threshold in `setup/kiro-*.json` agent schema | — | Backend default | Not configurable through the seat-owned agent JSON |
-| Factory Droid 0.241.1, Lead/Peer | No exposed threshold in `droid exec --help` / ACP surface | — | Backend default | Not configurable through the inspected CLI help |
-| Antigravity (agy_acp_server.par), Lead/Peer | No exposed threshold in probed session/new result | — | Backend default | Not configurable through the probed ACP surface |
-| GLM (glm-acp-agent), no seat installed | Not installed on this machine | — | Unknown | Blocked: binary not installed; no evidence gathered |
+| Copilot 1.0.93, Peer | No verified threshold variable in installed binary/help | — | Backend default; no project setting | Re-checked 2026-10-17: `copilot --help` shows only `--context <tier>` (default/long_context), which is a window tier, not a threshold |
+| Amp 0.0.1791432144, Supervisor/Lead/Peer | No exposed threshold in settings reference | — | Backend default; no project setting | Re-checked 2026-10-17: `amp --help` shows no compaction option |
+| Cursor Agent 2026.10.01-e373342, Peer | No exposed threshold in help/bundled JS search | — | Backend default; no project setting | Re-checked 2026-10-17: `cursor-agent --help` shows no compaction option |
+| Devin 3000.11.3, Peer | `agent.compaction_threshold_tokens=100000` in `~/.config/devin/config.json` | User-wide, **not workspace-scoped** | 100,000 | Applied user-wide (Human opt-in); existing file left untouched |
+| Kiro 2.30 (kiro-cli acp v2), Supervisor/Lead/Peer | No exposed compaction threshold in `setup/kiro-*.json` agent schema | — | Backend default; no project setting | Re-checked 2026-10-17: no compaction key in agent JSON or `kiro-cli --help` |
+| Factory Droid 0.241.1, Lead/Peer | No exposed threshold in `droid exec --help` / ACP surface | — | Backend default; no project setting | Re-checked 2026-10-17: `droid --help` shows no compaction option |
+| Antigravity (agy_acp_server.par), Lead/Peer | No exposed threshold in probed session/new result | — | Backend default; no project setting | No compaction option in the probed ACP session/new result |
 
 ## Model windows
 
@@ -30,7 +29,7 @@ No sourced Pi window is ≤100k; a future such pin must be skipped rather than g
 | Pi pin | Context window | reserveTokens |
 |---|---:|---:|
 | `openrouter/deepseek/deepseek-v4.1-flash` | 1,048,576 | 948,576 |
-| `github-copilot/gpt-6-luna` | 1,000,000 | 900,000 |
+| `openai-codex/gpt-6-luna` | 272,000 | 172,000 |
 | `openrouter/moonshotai/kimi-k3` | 1,048,576 | 948,576 |
 | `openrouter/z-ai/glm-5.3-flash` | 1,048,575 | 948,575 |
 | `openrouter/z-ai/glm-5.3` | 1,048,576 | 948,576 |

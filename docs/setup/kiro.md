@@ -30,6 +30,9 @@ Không thêm MCP server vào new/load của Peer.
 | `claude-sonnet-5.5` | `low` | `kiro-peer--claude-sonnet-5-5--low` |
 | `claude-sonnet-5.5` | `medium` | `kiro-peer--claude-sonnet-5-5--medium` |
 
+Default model của `kiro-peer` và `kiro-supervisor` là `claude-sonnet-5.5` (effort `low`) để giảm chi phí; `setup/kiro-peer.json` và
+`setup/kiro-supervisor.json` đặt `model` là `claude-sonnet-5.5`, `setup/kiro-lead.json` đặt `claude-opus-5.5`: adapter yêu cầu model ban đầu của session nằm trong `MODELS`, nên bỏ trường này làm launch lỗi "Kiro restored an unsupported mode/model". Paseo vẫn đổi model qua profile (`session/set_model`). `kiro-lead` giữ default `claude-opus-5.5` ở seat config. Opus vẫn chọn tay qua profile.
+
 Orchestrator copy `provider`, `model`, `thinkingOptionId` vào `create_agent`, dùng project
 workspace. **Không gửi `modeId`**: seat cố định `epistex_peer`, mọi mode switch bị từ chối.
 Sau merge, chạy `setup/setup-seats.sh`, checker theo [SETUP.md](../../SETUP.md), rồi
@@ -53,7 +56,7 @@ Provider: `extends=acp`, command `["<KIT>/setup/role-agent","lead","kiro"]`,
 `paseoTools.enabled=true` với đúng 50 `disabledTools` của Lead policy trong
 [SETUP.md](../../SETUP.md); Paseo enforce danh sách đó ở server. Agent file chỉ cho phép
 native tools của Peer cộng đúng 11 tool Lead dạng `@paseo/<tool>`; `allowedTools` bằng đúng danh sách
-`tools`, nên Lead tự duyệt mọi tool (bypass). Peer vẫn có `allowedTools=[]`.
+`tools`, nên Lead tự duyệt mọi tool (bypass). Peer cũng có `allowedTools` bằng đúng danh sách `tools` (11 native tools), nên không bị hỏi quyền ở mỗi lần gọi.
 `includeMcpJson=false`, `mcpServers={}`: không đọc MCP từ workspace hoặc global config.
 
 **MCP được chấp nhận** trên `session/new`, `session/load`, `session/resume`: `[]` hoặc đúng một
@@ -92,7 +95,7 @@ tool advertisement, backend exit hoặc hết hạn confirmation đều không b
 Đổi model có thể reset effort ở Kiro. Adapter reapply và confirm effort trước đó trước khi
 trả model response: Paseo có thể bỏ qua setter nếu thinkingOptionId không thay đổi. Không
 launch bằng `--model` hoặc `--effort`: các flag đó override model/effort khi load session.
-Default model của session mới nằm trong seat config; effort được đọc từ backend, không giả
+Default model của session mới lấy từ trường `model` trong agent JSON; effort được đọc từ backend, không giả
 default `low`. Profile selection mới được Paseo áp dụng; load giữ model/effort đã lưu.
 
 Engine v3 đã có standard config options `model`/`effortLevel` nhưng là API và permission

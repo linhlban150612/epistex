@@ -115,6 +115,11 @@
                 "id": "low",
                 "label": "Low",
                 "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
               }
             ]
           },
@@ -229,7 +234,7 @@
           {
             "id": "claude-fable-5-1",
             "label": "Fable 5.1",
-            "isDefault": true,
+            "isDefault": false,
             "thinkingOptions": [
               {
                 "id": "medium",
@@ -243,17 +248,33 @@
             "label": "Claude Opus 5.5",
             "isDefault": false,
             "thinkingOptions": [
-              {"id": "low", "label": "Low", "isDefault": true},
-              {"id": "medium", "label": "Medium", "isDefault": false}
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
             ]
           },
           {
             "id": "claude-sonnet-5-5",
             "label": "Claude Sonnet 5.5",
-            "isDefault": false,
+            "isDefault": true,
             "thinkingOptions": [
-              {"id": "low", "label": "Low", "isDefault": true},
-              {"id": "medium", "label": "Medium", "isDefault": false}
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
             ]
           }
         ],
@@ -342,8 +363,16 @@
             "label": "GPT-6.1 Sol",
             "isDefault": false,
             "thinkingOptions": [
-              {"id": "low", "label": "Low", "isDefault": true},
-              {"id": "medium", "label": "Medium", "isDefault": false}
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
             ]
           }
         ],
@@ -403,12 +432,67 @@
         "extends": "acp",
         "label": "Amp Lead Seat",
         "description": "Lead — framing, delegation, review and acceptance",
-        "command": ["<KIT>/setup/role-agent", "lead", "amp"],
+        "command": [
+          "<KIT>/setup/role-agent",
+          "lead",
+          "amp"
+        ],
         "env": {},
         "enabled": true,
         "paseoTools": {
           "enabled": true,
-          "disabledTools": ["get_agent_activity", "get_agent_status", "list_agents", "archive_workspace", "browser_back", "browser_click", "browser_close_tab", "browser_drag", "browser_evaluate", "browser_fill", "browser_forward", "browser_hover", "browser_keypress", "browser_list_tabs", "browser_logs", "browser_navigate", "browser_new_tab", "browser_reload", "browser_resize", "browser_screenshot", "browser_scroll", "browser_select", "browser_snapshot", "browser_type", "browser_upload", "browser_wait", "capture_terminal", "create_heartbeat", "create_schedule", "create_terminal", "create_workspace", "delete_heartbeat", "delete_schedule", "inspect_provider", "inspect_schedule", "kill_agent", "kill_terminal", "list_schedules", "list_terminals", "list_workspace_scripts", "pause_schedule", "rename_workspace", "resume_schedule", "run_schedule_once", "schedule_logs", "send_terminal_keys", "start_workspace_script", "stop_workspace_script", "update_agent", "update_schedule"]
+          "disabledTools": [
+            "get_agent_activity",
+            "get_agent_status",
+            "list_agents",
+            "archive_workspace",
+            "browser_back",
+            "browser_click",
+            "browser_close_tab",
+            "browser_drag",
+            "browser_evaluate",
+            "browser_fill",
+            "browser_forward",
+            "browser_hover",
+            "browser_keypress",
+            "browser_list_tabs",
+            "browser_logs",
+            "browser_navigate",
+            "browser_new_tab",
+            "browser_reload",
+            "browser_resize",
+            "browser_screenshot",
+            "browser_scroll",
+            "browser_select",
+            "browser_snapshot",
+            "browser_type",
+            "browser_upload",
+            "browser_wait",
+            "capture_terminal",
+            "create_heartbeat",
+            "create_schedule",
+            "create_terminal",
+            "create_workspace",
+            "delete_heartbeat",
+            "delete_schedule",
+            "inspect_provider",
+            "inspect_schedule",
+            "kill_agent",
+            "kill_terminal",
+            "list_schedules",
+            "list_terminals",
+            "list_workspace_scripts",
+            "pause_schedule",
+            "rename_workspace",
+            "resume_schedule",
+            "run_schedule_once",
+            "schedule_logs",
+            "send_terminal_keys",
+            "start_workspace_script",
+            "stop_workspace_script",
+            "update_agent",
+            "update_schedule"
+          ]
         },
         "models": [
           {
@@ -510,89 +594,89 @@
         },
         "enabled": true
       },
-              "claude-lead": {
-                      "extends": "claude",
-                      "label": "Claude Lead Seat",
-                      "description": "Lead \u2014 framing, delegation, review and acceptance",
-                      "command": [
-                              "<KIT>/setup/role-agent",
-                              "lead",
-                              "claude"
-                      ],
-                      "env": {
-                              "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "100000"
-                      },
-                      "models": [
-                              {
-                                      "id": "claude-opus-5-5",
-                                      "label": "Opus 5.5",
-                                      "isDefault": true,
-                                      "thinkingOptions": [
-                                              {
-                                                      "id": "low",
-                                                      "label": "Low",
-                                                      "isDefault": true
-                                              }
-                                      ]
-                              }
-                      ],
-                      "paseoTools": {
-                              "enabled": true,
-                              "disabledTools": [
-                                      "get_agent_activity",
-                                      "get_agent_status",
-                                      "list_agents",
-                                      "archive_workspace",
-                                      "browser_back",
-                                      "browser_click",
-                                      "browser_close_tab",
-                                      "browser_drag",
-                                      "browser_evaluate",
-                                      "browser_fill",
-                                      "browser_forward",
-                                      "browser_hover",
-                                      "browser_keypress",
-                                      "browser_list_tabs",
-                                      "browser_logs",
-                                      "browser_navigate",
-                                      "browser_new_tab",
-                                      "browser_reload",
-                                      "browser_resize",
-                                      "browser_screenshot",
-                                      "browser_scroll",
-                                      "browser_select",
-                                      "browser_snapshot",
-                                      "browser_type",
-                                      "browser_upload",
-                                      "browser_wait",
-                                      "capture_terminal",
-                                      "create_heartbeat",
-                                      "create_schedule",
-                                      "create_terminal",
-                                      "create_workspace",
-                                      "delete_heartbeat",
-                                      "delete_schedule",
-                                      "inspect_provider",
-                                      "inspect_schedule",
-                                      "kill_agent",
-                                      "kill_terminal",
-                                      "list_schedules",
-                                      "list_terminals",
-                                      "list_workspace_scripts",
-                                      "pause_schedule",
-                                      "rename_workspace",
-                                      "resume_schedule",
-                                      "run_schedule_once",
-                                      "schedule_logs",
-                                      "send_terminal_keys",
-                                      "start_workspace_script",
-                                      "stop_workspace_script",
-                                      "update_agent",
-                                      "update_schedule"
-                              ]
-                      },
-                      "enabled": true
-              },
+      "claude-lead": {
+        "extends": "claude",
+        "label": "Claude Lead Seat",
+        "description": "Lead — framing, delegation, review and acceptance",
+        "command": [
+          "<KIT>/setup/role-agent",
+          "lead",
+          "claude"
+        ],
+        "env": {
+          "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "100000"
+        },
+        "models": [
+          {
+            "id": "claude-opus-5-5",
+            "label": "Opus 5.5",
+            "isDefault": true,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              }
+            ]
+          }
+        ],
+        "paseoTools": {
+          "enabled": true,
+          "disabledTools": [
+            "get_agent_activity",
+            "get_agent_status",
+            "list_agents",
+            "archive_workspace",
+            "browser_back",
+            "browser_click",
+            "browser_close_tab",
+            "browser_drag",
+            "browser_evaluate",
+            "browser_fill",
+            "browser_forward",
+            "browser_hover",
+            "browser_keypress",
+            "browser_list_tabs",
+            "browser_logs",
+            "browser_navigate",
+            "browser_new_tab",
+            "browser_reload",
+            "browser_resize",
+            "browser_screenshot",
+            "browser_scroll",
+            "browser_select",
+            "browser_snapshot",
+            "browser_type",
+            "browser_upload",
+            "browser_wait",
+            "capture_terminal",
+            "create_heartbeat",
+            "create_schedule",
+            "create_terminal",
+            "create_workspace",
+            "delete_heartbeat",
+            "delete_schedule",
+            "inspect_provider",
+            "inspect_schedule",
+            "kill_agent",
+            "kill_terminal",
+            "list_schedules",
+            "list_terminals",
+            "list_workspace_scripts",
+            "pause_schedule",
+            "rename_workspace",
+            "resume_schedule",
+            "run_schedule_once",
+            "schedule_logs",
+            "send_terminal_keys",
+            "start_workspace_script",
+            "stop_workspace_script",
+            "update_agent",
+            "update_schedule"
+          ]
+        },
+        "enabled": true
+      },
       "pi-peer": {
         "extends": "pi",
         "label": "Pi Peer Seat",
@@ -605,6 +689,23 @@
         "env": {},
         "models": [
           {
+            "id": "openai-codex/gpt-6-luna",
+            "label": "GPT-6 Luna",
+            "isDefault": true,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
             "id": "openrouter/deepseek/deepseek-v4.1-flash",
             "label": "DeepSeek V4.1 Flash",
             "isDefault": false,
@@ -612,23 +713,6 @@
               {
                 "id": "low",
                 "label": "Low",
-                "isDefault": true
-              }
-            ]
-          },
-          {
-            "id": "github-copilot/gpt-6-luna",
-            "label": "GPT-6 Luna",
-            "isDefault": true,
-            "thinkingOptions": [
-              {
-                "id": "low",
-                "label": "Low",
-                "isDefault": false
-              },
-              {
-                "id": "medium",
-                "label": "Medium",
                 "isDefault": true
               }
             ]
@@ -709,21 +793,9 @@
         "env": {},
         "models": [
           {
-            "id": "openrouter/deepseek/deepseek-v4.1-flash",
-            "label": "DeepSeek V4.1 Flash",
-            "isDefault": false,
-            "thinkingOptions": [
-              {
-                "id": "low",
-                "label": "Low",
-                "isDefault": true
-              }
-            ]
-          },
-          {
-            "id": "github-copilot/gpt-6-luna",
+            "id": "openai-codex/gpt-6-luna",
             "label": "GPT-6 Luna",
-            "isDefault": false,
+            "isDefault": true,
             "thinkingOptions": [
               {
                 "id": "low",
@@ -734,6 +806,18 @@
                 "id": "medium",
                 "label": "Medium",
                 "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4.1-flash",
+            "label": "DeepSeek V4.1 Flash",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
               }
             ]
           },
@@ -764,17 +848,17 @@
           {
             "id": "openrouter/z-ai/glm-5.3",
             "label": "GLM 5.3",
-            "isDefault": true,
+            "isDefault": false,
             "thinkingOptions": [
               {
                 "id": "low",
                 "label": "Low",
-                "isDefault": false
+                "isDefault": true
               },
               {
                 "id": "high",
                 "label": "High",
-                "isDefault": true
+                "isDefault": false
               }
             ]
           },
@@ -932,77 +1016,279 @@
         },
         "enabled": true
       },
-              "cursor-peer": {
-                      "extends": "acp",
-                      "label": "Cursor Peer Seat",
-                      "description": "Peer \u2014 implementation, evidence and handoff",
-                      "command": [
-                              "<KIT>/setup/role-agent",
-                              "peer",
-                              "cursor"
-                      ],
-                      "env": {},
-                      "models": [
-                              {
-                                      "id": "composer-2.5[fast=true]",
-                                      "label": "Composer 2.5",
-                                      "isDefault": true
-                              }
-                      ],
-                      "paseoTools": {
-                              "enabled": false
-                      },
-                      "enabled": true
-              },
+      "cursor-peer": {
+        "extends": "acp",
+        "label": "Cursor Peer Seat",
+        "description": "Peer — implementation, evidence and handoff",
+        "command": [
+          "<KIT>/setup/role-agent",
+          "peer",
+          "cursor"
+        ],
+        "env": {},
+        "models": [
+          {
+            "id": "composer-2.5[fast=true]",
+            "label": "Composer 2.5",
+            "isDefault": true
+          }
+        ],
+        "paseoTools": {
+          "enabled": false
+        },
+        "enabled": true
+      },
       "kiro-supervisor": {
         "extends": "acp",
         "label": "Kiro Supervisor Seat",
         "description": "Supervisor — fixed v2 agent; only the injected Paseo MCP; confirmed backend effort",
-        "command": ["<KIT>/setup/role-agent", "supervisor", "kiro"],
+        "command": [
+          "<KIT>/setup/role-agent",
+          "supervisor",
+          "kiro"
+        ],
         "env": {},
         "enabled": true,
         "paseoTools": {
           "enabled": true,
-          "disabledTools": ["archive_workspace", "browser_back", "browser_click", "browser_close_tab", "browser_drag", "browser_evaluate", "browser_fill", "browser_forward", "browser_hover", "browser_keypress", "browser_list_tabs", "browser_logs", "browser_navigate", "browser_new_tab", "browser_reload", "browser_resize", "browser_screenshot", "browser_scroll", "browser_select", "browser_snapshot", "browser_type", "browser_upload", "browser_wait", "capture_terminal", "create_heartbeat", "create_schedule", "create_terminal", "delete_heartbeat", "delete_schedule", "inspect_provider", "inspect_schedule", "kill_agent", "kill_terminal", "list_schedules", "list_terminals", "list_workspace_scripts", "pause_schedule", "rename_workspace", "resume_schedule", "run_schedule_once", "schedule_logs", "send_terminal_keys", "start_workspace_script", "stop_workspace_script", "update_agent", "update_schedule"]
+          "disabledTools": [
+            "archive_workspace",
+            "browser_back",
+            "browser_click",
+            "browser_close_tab",
+            "browser_drag",
+            "browser_evaluate",
+            "browser_fill",
+            "browser_forward",
+            "browser_hover",
+            "browser_keypress",
+            "browser_list_tabs",
+            "browser_logs",
+            "browser_navigate",
+            "browser_new_tab",
+            "browser_reload",
+            "browser_resize",
+            "browser_screenshot",
+            "browser_scroll",
+            "browser_select",
+            "browser_snapshot",
+            "browser_type",
+            "browser_upload",
+            "browser_wait",
+            "capture_terminal",
+            "create_heartbeat",
+            "create_schedule",
+            "create_terminal",
+            "delete_heartbeat",
+            "delete_schedule",
+            "inspect_provider",
+            "inspect_schedule",
+            "kill_agent",
+            "kill_terminal",
+            "list_schedules",
+            "list_terminals",
+            "list_workspace_scripts",
+            "pause_schedule",
+            "rename_workspace",
+            "resume_schedule",
+            "run_schedule_once",
+            "schedule_logs",
+            "send_terminal_keys",
+            "start_workspace_script",
+            "stop_workspace_script",
+            "update_agent",
+            "update_schedule"
+          ]
         },
         "models": [
-          {"id": "claude-opus-5.5", "label": "Claude Opus 5.5", "isDefault": true,
-           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
-          {"id": "claude-sonnet-5.5", "label": "Claude Sonnet 5.5", "isDefault": false,
-           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]}
+          {
+            "id": "claude-opus-5.5",
+            "label": "Claude Opus 5.5",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "claude-sonnet-5.5",
+            "label": "Claude Sonnet 5.5",
+            "isDefault": true,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          }
         ]
       },
       "kiro-peer": {
         "extends": "acp",
         "label": "Kiro Peer Seat",
         "description": "Peer — fixed v2 agent; confirmed backend effort",
-        "command": ["<KIT>/setup/role-agent", "peer", "kiro"],
+        "command": [
+          "<KIT>/setup/role-agent",
+          "peer",
+          "kiro"
+        ],
         "env": {},
         "enabled": true,
-        "paseoTools": {"enabled": false},
+        "paseoTools": {
+          "enabled": false
+        },
         "models": [
-          {"id": "claude-opus-5.5", "label": "Claude Opus 5.5", "isDefault": true,
-           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
-          {"id": "claude-sonnet-5.5", "label": "Claude Sonnet 5.5", "isDefault": false,
-           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]}
+          {
+            "id": "claude-opus-5.5",
+            "label": "Claude Opus 5.5",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "claude-sonnet-5.5",
+            "label": "Claude Sonnet 5.5",
+            "isDefault": true,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          }
         ]
       },
       "kiro-lead": {
         "extends": "acp",
         "label": "Kiro Lead Seat",
         "description": "Lead — fixed v2 agent; only the injected Paseo MCP; confirmed backend effort",
-        "command": ["<KIT>/setup/role-agent", "lead", "kiro"],
+        "command": [
+          "<KIT>/setup/role-agent",
+          "lead",
+          "kiro"
+        ],
         "env": {},
         "enabled": true,
         "paseoTools": {
           "enabled": true,
-          "disabledTools": ["get_agent_activity", "get_agent_status", "list_agents", "archive_workspace", "browser_back", "browser_click", "browser_close_tab", "browser_drag", "browser_evaluate", "browser_fill", "browser_forward", "browser_hover", "browser_keypress", "browser_list_tabs", "browser_logs", "browser_navigate", "browser_new_tab", "browser_reload", "browser_resize", "browser_screenshot", "browser_scroll", "browser_select", "browser_snapshot", "browser_type", "browser_upload", "browser_wait", "capture_terminal", "create_heartbeat", "create_schedule", "create_terminal", "create_workspace", "delete_heartbeat", "delete_schedule", "inspect_provider", "inspect_schedule", "kill_agent", "kill_terminal", "list_schedules", "list_terminals", "list_workspace_scripts", "pause_schedule", "rename_workspace", "resume_schedule", "run_schedule_once", "schedule_logs", "send_terminal_keys", "start_workspace_script", "stop_workspace_script", "update_agent", "update_schedule"]
+          "disabledTools": [
+            "get_agent_activity",
+            "get_agent_status",
+            "list_agents",
+            "archive_workspace",
+            "browser_back",
+            "browser_click",
+            "browser_close_tab",
+            "browser_drag",
+            "browser_evaluate",
+            "browser_fill",
+            "browser_forward",
+            "browser_hover",
+            "browser_keypress",
+            "browser_list_tabs",
+            "browser_logs",
+            "browser_navigate",
+            "browser_new_tab",
+            "browser_reload",
+            "browser_resize",
+            "browser_screenshot",
+            "browser_scroll",
+            "browser_select",
+            "browser_snapshot",
+            "browser_type",
+            "browser_upload",
+            "browser_wait",
+            "capture_terminal",
+            "create_heartbeat",
+            "create_schedule",
+            "create_terminal",
+            "create_workspace",
+            "delete_heartbeat",
+            "delete_schedule",
+            "inspect_provider",
+            "inspect_schedule",
+            "kill_agent",
+            "kill_terminal",
+            "list_schedules",
+            "list_terminals",
+            "list_workspace_scripts",
+            "pause_schedule",
+            "rename_workspace",
+            "resume_schedule",
+            "run_schedule_once",
+            "schedule_logs",
+            "send_terminal_keys",
+            "start_workspace_script",
+            "stop_workspace_script",
+            "update_agent",
+            "update_schedule"
+          ]
         },
         "models": [
-          {"id": "claude-opus-5.5", "label": "Claude Opus 5.5", "isDefault": true,
-           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
-          {"id": "claude-sonnet-5.5", "label": "Claude Sonnet 5.5", "isDefault": false,
-           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]}
+          {
+            "id": "claude-opus-5.5",
+            "label": "Claude Opus 5.5",
+            "isDefault": true,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "claude-sonnet-5.5",
+            "label": "Claude Sonnet 5.5",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          }
         ]
       },
       "agy-peer": {
@@ -1046,120 +1332,699 @@
         "extends": "acp",
         "label": "Antigravity Lead Seat",
         "description": "Lead — framing, delegation, review and acceptance",
-        "command": ["<KIT>/setup/role-agent", "lead", "agy"],
+        "command": [
+          "<KIT>/setup/role-agent",
+          "lead",
+          "agy"
+        ],
         "env": {},
         "enabled": true,
         "paseoTools": {
           "enabled": true,
-          "disabledTools": ["get_agent_activity", "get_agent_status", "list_agents", "archive_workspace", "browser_back", "browser_click", "browser_close_tab", "browser_drag", "browser_evaluate", "browser_fill", "browser_forward", "browser_hover", "browser_keypress", "browser_list_tabs", "browser_logs", "browser_navigate", "browser_new_tab", "browser_reload", "browser_resize", "browser_screenshot", "browser_scroll", "browser_select", "browser_snapshot", "browser_type", "browser_upload", "browser_wait", "capture_terminal", "create_heartbeat", "create_schedule", "create_terminal", "create_workspace", "delete_heartbeat", "delete_schedule", "inspect_provider", "inspect_schedule", "kill_agent", "kill_terminal", "list_schedules", "list_terminals", "list_workspace_scripts", "pause_schedule", "rename_workspace", "resume_schedule", "run_schedule_once", "schedule_logs", "send_terminal_keys", "start_workspace_script", "stop_workspace_script", "update_agent", "update_schedule"]
+          "disabledTools": [
+            "get_agent_activity",
+            "get_agent_status",
+            "list_agents",
+            "archive_workspace",
+            "browser_back",
+            "browser_click",
+            "browser_close_tab",
+            "browser_drag",
+            "browser_evaluate",
+            "browser_fill",
+            "browser_forward",
+            "browser_hover",
+            "browser_keypress",
+            "browser_list_tabs",
+            "browser_logs",
+            "browser_navigate",
+            "browser_new_tab",
+            "browser_reload",
+            "browser_resize",
+            "browser_screenshot",
+            "browser_scroll",
+            "browser_select",
+            "browser_snapshot",
+            "browser_type",
+            "browser_upload",
+            "browser_wait",
+            "capture_terminal",
+            "create_heartbeat",
+            "create_schedule",
+            "create_terminal",
+            "create_workspace",
+            "delete_heartbeat",
+            "delete_schedule",
+            "inspect_provider",
+            "inspect_schedule",
+            "kill_agent",
+            "kill_terminal",
+            "list_schedules",
+            "list_terminals",
+            "list_workspace_scripts",
+            "pause_schedule",
+            "rename_workspace",
+            "resume_schedule",
+            "run_schedule_once",
+            "schedule_logs",
+            "send_terminal_keys",
+            "start_workspace_script",
+            "stop_workspace_script",
+            "update_agent",
+            "update_schedule"
+          ]
         },
         "models": [
-          {"id": "gemini-4-argon-low", "label": "Gemini 4 Argon (Low)", "isDefault": true},
-          {"id": "gemini-4-argon-medium", "label": "Gemini 4 Argon (Medium)", "isDefault": false}
+          {
+            "id": "gemini-4-argon-low",
+            "label": "Gemini 4 Argon (Low)",
+            "isDefault": true
+          },
+          {
+            "id": "gemini-4-argon-medium",
+            "label": "Gemini 4 Argon (Medium)",
+            "isDefault": false
+          }
         ]
       },
       "droid-lead": {
         "extends": "acp",
         "label": "Factory Droid Lead Seat",
         "description": "Lead — framing, delegation, review and acceptance; mode ask never auto-approves",
-        "command": ["<KIT>/setup/role-agent", "lead", "droid"],
+        "command": [
+          "<KIT>/setup/role-agent",
+          "lead",
+          "droid"
+        ],
         "env": {},
         "enabled": true,
         "paseoTools": {
           "enabled": true,
-          "disabledTools": ["get_agent_activity", "get_agent_status", "list_agents", "archive_workspace", "browser_back", "browser_click", "browser_close_tab", "browser_drag", "browser_evaluate", "browser_fill", "browser_forward", "browser_hover", "browser_keypress", "browser_list_tabs", "browser_logs", "browser_navigate", "browser_new_tab", "browser_reload", "browser_resize", "browser_screenshot", "browser_scroll", "browser_select", "browser_snapshot", "browser_type", "browser_upload", "browser_wait", "capture_terminal", "create_heartbeat", "create_schedule", "create_terminal", "create_workspace", "delete_heartbeat", "delete_schedule", "inspect_provider", "inspect_schedule", "kill_agent", "kill_terminal", "list_schedules", "list_terminals", "list_workspace_scripts", "pause_schedule", "rename_workspace", "resume_schedule", "run_schedule_once", "schedule_logs", "send_terminal_keys", "start_workspace_script", "stop_workspace_script", "update_agent", "update_schedule"]
+          "disabledTools": [
+            "get_agent_activity",
+            "get_agent_status",
+            "list_agents",
+            "archive_workspace",
+            "browser_back",
+            "browser_click",
+            "browser_close_tab",
+            "browser_drag",
+            "browser_evaluate",
+            "browser_fill",
+            "browser_forward",
+            "browser_hover",
+            "browser_keypress",
+            "browser_list_tabs",
+            "browser_logs",
+            "browser_navigate",
+            "browser_new_tab",
+            "browser_reload",
+            "browser_resize",
+            "browser_screenshot",
+            "browser_scroll",
+            "browser_select",
+            "browser_snapshot",
+            "browser_type",
+            "browser_upload",
+            "browser_wait",
+            "capture_terminal",
+            "create_heartbeat",
+            "create_schedule",
+            "create_terminal",
+            "create_workspace",
+            "delete_heartbeat",
+            "delete_schedule",
+            "inspect_provider",
+            "inspect_schedule",
+            "kill_agent",
+            "kill_terminal",
+            "list_schedules",
+            "list_terminals",
+            "list_workspace_scripts",
+            "pause_schedule",
+            "rename_workspace",
+            "resume_schedule",
+            "run_schedule_once",
+            "schedule_logs",
+            "send_terminal_keys",
+            "start_workspace_script",
+            "stop_workspace_script",
+            "update_agent",
+            "update_schedule"
+          ]
         },
         "models": [
-          {"id": "claude-opus-5-5", "label": "Claude Opus 5.5", "isDefault": true,
-           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
-          {"id": "claude-sonnet-5-5", "label": "Claude Sonnet 5.5", "isDefault": false,
-           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
-          {"id": "gpt-6.1-sol", "label": "GPT-6.1 Sol", "isDefault": false,
-           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
-          {"id": "gemini-4-argon", "label": "Gemini 4 Argon", "isDefault": false,
-           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]}
+          {
+            "id": "claude-opus-5-5",
+            "label": "Claude Opus 5.5",
+            "isDefault": true,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "claude-sonnet-5-5",
+            "label": "Claude Sonnet 5.5",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "gpt-6.1-sol",
+            "label": "GPT-6.1 Sol",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "gemini-4-argon",
+            "label": "Gemini 4 Argon",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          }
         ]
       },
       "droid-peer": {
         "extends": "acp",
         "label": "Factory Droid Peer Seat",
         "description": "Peer — implementation, evidence and handoff",
-        "command": ["<KIT>/setup/role-agent", "peer", "droid"],
+        "command": [
+          "<KIT>/setup/role-agent",
+          "peer",
+          "droid"
+        ],
         "env": {},
         "enabled": true,
-        "paseoTools": {"enabled": false},
+        "paseoTools": {
+          "enabled": false
+        },
         "models": [
-          {"id": "gpt-6-luna", "label": "GPT-6 Luna", "isDefault": true,
-           "thinkingOptions": [{"id": "off", "label": "Off", "isDefault": false}, {"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false},{"id": "high", "label": "High", "isDefault": false}, {"id": "xhigh", "label": "XHigh", "isDefault": false}, {"id": "max", "label": "Max", "isDefault": false}]},
-          {"id": "gemini-4-argon", "label": "Gemini 4 Argon", "isDefault": false,
-           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
-          {"id": "gemini-3.8-flash", "label": "Gemini 3.8 Flash", "isDefault": false,
-           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
-          {"id": "claude-opus-5-5", "label": "Claude Opus 5.5", "isDefault": false,
-           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
-          {"id": "claude-sonnet-5-5", "label": "Claude Sonnet 5.5", "isDefault": false,
-           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
-          {"id": "claude-haiku-5-5", "label": "Claude Haiku 5.5", "isDefault": false,
-           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
-          {"id": "gpt-6.1-sol", "label": "GPT-6.1 Sol", "isDefault": false,
-           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "medium", "label": "Medium", "isDefault": false}]},
-          {"id": "glm-5.3-flash", "label": "GLM 5.3 Flash", "isDefault": false,
-           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "high", "label": "High", "isDefault": false}]},
-          {"id": "glm-5.3", "label": "GLM 5.3", "isDefault": false,
-           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "high", "label": "High", "isDefault": false}]},
-          {"id": "kimi-k3", "label": "Kimi K3", "isDefault": false,
-           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "high", "label": "High", "isDefault": false}]},
-          {"id": "deepseek-v4.1-flash", "label": "DeepSeek V4.1 Flash", "isDefault": false,
-           "thinkingOptions": [{"id": "low", "label": "Low", "isDefault": true}, {"id": "high", "label": "High", "isDefault": false}]}
+          {
+            "id": "gpt-6-luna",
+            "label": "GPT-6 Luna",
+            "isDefault": true,
+            "thinkingOptions": [
+              {
+                "id": "off",
+                "label": "Off",
+                "isDefault": false
+              },
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              },
+              {
+                "id": "high",
+                "label": "High",
+                "isDefault": false
+              },
+              {
+                "id": "xhigh",
+                "label": "XHigh",
+                "isDefault": false
+              },
+              {
+                "id": "max",
+                "label": "Max",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "gemini-4-argon",
+            "label": "Gemini 4 Argon",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "gemini-3.8-flash",
+            "label": "Gemini 3.8 Flash",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "claude-opus-5-5",
+            "label": "Claude Opus 5.5",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "claude-sonnet-5-5",
+            "label": "Claude Sonnet 5.5",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "claude-haiku-5-5",
+            "label": "Claude Haiku 5.5",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "gpt-6.1-sol",
+            "label": "GPT-6.1 Sol",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "glm-5.3-flash",
+            "label": "GLM 5.3 Flash",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "high",
+                "label": "High",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "glm-5.3",
+            "label": "GLM 5.3",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "high",
+                "label": "High",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "kimi-k3",
+            "label": "Kimi K3",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "high",
+                "label": "High",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "deepseek-v4.1-flash",
+            "label": "DeepSeek V4.1 Flash",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "high",
+                "label": "High",
+                "isDefault": false
+              }
+            ]
+          }
         ]
       }
     }
   },
   "daemon": {
     "agentProfiles": [
-      {"id": "kiro-peer--claude-opus-5-5--low", "name": "kiro-peer · claude-opus-5.5 · low", "provider": "kiro-peer", "model": "claude-opus-5.5", "thinkingOptionId": "low"},
-      {"id": "kiro-peer--claude-opus-5-5--medium", "name": "kiro-peer · claude-opus-5.5 · medium", "provider": "kiro-peer", "model": "claude-opus-5.5", "thinkingOptionId": "medium"},
-      {"id": "kiro-peer--claude-sonnet-5-5--low", "name": "kiro-peer · claude-sonnet-5.5 · low", "provider": "kiro-peer", "model": "claude-sonnet-5.5", "thinkingOptionId": "low"},
-      {"id": "kiro-peer--claude-sonnet-5-5--medium", "name": "kiro-peer · claude-sonnet-5.5 · medium", "provider": "kiro-peer", "model": "claude-sonnet-5.5", "thinkingOptionId": "medium"},
-      {"id": "kiro-lead--claude-opus-5-5--low", "name": "kiro-lead · claude-opus-5.5 · low", "provider": "kiro-lead", "model": "claude-opus-5.5", "thinkingOptionId": "low"},
-      {"id": "kiro-lead--claude-opus-5-5--medium", "name": "kiro-lead · claude-opus-5.5 · medium", "provider": "kiro-lead", "model": "claude-opus-5.5", "thinkingOptionId": "medium"},
-      {"id": "kiro-lead--claude-sonnet-5-5--low", "name": "kiro-lead · claude-sonnet-5.5 · low", "provider": "kiro-lead", "model": "claude-sonnet-5.5", "thinkingOptionId": "low"},
-      {"id": "kiro-lead--claude-sonnet-5-5--medium", "name": "kiro-lead · claude-sonnet-5.5 · medium", "provider": "kiro-lead", "model": "claude-sonnet-5.5", "thinkingOptionId": "medium"},
-      {"id": "droid-peer--gpt-6-luna--low", "name": "droid-peer · gpt-6-luna · low", "provider": "droid-peer", "model": "gpt-6-luna", "thinkingOptionId": "low", "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."},
-      {"id": "droid-peer--gpt-6-luna--medium", "name": "droid-peer · gpt-6-luna · medium", "provider": "droid-peer", "model": "gpt-6-luna", "thinkingOptionId": "medium", "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."},
-      {"id": "droid-peer--gemini-4-argon--low", "name": "droid-peer · gemini-4-argon · low", "provider": "droid-peer", "model": "gemini-4-argon", "thinkingOptionId": "low"},
-      {"id": "droid-peer--gemini-4-argon--medium", "name": "droid-peer · gemini-4-argon · medium", "provider": "droid-peer", "model": "gemini-4-argon", "thinkingOptionId": "medium"},
-      {"id": "droid-peer--gemini-3-8-flash--low", "name": "droid-peer · gemini-3.8-flash · low", "provider": "droid-peer", "model": "gemini-3.8-flash", "thinkingOptionId": "low"},
-      {"id": "droid-peer--gemini-3-8-flash--medium", "name": "droid-peer · gemini-3.8-flash · medium", "provider": "droid-peer", "model": "gemini-3.8-flash", "thinkingOptionId": "medium"},
-      {"id": "droid-peer--claude-opus-5-5--low", "name": "droid-peer · claude-opus-5-5 · low", "provider": "droid-peer", "model": "claude-opus-5-5", "thinkingOptionId": "low"},
-      {"id": "droid-peer--claude-opus-5-5--medium", "name": "droid-peer · claude-opus-5-5 · medium", "provider": "droid-peer", "model": "claude-opus-5-5", "thinkingOptionId": "medium"},
-      {"id": "droid-peer--claude-sonnet-5-5--low", "name": "droid-peer · claude-sonnet-5-5 · low", "provider": "droid-peer", "model": "claude-sonnet-5-5", "thinkingOptionId": "low"},
-      {"id": "droid-peer--claude-sonnet-5-5--medium", "name": "droid-peer · claude-sonnet-5-5 · medium", "provider": "droid-peer", "model": "claude-sonnet-5-5", "thinkingOptionId": "medium"},
-      {"id": "droid-peer--claude-haiku-5-5--low", "name": "droid-peer · claude-haiku-5-5 · low", "provider": "droid-peer", "model": "claude-haiku-5-5", "thinkingOptionId": "low"},
-      {"id": "droid-peer--claude-haiku-5-5--medium", "name": "droid-peer · claude-haiku-5-5 · medium", "provider": "droid-peer", "model": "claude-haiku-5-5", "thinkingOptionId": "medium"},
-      {"id": "droid-peer--gpt-6-1-sol--low", "name": "droid-peer · gpt-6.1-sol · low", "provider": "droid-peer", "model": "gpt-6.1-sol", "thinkingOptionId": "low"},
-      {"id": "droid-peer--gpt-6-1-sol--medium", "name": "droid-peer · gpt-6.1-sol · medium", "provider": "droid-peer", "model": "gpt-6.1-sol", "thinkingOptionId": "medium"},
-      {"id": "droid-peer--glm-5-3-flash--low", "name": "droid-peer · glm-5.3-flash · low", "provider": "droid-peer", "model": "glm-5.3-flash", "thinkingOptionId": "low"},
-      {"id": "droid-peer--glm-5-3-flash--high", "name": "droid-peer · glm-5.3-flash · high", "provider": "droid-peer", "model": "glm-5.3-flash", "thinkingOptionId": "high"},
-      {"id": "droid-peer--glm-5-3--low", "name": "droid-peer · glm-5.3 · low", "provider": "droid-peer", "model": "glm-5.3", "thinkingOptionId": "low"},
-      {"id": "droid-peer--glm-5-3--high", "name": "droid-peer · glm-5.3 · high", "provider": "droid-peer", "model": "glm-5.3", "thinkingOptionId": "high"},
-      {"id": "droid-peer--kimi-k3--low", "name": "droid-peer · kimi-k3 · low", "provider": "droid-peer", "model": "kimi-k3", "thinkingOptionId": "low"},
-      {"id": "droid-peer--kimi-k3--high", "name": "droid-peer · kimi-k3 · high", "provider": "droid-peer", "model": "kimi-k3", "thinkingOptionId": "high"},
-      {"id": "droid-peer--deepseek-v4-1-flash--low", "name": "droid-peer · deepseek-v4.1-flash · low", "provider": "droid-peer", "model": "deepseek-v4.1-flash", "thinkingOptionId": "low"},
-      {"id": "droid-peer--deepseek-v4-1-flash--high", "name": "droid-peer · deepseek-v4.1-flash · high", "provider": "droid-peer", "model": "deepseek-v4.1-flash", "thinkingOptionId": "high"},
+      {
+        "id": "kiro-peer--claude-opus-5-5--low",
+        "name": "kiro-peer · claude-opus-5.5 · low",
+        "provider": "kiro-peer",
+        "model": "claude-opus-5.5",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. When to use: hard debugging, cross-file design, risky refactors. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "kiro-peer--claude-opus-5-5--medium",
+        "name": "kiro-peer · claude-opus-5.5 · medium",
+        "provider": "kiro-peer",
+        "model": "claude-opus-5.5",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. When to use: hard debugging, cross-file design, risky refactors. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "kiro-peer--claude-sonnet-5-5--low",
+        "name": "kiro-peer · claude-sonnet-5.5 · low",
+        "provider": "kiro-peer",
+        "model": "claude-sonnet-5.5",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. When to use: most implementation work: normal features, bug fixes, tests. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "kiro-peer--claude-sonnet-5-5--medium",
+        "name": "kiro-peer · claude-sonnet-5.5 · medium",
+        "provider": "kiro-peer",
+        "model": "claude-sonnet-5.5",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. When to use: most implementation work: normal features, bug fixes, tests. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "kiro-lead--claude-opus-5-5--low",
+        "name": "kiro-lead · claude-opus-5.5 · low",
+        "provider": "kiro-lead",
+        "model": "claude-opus-5.5",
+        "thinkingOptionId": "low",
+        "notes": "Lead: cheap/fast. When to use: hard debugging, cross-file design, risky refactors. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "kiro-lead--claude-opus-5-5--medium",
+        "name": "kiro-lead · claude-opus-5.5 · medium",
+        "provider": "kiro-lead",
+        "model": "claude-opus-5.5",
+        "thinkingOptionId": "medium",
+        "notes": "Lead: careful. When to use: hard debugging, cross-file design, risky refactors. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "kiro-lead--claude-sonnet-5-5--low",
+        "name": "kiro-lead · claude-sonnet-5.5 · low",
+        "provider": "kiro-lead",
+        "model": "claude-sonnet-5.5",
+        "thinkingOptionId": "low",
+        "notes": "Lead: cheap/fast. When to use: most implementation work: normal features, bug fixes, tests. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "kiro-lead--claude-sonnet-5-5--medium",
+        "name": "kiro-lead · claude-sonnet-5.5 · medium",
+        "provider": "kiro-lead",
+        "model": "claude-sonnet-5.5",
+        "thinkingOptionId": "medium",
+        "notes": "Lead: careful. When to use: most implementation work: normal features, bug fixes, tests. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--gpt-6-luna--low",
+        "name": "droid-peer · gpt-6-luna · low",
+        "provider": "droid-peer",
+        "model": "gpt-6-luna",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. When to use: routine edits, small fixes, tests, quick lookups. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--gpt-6-luna--medium",
+        "name": "droid-peer · gpt-6-luna · medium",
+        "provider": "droid-peer",
+        "model": "gpt-6-luna",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. When to use: routine edits, small fixes, tests, quick lookups. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--gemini-4-argon--low",
+        "name": "droid-peer · gemini-4-argon · low",
+        "provider": "droid-peer",
+        "model": "gemini-4-argon",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. When to use: large-context reading and cross-file analysis. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--gemini-4-argon--medium",
+        "name": "droid-peer · gemini-4-argon · medium",
+        "provider": "droid-peer",
+        "model": "gemini-4-argon",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. When to use: large-context reading and cross-file analysis. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--gemini-3-8-flash--low",
+        "name": "droid-peer · gemini-3.8-flash · low",
+        "provider": "droid-peer",
+        "model": "gemini-3.8-flash",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. When to use: fast, cheap edits and simple questions. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--gemini-3-8-flash--medium",
+        "name": "droid-peer · gemini-3.8-flash · medium",
+        "provider": "droid-peer",
+        "model": "gemini-3.8-flash",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. When to use: fast, cheap edits and simple questions. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--claude-opus-5-5--low",
+        "name": "droid-peer · claude-opus-5-5 · low",
+        "provider": "droid-peer",
+        "model": "claude-opus-5-5",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. When to use: hard debugging, cross-file design, risky refactors. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--claude-opus-5-5--medium",
+        "name": "droid-peer · claude-opus-5-5 · medium",
+        "provider": "droid-peer",
+        "model": "claude-opus-5-5",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. When to use: hard debugging, cross-file design, risky refactors. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--claude-sonnet-5-5--low",
+        "name": "droid-peer · claude-sonnet-5-5 · low",
+        "provider": "droid-peer",
+        "model": "claude-sonnet-5-5",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. When to use: most implementation work: normal features, bug fixes, tests. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--claude-sonnet-5-5--medium",
+        "name": "droid-peer · claude-sonnet-5-5 · medium",
+        "provider": "droid-peer",
+        "model": "claude-sonnet-5-5",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. When to use: most implementation work: normal features, bug fixes, tests. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--claude-haiku-5-5--low",
+        "name": "droid-peer · claude-haiku-5-5 · low",
+        "provider": "droid-peer",
+        "model": "claude-haiku-5-5",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. When to use: mechanical edits, renames, formatting, simple lookups. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--claude-haiku-5-5--medium",
+        "name": "droid-peer · claude-haiku-5-5 · medium",
+        "provider": "droid-peer",
+        "model": "claude-haiku-5-5",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. When to use: mechanical edits, renames, formatting, simple lookups. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--gpt-6-1-sol--low",
+        "name": "droid-peer · gpt-6.1-sol · low",
+        "provider": "droid-peer",
+        "model": "gpt-6.1-sol",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. When to use: complex implementation and deeper reasoning across several files. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--gpt-6-1-sol--medium",
+        "name": "droid-peer · gpt-6.1-sol · medium",
+        "provider": "droid-peer",
+        "model": "gpt-6.1-sol",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. When to use: complex implementation and deeper reasoning across several files. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--glm-5-3-flash--low",
+        "name": "droid-peer · glm-5.3-flash · low",
+        "provider": "droid-peer",
+        "model": "glm-5.3-flash",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. When to use: cheap routine edits and simple questions. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--glm-5-3-flash--high",
+        "name": "droid-peer · glm-5.3-flash · high",
+        "provider": "droid-peer",
+        "model": "glm-5.3-flash",
+        "thinkingOptionId": "high",
+        "notes": "Peer: careful. When to use: cheap routine edits and simple questions. Use high effort when the task needs deep reasoning. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--glm-5-3--low",
+        "name": "droid-peer · glm-5.3 · low",
+        "provider": "droid-peer",
+        "model": "glm-5.3",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. When to use: general implementation at low cost. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--glm-5-3--high",
+        "name": "droid-peer · glm-5.3 · high",
+        "provider": "droid-peer",
+        "model": "glm-5.3",
+        "thinkingOptionId": "high",
+        "notes": "Peer: careful. When to use: general implementation at low cost. Use high effort when the task needs deep reasoning. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--kimi-k3--low",
+        "name": "droid-peer · kimi-k3 · low",
+        "provider": "droid-peer",
+        "model": "kimi-k3",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. When to use: general implementation and long-context reading. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--kimi-k3--high",
+        "name": "droid-peer · kimi-k3 · high",
+        "provider": "droid-peer",
+        "model": "kimi-k3",
+        "thinkingOptionId": "high",
+        "notes": "Peer: careful. When to use: general implementation and long-context reading. Use high effort when the task needs deep reasoning. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--deepseek-v4-1-flash--low",
+        "name": "droid-peer · deepseek-v4.1-flash · low",
+        "provider": "droid-peer",
+        "model": "deepseek-v4.1-flash",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. When to use: cheap routine edits and simple questions. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-peer--deepseek-v4-1-flash--high",
+        "name": "droid-peer · deepseek-v4.1-flash · high",
+        "provider": "droid-peer",
+        "model": "deepseek-v4.1-flash",
+        "thinkingOptionId": "high",
+        "notes": "Peer: careful. When to use: cheap routine edits and simple questions. Use high effort when the task needs deep reasoning. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
       {
         "id": "amp-supervisor--medium",
         "name": "amp-supervisor · medium",
         "provider": "amp-supervisor",
         "model": "medium",
-        "notes": "Supervisor: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Supervisor: careful. When to use: normal implementation and review. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "amp-supervisor--high",
         "name": "amp-supervisor · high",
         "provider": "amp-supervisor",
         "model": "high",
-        "notes": "Supervisor: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Supervisor: careful. When to use: hard problems and careful review. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "codex-lead--gpt-6-1-sol--low",
@@ -1168,7 +2033,7 @@
         "model": "gpt-6.1-sol",
         "thinkingOptionId": "low",
         "modeId": "full-access",
-        "notes": "Lead: cheap/fast. Orchestrator must copy provider, model, thinkingOptionId, and modeId into create_agent."
+        "notes": "Lead: cheap/fast. When to use: complex implementation and deeper reasoning across several files. Use low effort when the task is clear and short. Orchestrator must copy provider, model, thinkingOptionId, and modeId into create_agent."
       },
       {
         "id": "codex-lead--gpt-6-1-sol--medium",
@@ -1177,7 +2042,7 @@
         "model": "gpt-6.1-sol",
         "thinkingOptionId": "medium",
         "modeId": "full-access",
-        "notes": "Lead: careful. Orchestrator must copy provider, model, thinkingOptionId, and modeId into create_agent."
+        "notes": "Lead: careful. When to use: complex implementation and deeper reasoning across several files. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, thinkingOptionId, and modeId into create_agent."
       },
       {
         "id": "codex-peer--gpt-6-1-sol--low",
@@ -1185,7 +2050,7 @@
         "provider": "codex-peer",
         "model": "gpt-6.1-sol",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: complex implementation and deeper reasoning across several files. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "codex-peer--gpt-6-1-sol--medium",
@@ -1193,7 +2058,7 @@
         "provider": "codex-peer",
         "model": "gpt-6.1-sol",
         "thinkingOptionId": "medium",
-        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: careful. When to use: complex implementation and deeper reasoning across several files. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "codex-supervisor--gpt-6-astra--low",
@@ -1201,7 +2066,7 @@
         "provider": "codex-supervisor",
         "model": "gpt-6-astra",
         "thinkingOptionId": "low",
-        "notes": "Supervisor: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Supervisor: cheap/fast. When to use: supervision and review that needs strong reasoning. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "codex-supervisor--gpt-6-astra--medium",
@@ -1209,7 +2074,7 @@
         "provider": "codex-supervisor",
         "model": "gpt-6-astra",
         "thinkingOptionId": "medium",
-        "notes": "Supervisor: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Supervisor: careful. When to use: supervision and review that needs strong reasoning. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "claude-peer--claude-haiku-5-5--low",
@@ -1217,7 +2082,7 @@
         "provider": "claude-peer",
         "model": "claude-haiku-5-5",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: mechanical edits, renames, formatting, simple lookups. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "claude-peer--claude-haiku-5-5--medium",
@@ -1225,7 +2090,7 @@
         "provider": "claude-peer",
         "model": "claude-haiku-5-5",
         "thinkingOptionId": "medium",
-        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: careful. When to use: mechanical edits, renames, formatting, simple lookups. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "claude-peer--claude-sonnet-5-5--low",
@@ -1233,7 +2098,7 @@
         "provider": "claude-peer",
         "model": "claude-sonnet-5-5",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: most implementation work: normal features, bug fixes, tests. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "claude-peer--claude-sonnet-5-5--medium",
@@ -1241,7 +2106,7 @@
         "provider": "claude-peer",
         "model": "claude-sonnet-5-5",
         "thinkingOptionId": "medium",
-        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: careful. When to use: most implementation work: normal features, bug fixes, tests. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "claude-peer--claude-opus-5-5--low",
@@ -1249,7 +2114,7 @@
         "provider": "claude-peer",
         "model": "claude-opus-5-5",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: hard debugging, cross-file design, risky refactors. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "claude-peer--claude-opus-5-5--medium",
@@ -1257,7 +2122,7 @@
         "provider": "claude-peer",
         "model": "claude-opus-5-5",
         "thinkingOptionId": "medium",
-        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: careful. When to use: hard debugging, cross-file design, risky refactors. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "claude-supervisor--claude-fable-5-1--medium",
@@ -1265,7 +2130,7 @@
         "provider": "claude-supervisor",
         "model": "claude-fable-5-1",
         "thinkingOptionId": "medium",
-        "notes": "Supervisor: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Supervisor: careful. When to use: hardest or high-stakes work: ambiguous scope, final review of risky changes. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "pi-peer--openrouter-deepseek-deepseek-v4-1-flash--low",
@@ -1273,23 +2138,23 @@
         "provider": "pi-peer",
         "model": "openrouter/deepseek/deepseek-v4.1-flash",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: cheap routine edits and simple questions. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
-        "id": "pi-peer--github-copilot-gpt-6-luna--low",
-        "name": "pi-peer · github-copilot/gpt-6-luna · low",
+        "id": "pi-peer--openai-codex-gpt-6-luna--low",
+        "name": "pi-peer · openai-codex/gpt-6-luna · low",
         "provider": "pi-peer",
-        "model": "github-copilot/gpt-6-luna",
+        "model": "openai-codex/gpt-6-luna",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: routine edits, small fixes, tests, quick lookups. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
-        "id": "pi-peer--github-copilot-gpt-6-luna--medium",
-        "name": "pi-peer · github-copilot/gpt-6-luna · medium",
+        "id": "pi-peer--openai-codex-gpt-6-luna--medium",
+        "name": "pi-peer · openai-codex/gpt-6-luna · medium",
         "provider": "pi-peer",
-        "model": "github-copilot/gpt-6-luna",
+        "model": "openai-codex/gpt-6-luna",
         "thinkingOptionId": "medium",
-        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: careful. When to use: routine edits, small fixes, tests, quick lookups. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "pi-peer--openrouter-moonshotai-kimi-k3--low",
@@ -1297,7 +2162,7 @@
         "provider": "pi-peer",
         "model": "openrouter/moonshotai/kimi-k3",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: general implementation and long-context reading. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "pi-peer--openrouter-z-ai-glm-5-3-flash--low",
@@ -1305,7 +2170,7 @@
         "provider": "pi-peer",
         "model": "openrouter/z-ai/glm-5.3-flash",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: cheap routine edits and simple questions. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "pi-peer--openrouter-z-ai-glm-5-3--low",
@@ -1313,7 +2178,7 @@
         "provider": "pi-peer",
         "model": "openrouter/z-ai/glm-5.3",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: general implementation at low cost. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "pi-peer--openrouter-z-ai-glm-5-3--high",
@@ -1321,7 +2186,7 @@
         "provider": "pi-peer",
         "model": "openrouter/z-ai/glm-5.3",
         "thinkingOptionId": "high",
-        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: careful. When to use: general implementation at low cost. Use high effort when the task needs deep reasoning. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "pi-peer--openrouter-anthropic-claude-haiku-5-5--low",
@@ -1329,7 +2194,7 @@
         "provider": "pi-peer",
         "model": "openrouter/anthropic/claude-haiku-5.5",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: mechanical edits, renames, formatting, simple lookups. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "pi-peer--openrouter-anthropic-claude-haiku-5-5--medium",
@@ -1337,7 +2202,7 @@
         "provider": "pi-peer",
         "model": "openrouter/anthropic/claude-haiku-5.5",
         "thinkingOptionId": "medium",
-        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: careful. When to use: mechanical edits, renames, formatting, simple lookups. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "omp-peer--openrouter-deepseek-deepseek-v4-1-flash--low",
@@ -1345,23 +2210,23 @@
         "provider": "omp-peer",
         "model": "openrouter/deepseek/deepseek-v4.1-flash",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: cheap routine edits and simple questions. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
-        "id": "omp-peer--github-copilot-gpt-6-luna--low",
-        "name": "omp-peer · github-copilot/gpt-6-luna · low",
+        "id": "omp-peer--openai-codex-gpt-6-luna--low",
+        "name": "omp-peer · openai-codex/gpt-6-luna · low",
         "provider": "omp-peer",
-        "model": "github-copilot/gpt-6-luna",
+        "model": "openai-codex/gpt-6-luna",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent. OMP 18.8.4 resolves github-copilot/gpt-6-luna to gpt-5.6-luna (272k) — observed in probe 2026-10-08; re-verify after OMP updates"
+        "notes": "Peer: cheap/fast. When to use: routine edits, small fixes, tests, quick lookups. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
-        "id": "omp-peer--github-copilot-gpt-6-luna--medium",
-        "name": "omp-peer · github-copilot/gpt-6-luna · medium",
+        "id": "omp-peer--openai-codex-gpt-6-luna--medium",
+        "name": "omp-peer · openai-codex/gpt-6-luna · medium",
         "provider": "omp-peer",
-        "model": "github-copilot/gpt-6-luna",
+        "model": "openai-codex/gpt-6-luna",
         "thinkingOptionId": "medium",
-        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent. OMP 18.8.4 resolves github-copilot/gpt-6-luna to gpt-5.6-luna (272k) — observed in probe 2026-10-08; re-verify after OMP updates"
+        "notes": "Peer: careful. When to use: routine edits, small fixes, tests, quick lookups. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "omp-peer--openrouter-moonshotai-kimi-k3--low",
@@ -1369,7 +2234,7 @@
         "provider": "omp-peer",
         "model": "openrouter/moonshotai/kimi-k3",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: general implementation and long-context reading. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "omp-peer--openrouter-z-ai-glm-5-3-flash--low",
@@ -1377,7 +2242,7 @@
         "provider": "omp-peer",
         "model": "openrouter/z-ai/glm-5.3-flash",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: cheap routine edits and simple questions. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "omp-peer--openrouter-z-ai-glm-5-3--low",
@@ -1385,7 +2250,7 @@
         "provider": "omp-peer",
         "model": "openrouter/z-ai/glm-5.3",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: general implementation at low cost. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "omp-peer--openrouter-z-ai-glm-5-3--high",
@@ -1393,7 +2258,7 @@
         "provider": "omp-peer",
         "model": "openrouter/z-ai/glm-5.3",
         "thinkingOptionId": "high",
-        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: careful. When to use: general implementation at low cost. Use high effort when the task needs deep reasoning. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "omp-peer--openrouter-anthropic-claude-haiku-5-5--low",
@@ -1401,7 +2266,7 @@
         "provider": "omp-peer",
         "model": "openrouter/anthropic/claude-haiku-5.5",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: mechanical edits, renames, formatting, simple lookups. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "omp-peer--openrouter-anthropic-claude-haiku-5-5--medium",
@@ -1409,7 +2274,7 @@
         "provider": "omp-peer",
         "model": "openrouter/anthropic/claude-haiku-5.5",
         "thinkingOptionId": "medium",
-        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: careful. When to use: mechanical edits, renames, formatting, simple lookups. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "copilot-peer--gemini-3-8-flash--low",
@@ -1417,7 +2282,7 @@
         "provider": "copilot-peer",
         "model": "gemini-3.8-flash",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: fast, cheap edits and simple questions. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "copilot-peer--gemini-3-8-flash--medium",
@@ -1425,7 +2290,7 @@
         "provider": "copilot-peer",
         "model": "gemini-3.8-flash",
         "thinkingOptionId": "medium",
-        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: careful. When to use: fast, cheap edits and simple questions. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "copilot-peer--kimi-k3--low",
@@ -1433,7 +2298,7 @@
         "provider": "copilot-peer",
         "model": "kimi-k3",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: general implementation and long-context reading. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "copilot-peer--kimi-k3--medium",
@@ -1441,7 +2306,7 @@
         "provider": "copilot-peer",
         "model": "kimi-k3",
         "thinkingOptionId": "medium",
-        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: careful. When to use: general implementation and long-context reading. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "copilot-peer--claude-haiku-5-5--low",
@@ -1449,7 +2314,7 @@
         "provider": "copilot-peer",
         "model": "claude-haiku-5.5",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: mechanical edits, renames, formatting, simple lookups. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "copilot-peer--claude-haiku-5-5--medium",
@@ -1457,7 +2322,7 @@
         "provider": "copilot-peer",
         "model": "claude-haiku-5.5",
         "thinkingOptionId": "medium",
-        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: careful. When to use: mechanical edits, renames, formatting, simple lookups. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "copilot-peer--grok-4-7--low",
@@ -1465,7 +2330,7 @@
         "provider": "copilot-peer",
         "model": "grok-4.7",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: quick second opinion and general coding. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "copilot-peer--grok-4-7--medium",
@@ -1473,7 +2338,7 @@
         "provider": "copilot-peer",
         "model": "grok-4.7",
         "thinkingOptionId": "medium",
-        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: careful. When to use: quick second opinion and general coding. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "copilot-peer--claude-sonnet-5-5--low",
@@ -1481,7 +2346,7 @@
         "provider": "copilot-peer",
         "model": "claude-sonnet-5.5",
         "thinkingOptionId": "low",
-        "notes": "Peer: cheap/fast. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: most implementation work: normal features, bug fixes, tests. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
         "id": "copilot-peer--claude-sonnet-5-5--medium",
@@ -1489,23 +2354,23 @@
         "provider": "copilot-peer",
         "model": "claude-sonnet-5.5",
         "thinkingOptionId": "medium",
-        "notes": "Peer: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+        "notes": "Peer: careful. When to use: most implementation work: normal features, bug fixes, tests. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
       },
       {
-        "id": "agy-peer--gemini-3.8-flash-low",
+        "id": "agy-peer--gemini-3-8-flash-low",
         "name": "agy-peer · gemini-3.8-flash-low",
         "provider": "agy-peer",
         "model": "gemini-3.8-flash-low",
         "modeId": "auto_edit",
-        "notes": "Peer: cheap/fast. Effort is encoded in the model id; no thinkingOptionId. Orchestrator must copy provider, model, and modeId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: fast, cheap edits and simple questions. Use low effort when the task is clear and short. Effort is encoded in the model id; no thinkingOptionId. Orchestrator must copy provider, model, and modeId into create_agent."
       },
       {
-        "id": "agy-peer--gemini-3.8-flash-medium",
+        "id": "agy-peer--gemini-3-8-flash-medium",
         "name": "agy-peer · gemini-3.8-flash-medium",
         "provider": "agy-peer",
         "model": "gemini-3.8-flash-medium",
         "modeId": "auto_edit",
-        "notes": "Peer: balanced. Effort is encoded in the model id; no thinkingOptionId. Orchestrator must copy provider, model, and modeId into create_agent."
+        "notes": "Peer: balanced. When to use: fast, cheap edits and simple questions. Use medium effort when the task needs care or has several steps. Effort is encoded in the model id; no thinkingOptionId. Orchestrator must copy provider, model, and modeId into create_agent."
       },
       {
         "id": "agy-peer--gemini-4-argon-low",
@@ -1513,7 +2378,7 @@
         "provider": "agy-peer",
         "model": "gemini-4-argon-low",
         "modeId": "auto_edit",
-        "notes": "Peer: cheap/fast. Effort is encoded in the model id; no thinkingOptionId. Orchestrator must copy provider, model, and modeId into create_agent."
+        "notes": "Peer: cheap/fast. When to use: large-context reading and cross-file analysis. Use low effort when the task is clear and short. Effort is encoded in the model id; no thinkingOptionId. Orchestrator must copy provider, model, and modeId into create_agent."
       },
       {
         "id": "agy-peer--gemini-4-argon-medium",
@@ -1521,33 +2386,231 @@
         "provider": "agy-peer",
         "model": "gemini-4-argon-medium",
         "modeId": "auto_edit",
-        "notes": "Peer: balanced. Effort is encoded in the model id; no thinkingOptionId. Orchestrator must copy provider, model, and modeId into create_agent."
+        "notes": "Peer: balanced. When to use: large-context reading and cross-file analysis. Use medium effort when the task needs care or has several steps. Effort is encoded in the model id; no thinkingOptionId. Orchestrator must copy provider, model, and modeId into create_agent."
       },
-      {"id": "agy-lead--gemini-4-argon-low", "name": "agy-lead · gemini-4-argon-low", "provider": "agy-lead", "model": "gemini-4-argon-low", "modeId": "yolo", "notes": "Lead: cheap/fast. Effort is encoded in the model id; no thinkingOptionId."},
-      {"id": "agy-lead--gemini-4-argon-medium", "name": "agy-lead · gemini-4-argon-medium", "provider": "agy-lead", "model": "gemini-4-argon-medium", "modeId": "yolo", "notes": "Lead: careful. Effort is encoded in the model id; no thinkingOptionId."},
-      {"id": "claude-supervisor--claude-opus-5-5--low", "name": "claude-supervisor · claude-opus-5-5 · low", "provider": "claude-supervisor", "model": "claude-opus-5-5", "thinkingOptionId": "low"},
-      {"id": "claude-supervisor--claude-opus-5-5--medium", "name": "claude-supervisor · claude-opus-5-5 · medium", "provider": "claude-supervisor", "model": "claude-opus-5-5", "thinkingOptionId": "medium"},
-      {"id": "claude-supervisor--claude-sonnet-5-5--low", "name": "claude-supervisor · claude-sonnet-5-5 · low", "provider": "claude-supervisor", "model": "claude-sonnet-5-5", "thinkingOptionId": "low"},
-      {"id": "claude-supervisor--claude-sonnet-5-5--medium", "name": "claude-supervisor · claude-sonnet-5-5 · medium", "provider": "claude-supervisor", "model": "claude-sonnet-5-5", "thinkingOptionId": "medium"},
-      {"id": "codex-supervisor--gpt-6.1-sol--low", "name": "codex-supervisor · gpt-6.1-sol · low", "provider": "codex-supervisor", "model": "gpt-6.1-sol", "thinkingOptionId": "low"},
-      {"id": "codex-supervisor--gpt-6.1-sol--medium", "name": "codex-supervisor · gpt-6.1-sol · medium", "provider": "codex-supervisor", "model": "gpt-6.1-sol", "thinkingOptionId": "medium"},
-      {"id": "kiro-supervisor--claude-opus-5-5--low", "name": "kiro-supervisor · claude-opus-5.5 · low", "provider": "kiro-supervisor", "model": "claude-opus-5.5", "thinkingOptionId": "low"},
-      {"id": "kiro-supervisor--claude-opus-5-5--medium", "name": "kiro-supervisor · claude-opus-5.5 · medium", "provider": "kiro-supervisor", "model": "claude-opus-5.5", "thinkingOptionId": "medium"},
-      {"id": "kiro-supervisor--claude-sonnet-5-5--low", "name": "kiro-supervisor · claude-sonnet-5.5 · low", "provider": "kiro-supervisor", "model": "claude-sonnet-5.5", "thinkingOptionId": "low"},
-      {"id": "kiro-supervisor--claude-sonnet-5-5--medium", "name": "kiro-supervisor · claude-sonnet-5.5 · medium", "provider": "kiro-supervisor", "model": "claude-sonnet-5.5", "thinkingOptionId": "medium"},
-      {"id": "droid-lead--claude-opus-5-5--low", "name": "droid-lead · claude-opus-5-5 · low", "provider": "droid-lead", "model": "claude-opus-5-5", "thinkingOptionId": "low", "modeId": "auto-high"},
-      {"id": "droid-lead--claude-opus-5-5--medium", "name": "droid-lead · claude-opus-5-5 · medium", "provider": "droid-lead", "model": "claude-opus-5-5", "thinkingOptionId": "medium", "modeId": "auto-high"},
-      {"id": "droid-lead--claude-sonnet-5-5--low", "name": "droid-lead · claude-sonnet-5-5 · low", "provider": "droid-lead", "model": "claude-sonnet-5-5", "thinkingOptionId": "low", "modeId": "auto-high"},
-      {"id": "droid-lead--claude-sonnet-5-5--medium", "name": "droid-lead · claude-sonnet-5-5 · medium", "provider": "droid-lead", "model": "claude-sonnet-5-5", "thinkingOptionId": "medium", "modeId": "auto-high"},
-      {"id": "droid-lead--gpt-6-1-sol--low", "name": "droid-lead · gpt-6.1-sol · low", "provider": "droid-lead", "model": "gpt-6.1-sol", "thinkingOptionId": "low", "modeId": "auto-high"},
-      {"id": "droid-lead--gpt-6-1-sol--medium", "name": "droid-lead · gpt-6.1-sol · medium", "provider": "droid-lead", "model": "gpt-6.1-sol", "thinkingOptionId": "medium", "modeId": "auto-high"},
-      {"id": "droid-lead--gemini-4-argon--low", "name": "droid-lead · gemini-4-argon · low", "provider": "droid-lead", "model": "gemini-4-argon", "thinkingOptionId": "low", "modeId": "auto-high"},
-      {"id": "droid-lead--gemini-4-argon--medium", "name": "droid-lead · gemini-4-argon · medium", "provider": "droid-lead", "model": "gemini-4-argon", "thinkingOptionId": "medium", "modeId": "auto-high"},
-      {"id": "amp-peer--low", "name": "amp-peer · low", "provider": "amp-peer", "model": "low"},
-      {"id": "amp-lead--medium", "name": "amp-lead · medium", "provider": "amp-lead", "model": "medium", "modeId": "local"},
-      {"id": "devin-peer--swe-2-high--high", "name": "devin-peer · swe-2-high · high", "provider": "devin-peer", "model": "swe-2-high", "thinkingOptionId": "high"},
-      {"id": "claude-lead--claude-opus-5-5--low", "name": "claude-lead · claude-opus-5-5 · low", "provider": "claude-lead", "model": "claude-opus-5-5", "thinkingOptionId": "low", "modeId": "bypassPermissions"},
-      {"id": "cursor-peer--composer-2-5-fast", "name": "cursor-peer · composer-2.5[fast=true]", "provider": "cursor-peer", "model": "composer-2.5[fast=true]"}
+      {
+        "id": "agy-lead--gemini-4-argon-low",
+        "name": "agy-lead · gemini-4-argon-low",
+        "provider": "agy-lead",
+        "model": "gemini-4-argon-low",
+        "modeId": "yolo",
+        "notes": "Lead: cheap/fast. When to use: large-context reading and cross-file analysis. Use low effort when the task is clear and short. Effort is encoded in the model id; no thinkingOptionId."
+      },
+      {
+        "id": "agy-lead--gemini-4-argon-medium",
+        "name": "agy-lead · gemini-4-argon-medium",
+        "provider": "agy-lead",
+        "model": "gemini-4-argon-medium",
+        "modeId": "yolo",
+        "notes": "Lead: careful. When to use: large-context reading and cross-file analysis. Use medium effort when the task needs care or has several steps. Effort is encoded in the model id; no thinkingOptionId."
+      },
+      {
+        "id": "claude-supervisor--claude-opus-5-5--low",
+        "name": "claude-supervisor · claude-opus-5-5 · low",
+        "provider": "claude-supervisor",
+        "model": "claude-opus-5-5",
+        "thinkingOptionId": "low",
+        "notes": "Supervisor: cheap/fast. When to use: hard debugging, cross-file design, risky refactors. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "claude-supervisor--claude-opus-5-5--medium",
+        "name": "claude-supervisor · claude-opus-5-5 · medium",
+        "provider": "claude-supervisor",
+        "model": "claude-opus-5-5",
+        "thinkingOptionId": "medium",
+        "notes": "Supervisor: careful. When to use: hard debugging, cross-file design, risky refactors. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "claude-supervisor--claude-sonnet-5-5--low",
+        "name": "claude-supervisor · claude-sonnet-5-5 · low",
+        "provider": "claude-supervisor",
+        "model": "claude-sonnet-5-5",
+        "thinkingOptionId": "low",
+        "notes": "Supervisor: cheap/fast. When to use: most implementation work: normal features, bug fixes, tests. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "claude-supervisor--claude-sonnet-5-5--medium",
+        "name": "claude-supervisor · claude-sonnet-5-5 · medium",
+        "provider": "claude-supervisor",
+        "model": "claude-sonnet-5-5",
+        "thinkingOptionId": "medium",
+        "notes": "Supervisor: careful. When to use: most implementation work: normal features, bug fixes, tests. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "codex-supervisor--gpt-6-1-sol--low",
+        "name": "codex-supervisor · gpt-6.1-sol · low",
+        "provider": "codex-supervisor",
+        "model": "gpt-6.1-sol",
+        "thinkingOptionId": "low",
+        "notes": "Supervisor: cheap/fast. When to use: complex implementation and deeper reasoning across several files. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "codex-supervisor--gpt-6-1-sol--medium",
+        "name": "codex-supervisor · gpt-6.1-sol · medium",
+        "provider": "codex-supervisor",
+        "model": "gpt-6.1-sol",
+        "thinkingOptionId": "medium",
+        "notes": "Supervisor: careful. When to use: complex implementation and deeper reasoning across several files. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "kiro-supervisor--claude-opus-5-5--low",
+        "name": "kiro-supervisor · claude-opus-5.5 · low",
+        "provider": "kiro-supervisor",
+        "model": "claude-opus-5.5",
+        "thinkingOptionId": "low",
+        "notes": "Supervisor: cheap/fast. When to use: hard debugging, cross-file design, risky refactors. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "kiro-supervisor--claude-opus-5-5--medium",
+        "name": "kiro-supervisor · claude-opus-5.5 · medium",
+        "provider": "kiro-supervisor",
+        "model": "claude-opus-5.5",
+        "thinkingOptionId": "medium",
+        "notes": "Supervisor: careful. When to use: hard debugging, cross-file design, risky refactors. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "kiro-supervisor--claude-sonnet-5-5--low",
+        "name": "kiro-supervisor · claude-sonnet-5.5 · low",
+        "provider": "kiro-supervisor",
+        "model": "claude-sonnet-5.5",
+        "thinkingOptionId": "low",
+        "notes": "Supervisor: cheap/fast. When to use: most implementation work: normal features, bug fixes, tests. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "kiro-supervisor--claude-sonnet-5-5--medium",
+        "name": "kiro-supervisor · claude-sonnet-5.5 · medium",
+        "provider": "kiro-supervisor",
+        "model": "claude-sonnet-5.5",
+        "thinkingOptionId": "medium",
+        "notes": "Supervisor: careful. When to use: most implementation work: normal features, bug fixes, tests. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-lead--claude-opus-5-5--low",
+        "name": "droid-lead · claude-opus-5-5 · low",
+        "provider": "droid-lead",
+        "model": "claude-opus-5-5",
+        "thinkingOptionId": "low",
+        "modeId": "auto-high",
+        "notes": "Lead: cheap/fast. When to use: hard debugging, cross-file design, risky refactors. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-lead--claude-opus-5-5--medium",
+        "name": "droid-lead · claude-opus-5-5 · medium",
+        "provider": "droid-lead",
+        "model": "claude-opus-5-5",
+        "thinkingOptionId": "medium",
+        "modeId": "auto-high",
+        "notes": "Lead: careful. When to use: hard debugging, cross-file design, risky refactors. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-lead--claude-sonnet-5-5--low",
+        "name": "droid-lead · claude-sonnet-5-5 · low",
+        "provider": "droid-lead",
+        "model": "claude-sonnet-5-5",
+        "thinkingOptionId": "low",
+        "modeId": "auto-high",
+        "notes": "Lead: cheap/fast. When to use: most implementation work: normal features, bug fixes, tests. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-lead--claude-sonnet-5-5--medium",
+        "name": "droid-lead · claude-sonnet-5-5 · medium",
+        "provider": "droid-lead",
+        "model": "claude-sonnet-5-5",
+        "thinkingOptionId": "medium",
+        "modeId": "auto-high",
+        "notes": "Lead: careful. When to use: most implementation work: normal features, bug fixes, tests. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-lead--gpt-6-1-sol--low",
+        "name": "droid-lead · gpt-6.1-sol · low",
+        "provider": "droid-lead",
+        "model": "gpt-6.1-sol",
+        "thinkingOptionId": "low",
+        "modeId": "auto-high",
+        "notes": "Lead: cheap/fast. When to use: complex implementation and deeper reasoning across several files. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-lead--gpt-6-1-sol--medium",
+        "name": "droid-lead · gpt-6.1-sol · medium",
+        "provider": "droid-lead",
+        "model": "gpt-6.1-sol",
+        "thinkingOptionId": "medium",
+        "modeId": "auto-high",
+        "notes": "Lead: careful. When to use: complex implementation and deeper reasoning across several files. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-lead--gemini-4-argon--low",
+        "name": "droid-lead · gemini-4-argon · low",
+        "provider": "droid-lead",
+        "model": "gemini-4-argon",
+        "thinkingOptionId": "low",
+        "modeId": "auto-high",
+        "notes": "Lead: cheap/fast. When to use: large-context reading and cross-file analysis. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "droid-lead--gemini-4-argon--medium",
+        "name": "droid-lead · gemini-4-argon · medium",
+        "provider": "droid-lead",
+        "model": "gemini-4-argon",
+        "thinkingOptionId": "medium",
+        "modeId": "auto-high",
+        "notes": "Lead: careful. When to use: large-context reading and cross-file analysis. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "amp-peer--low",
+        "name": "amp-peer · low",
+        "provider": "amp-peer",
+        "model": "low",
+        "notes": "Peer: cheap/fast. When to use: routine edits and small fixes. Orchestrator must copy provider and model into create_agent."
+      },
+      {
+        "id": "amp-lead--medium",
+        "name": "amp-lead · medium",
+        "provider": "amp-lead",
+        "model": "medium",
+        "modeId": "local",
+        "notes": "Lead: careful. When to use: normal implementation and review. Orchestrator must copy provider and model into create_agent."
+      },
+      {
+        "id": "devin-peer--swe-2-high--high",
+        "name": "devin-peer · swe-2-high · high",
+        "provider": "devin-peer",
+        "model": "swe-2-high",
+        "thinkingOptionId": "high",
+        "notes": "Peer: careful. When to use: focused code changes with strong coding effort. Use high effort when the task needs deep reasoning. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "claude-lead--claude-opus-5-5--low",
+        "name": "claude-lead · claude-opus-5-5 · low",
+        "provider": "claude-lead",
+        "model": "claude-opus-5-5",
+        "thinkingOptionId": "low",
+        "modeId": "bypassPermissions",
+        "notes": "Lead: cheap/fast. When to use: hard debugging, cross-file design, risky refactors. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "cursor-peer--composer-2-5-fast",
+        "name": "cursor-peer · composer-2.5[fast=true]",
+        "provider": "cursor-peer",
+        "model": "composer-2.5[fast=true]",
+        "notes": "Peer: cheap/fast. When to use: fast small edits in the editor style. Orchestrator must copy provider and model into create_agent."
+      },
+      {
+        "id": "codex-peer--gpt-6-luna--low",
+        "name": "codex-peer · gpt-6-luna · low",
+        "provider": "codex-peer",
+        "model": "gpt-6-luna",
+        "thinkingOptionId": "low",
+        "notes": "Peer: cheap/fast. When to use: routine edits, small fixes, tests, quick lookups. Use low effort when the task is clear and short. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "codex-peer--gpt-6-luna--medium",
+        "name": "codex-peer · gpt-6-luna · medium",
+        "provider": "codex-peer",
+        "model": "gpt-6-luna",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: careful. When to use: routine edits, small fixes, tests, quick lookups. Use medium effort when the task needs care or has several steps. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      }
     ]
   }
 }

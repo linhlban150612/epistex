@@ -16,10 +16,10 @@ verifies, and accepts or requests rework; if the Peer is blocked, the Lead repor
 not write in their place. Read-only requests do not authorize agent creation; delegation does not
 authorize automation, model/effort changes, pushing, or deployment.
 
-Backends: **Claude, Codex, Devin, Copilot, Cursor, Pi, Amp, GLM, Droid, Antigravity**. Codex loads prompts with
+Backends: **Claude, Codex, Devin, Copilot, Cursor, Pi, Amp, Kiro, Droid, Antigravity**. Codex loads prompts with
 `model_instructions_file`. Claude adds the role to `appendSystemPrompt` in the SDK
 `initialize` message when using stream-json, or uses `--append-system-prompt` outside the SDK.
-Pi uses native launch instructions. Devin/Copilot/Cursor/Amp/GLM/Droid/Antigravity use the ACP proxy, which adds role
+Pi uses native launch instructions. Devin/Copilot/Cursor/Amp/Kiro/Droid/Antigravity use the ACP proxy, which adds role
 instructions to each session's first prompt during the proxy lifecycle — **not the system prompt**.
 Droid does not support Paseo MCP through this configuration.
 

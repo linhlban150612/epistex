@@ -157,10 +157,10 @@ class SetupSeatsTest(unittest.TestCase):
             if provider.get("paseoTools", {}).get("enabled") is True:
                 expected = DENY_SUPERVISOR if key.endswith("-supervisor") else DENY_LEAD
                 self.assertEqual(set(provider["paseoTools"]["disabledTools"]), expected, key)
-        self.assertEqual(len(example["daemon"]["agentProfiles"]), 102)
+        self.assertEqual(len(example["daemon"]["agentProfiles"]), 104)
         counts = Counter(p["provider"] for p in example["daemon"]["agentProfiles"])
         self.assertEqual(counts, Counter({"amp-peer": 1, "amp-lead": 1, "amp-supervisor": 2,
-            "claude-peer": 6, "claude-supervisor": 5, "codex-lead": 2, "codex-peer": 2,
+            "claude-peer": 6, "claude-supervisor": 5, "codex-lead": 2, "codex-peer": 4,
             "codex-supervisor": 4, "copilot-peer": 10, "omp-peer": 9,
             "pi-peer": 9, "agy-peer": 4, "agy-lead": 2, "kiro-peer": 4, "kiro-lead": 4,
             "kiro-supervisor": 4, "droid-peer": 22, "droid-lead": 8, "devin-peer": 1, "claude-lead": 1, "cursor-peer": 1}))
@@ -172,15 +172,15 @@ class SetupSeatsTest(unittest.TestCase):
 
     def test_omp_luna_cell_and_profiles(self):
         providers = self.data["agents"]["providers"]
-        model = "github-copilot/gpt-6-luna"
+        model = "openai-codex/gpt-6-luna"
         cell = next(m for m in providers["omp-peer"]["models"] if m["id"] == model)
         pi_cell = next(m for m in providers["pi-peer"]["models"] if m["id"] == model)
         self.assertTrue(pi_cell["isDefault"])
         self.assertEqual(pi_cell["thinkingOptions"], [
-            {"id": "low", "label": "Low", "isDefault": False},
-            {"id": "medium", "label": "Medium", "isDefault": True}])
+            {"id": "low", "label": "Low", "isDefault": True},
+            {"id": "medium", "label": "Medium", "isDefault": False}])
         self.assertEqual(len([m for m in providers["pi-peer"]["models"] if m["isDefault"]]), 1)
-        self.assertFalse(cell["isDefault"])
+        self.assertTrue(cell["isDefault"])
         self.assertEqual(cell["thinkingOptions"], [
             {"id": "low", "label": "Low", "isDefault": True},
             {"id": "medium", "label": "Medium", "isDefault": False}])
@@ -193,13 +193,48 @@ class SetupSeatsTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("omp-peer: wrong GPT-6 Luna", result.stderr)
 
+    def test_cost_defaults_are_pinned(self):
+        providers = self.data["agents"]["providers"]
+        expected = {"claude-supervisor": ("claude-sonnet-5-5", "low"),
+                    "kiro-supervisor": ("claude-sonnet-5.5", "low"),
+                    "kiro-peer": ("claude-sonnet-5.5", "low"),
+                    "kiro-lead": ("claude-opus-5.5", "low"),
+                    "omp-peer": ("openai-codex/gpt-6-luna", "low"),
+                    "pi-peer": ("openai-codex/gpt-6-luna", "low")}
+        for seat, (model, effort) in expected.items():
+            defaults = [m for m in providers[seat]["models"] if m["isDefault"]]
+            self.assertEqual([m["id"] for m in defaults], [model], seat)
+            self.assertEqual([o["id"] for o in defaults[0]["thinkingOptions"] if o["isDefault"]], [effort], seat)
+        for seat, model, message in (
+                ("kiro-peer", "claude-opus-5.5", "kiro-peer: wrong launcher, tools or model/effort"),
+                ("kiro-supervisor", "claude-opus-5.5", "kiro-supervisor: wrong launcher, tools or model/effort"),
+                ("claude-supervisor", "claude-fable-5-1", "claude-supervisor: wrong launcher, tools or model/effort")):
+            with self.subTest(seat=seat):
+                models = providers[seat]["models"]
+                before = [m["isDefault"] for m in models]
+                for m in models:
+                    m["isDefault"] = m["id"] == model
+                self.save()
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(message, result.stderr)
+                for m, flag in zip(models, before):
+                    m["isDefault"] = flag
+        luna = next(m for m in providers["omp-peer"]["models"] if m["id"] == "openai-codex/gpt-6-luna")
+        for option in luna["thinkingOptions"]:
+            option["isDefault"] = option["id"] == "medium"
+        self.save()
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("omp-peer/pi-peer: default must be openai-codex GPT-6 Luna, low effort", result.stderr)
+
     def test_omp_luna_profiles_required(self):
         for effort in ("low", "medium"):
             with self.subTest(effort=effort):
                 profile = next(p for p in self.data["daemon"]["agentProfiles"]
-                               if p["id"] == f"omp-peer--github-copilot-gpt-6-luna--{effort}")
+                               if p["id"] == f"omp-peer--openai-codex-gpt-6-luna--{effort}")
                 self.assertEqual(profile["provider"], "omp-peer")
-                self.assertEqual(profile["model"], "github-copilot/gpt-6-luna")
+                self.assertEqual(profile["model"], "openai-codex/gpt-6-luna")
                 self.assertEqual(profile["thinkingOptionId"], effort)
                 self.data["daemon"]["agentProfiles"].remove(profile)
                 self.save()
@@ -233,7 +268,7 @@ class SetupSeatsTest(unittest.TestCase):
         for model in models:
             with self.subTest(model=model):
                 profile = next(p for p in self.data["daemon"]["agentProfiles"]
-                               if p["id"] == f"agy-peer--{model}")
+                               if p["id"] == f"agy-peer--{model.replace('.', '-')}")
                 self.assertEqual(profile["provider"], "agy-peer")
                 self.assertEqual(profile["model"], model)
                 self.assertEqual(profile["modeId"], "auto_edit")
@@ -261,7 +296,7 @@ class SetupSeatsTest(unittest.TestCase):
                     else:
                         cell["isDefault"] = False
             profile = next(p for p in self.data["daemon"]["agentProfiles"]
-                           if p["id"] == f"agy-peer--{model}")
+                           if p["id"] == f"agy-peer--{model.replace('.', '-')}")
             for key, value in (("provider", "agy-lead"), ("model", "gemini-3.8-flash-low"),
                                ("modeId", "yolo"), ("modeId", "default"),
                                ("thinkingOptionId", "low")):

@@ -20,6 +20,7 @@
         "paseoTools": {
           "enabled": true,
           "disabledTools": [
+            "get_agent_activity",
             "get_agent_status",
             "list_agents",
             "archive_workspace",
@@ -81,6 +82,11 @@
                 "id": "low",
                 "label": "Low",
                 "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
               }
             ]
           }
@@ -479,7 +485,7 @@
         "enabled": true,
         "paseoTools": {
           "enabled": true,
-          "disabledTools": ["get_agent_status", "list_agents", "archive_workspace", "browser_back", "browser_click", "browser_close_tab", "browser_drag", "browser_evaluate", "browser_fill", "browser_forward", "browser_hover", "browser_keypress", "browser_list_tabs", "browser_logs", "browser_navigate", "browser_new_tab", "browser_reload", "browser_resize", "browser_screenshot", "browser_scroll", "browser_select", "browser_snapshot", "browser_type", "browser_upload", "browser_wait", "capture_terminal", "create_heartbeat", "create_schedule", "create_terminal", "create_workspace", "delete_heartbeat", "delete_schedule", "inspect_provider", "inspect_schedule", "kill_agent", "kill_terminal", "list_schedules", "list_terminals", "list_workspace_scripts", "pause_schedule", "rename_workspace", "resume_schedule", "run_schedule_once", "schedule_logs", "send_terminal_keys", "start_workspace_script", "stop_workspace_script", "update_agent", "update_schedule"]
+          "disabledTools": ["get_agent_activity", "get_agent_status", "list_agents", "archive_workspace", "browser_back", "browser_click", "browser_close_tab", "browser_drag", "browser_evaluate", "browser_fill", "browser_forward", "browser_hover", "browser_keypress", "browser_list_tabs", "browser_logs", "browser_navigate", "browser_new_tab", "browser_reload", "browser_resize", "browser_screenshot", "browser_scroll", "browser_select", "browser_snapshot", "browser_type", "browser_upload", "browser_wait", "capture_terminal", "create_heartbeat", "create_schedule", "create_terminal", "create_workspace", "delete_heartbeat", "delete_schedule", "inspect_provider", "inspect_schedule", "kill_agent", "kill_terminal", "list_schedules", "list_terminals", "list_workspace_scripts", "pause_schedule", "rename_workspace", "resume_schedule", "run_schedule_once", "schedule_logs", "send_terminal_keys", "start_workspace_script", "stop_workspace_script", "update_agent", "update_schedule"]
         },
         "models": [
           {
@@ -610,6 +616,7 @@
                       "paseoTools": {
                               "enabled": true,
                               "disabledTools": [
+                                      "get_agent_activity",
                                       "get_agent_status",
                                       "list_agents",
                                       "archive_workspace",
@@ -1066,7 +1073,7 @@
         "enabled": true,
         "paseoTools": {
           "enabled": true,
-          "disabledTools": ["get_agent_status", "list_agents", "archive_workspace", "browser_back", "browser_click", "browser_close_tab", "browser_drag", "browser_evaluate", "browser_fill", "browser_forward", "browser_hover", "browser_keypress", "browser_list_tabs", "browser_logs", "browser_navigate", "browser_new_tab", "browser_reload", "browser_resize", "browser_screenshot", "browser_scroll", "browser_select", "browser_snapshot", "browser_type", "browser_upload", "browser_wait", "capture_terminal", "create_heartbeat", "create_schedule", "create_terminal", "create_workspace", "delete_heartbeat", "delete_schedule", "inspect_provider", "inspect_schedule", "kill_agent", "kill_terminal", "list_schedules", "list_terminals", "list_workspace_scripts", "pause_schedule", "rename_workspace", "resume_schedule", "run_schedule_once", "schedule_logs", "send_terminal_keys", "start_workspace_script", "stop_workspace_script", "update_agent", "update_schedule"]
+          "disabledTools": ["get_agent_activity", "get_agent_status", "list_agents", "archive_workspace", "browser_back", "browser_click", "browser_close_tab", "browser_drag", "browser_evaluate", "browser_fill", "browser_forward", "browser_hover", "browser_keypress", "browser_list_tabs", "browser_logs", "browser_navigate", "browser_new_tab", "browser_reload", "browser_resize", "browser_screenshot", "browser_scroll", "browser_select", "browser_snapshot", "browser_type", "browser_upload", "browser_wait", "capture_terminal", "create_heartbeat", "create_schedule", "create_terminal", "create_workspace", "delete_heartbeat", "delete_schedule", "inspect_provider", "inspect_schedule", "kill_agent", "kill_terminal", "list_schedules", "list_terminals", "list_workspace_scripts", "pause_schedule", "rename_workspace", "resume_schedule", "run_schedule_once", "schedule_logs", "send_terminal_keys", "start_workspace_script", "stop_workspace_script", "update_agent", "update_schedule"]
         },
         "models": [
           {"id": "claude-opus-5.5", "label": "Claude Opus 5.5", "isDefault": true,
@@ -1121,7 +1128,7 @@
         "enabled": true,
         "paseoTools": {
           "enabled": true,
-          "disabledTools": ["get_agent_status", "list_agents", "archive_workspace", "browser_back", "browser_click", "browser_close_tab", "browser_drag", "browser_evaluate", "browser_fill", "browser_forward", "browser_hover", "browser_keypress", "browser_list_tabs", "browser_logs", "browser_navigate", "browser_new_tab", "browser_reload", "browser_resize", "browser_screenshot", "browser_scroll", "browser_select", "browser_snapshot", "browser_type", "browser_upload", "browser_wait", "capture_terminal", "create_heartbeat", "create_schedule", "create_terminal", "create_workspace", "delete_heartbeat", "delete_schedule", "inspect_provider", "inspect_schedule", "kill_agent", "kill_terminal", "list_schedules", "list_terminals", "list_workspace_scripts", "pause_schedule", "rename_workspace", "resume_schedule", "run_schedule_once", "schedule_logs", "send_terminal_keys", "start_workspace_script", "stop_workspace_script", "update_agent", "update_schedule"]
+          "disabledTools": ["get_agent_activity", "get_agent_status", "list_agents", "archive_workspace", "browser_back", "browser_click", "browser_close_tab", "browser_drag", "browser_evaluate", "browser_fill", "browser_forward", "browser_hover", "browser_keypress", "browser_list_tabs", "browser_logs", "browser_navigate", "browser_new_tab", "browser_reload", "browser_resize", "browser_screenshot", "browser_scroll", "browser_select", "browser_snapshot", "browser_type", "browser_upload", "browser_wait", "capture_terminal", "create_heartbeat", "create_schedule", "create_terminal", "create_workspace", "delete_heartbeat", "delete_schedule", "inspect_provider", "inspect_schedule", "kill_agent", "kill_terminal", "list_schedules", "list_terminals", "list_workspace_scripts", "pause_schedule", "rename_workspace", "resume_schedule", "run_schedule_once", "schedule_logs", "send_terminal_keys", "start_workspace_script", "stop_workspace_script", "update_agent", "update_schedule"]
         },
         "models": [
           {"id": "gemini-4-argon-low", "label": "Gemini 4 Argon (Low)", "isDefault": true},
@@ -1137,7 +1144,7 @@
         "enabled": true,
         "paseoTools": {
           "enabled": true,
-          "disabledTools": ["get_agent_status", "list_agents", "archive_workspace", "browser_back", "browser_click", "browser_close_tab", "browser_drag", "browser_evaluate", "browser_fill", "browser_forward", "browser_hover", "browser_keypress", "browser_list_tabs", "browser_logs", "browser_navigate", "browser_new_tab", "browser_reload", "browser_resize", "browser_screenshot", "browser_scroll", "browser_select", "browser_snapshot", "browser_type", "browser_upload", "browser_wait", "capture_terminal", "create_heartbeat", "create_schedule", "create_terminal", "create_workspace", "delete_heartbeat", "delete_schedule", "inspect_provider", "inspect_schedule", "kill_agent", "kill_terminal", "list_schedules", "list_terminals", "list_workspace_scripts", "pause_schedule", "rename_workspace", "resume_schedule", "run_schedule_once", "schedule_logs", "send_terminal_keys", "start_workspace_script", "stop_workspace_script", "update_agent", "update_schedule"]
+          "disabledTools": ["get_agent_activity", "get_agent_status", "list_agents", "archive_workspace", "browser_back", "browser_click", "browser_close_tab", "browser_drag", "browser_evaluate", "browser_fill", "browser_forward", "browser_hover", "browser_keypress", "browser_list_tabs", "browser_logs", "browser_navigate", "browser_new_tab", "browser_reload", "browser_resize", "browser_screenshot", "browser_scroll", "browser_select", "browser_snapshot", "browser_type", "browser_upload", "browser_wait", "capture_terminal", "create_heartbeat", "create_schedule", "create_terminal", "create_workspace", "delete_heartbeat", "delete_schedule", "inspect_provider", "inspect_schedule", "kill_agent", "kill_terminal", "list_schedules", "list_terminals", "list_workspace_scripts", "pause_schedule", "rename_workspace", "resume_schedule", "run_schedule_once", "schedule_logs", "send_terminal_keys", "start_workspace_script", "stop_workspace_script", "update_agent", "update_schedule"]
         },
         "models": [
           {"id": "claude-opus-5-5", "label": "Claude Opus 5.5", "isDefault": true,
@@ -1230,6 +1237,24 @@
         "provider": "amp-supervisor",
         "model": "high",
         "notes": "Supervisor: careful. Orchestrator must copy provider, model, and thinkingOptionId into create_agent."
+      },
+      {
+        "id": "codex-lead--gpt-6-1-sol--low",
+        "name": "codex-lead · gpt-6.1-sol · low",
+        "provider": "codex-lead",
+        "model": "gpt-6.1-sol",
+        "thinkingOptionId": "low",
+        "modeId": "full-access",
+        "notes": "Lead: cheap/fast. Orchestrator must copy provider, model, thinkingOptionId, and modeId into create_agent."
+      },
+      {
+        "id": "codex-lead--gpt-6-1-sol--medium",
+        "name": "codex-lead · gpt-6.1-sol · medium",
+        "provider": "codex-lead",
+        "model": "gpt-6.1-sol",
+        "thinkingOptionId": "medium",
+        "modeId": "full-access",
+        "notes": "Lead: careful. Orchestrator must copy provider, model, thinkingOptionId, and modeId into create_agent."
       },
       {
         "id": "codex-peer--gpt-6-1-sol--low",
@@ -1575,8 +1600,8 @@
         "modeId": "auto_edit",
         "notes": "Peer: balanced. Effort is encoded in the model id; no thinkingOptionId. Orchestrator must copy provider, model, and modeId into create_agent."
       },
-      {"id": "agy-lead--gemini-4-argon-low", "name": "agy-lead · gemini-4-argon-low", "provider": "agy-lead", "model": "gemini-4-argon-low", "modeId": "default", "notes": "Lead: cheap/fast. Effort is encoded in the model id; no thinkingOptionId."},
-      {"id": "agy-lead--gemini-4-argon-medium", "name": "agy-lead · gemini-4-argon-medium", "provider": "agy-lead", "model": "gemini-4-argon-medium", "modeId": "default", "notes": "Lead: careful. Effort is encoded in the model id; no thinkingOptionId."},
+      {"id": "agy-lead--gemini-4-argon-low", "name": "agy-lead · gemini-4-argon-low", "provider": "agy-lead", "model": "gemini-4-argon-low", "modeId": "yolo", "notes": "Lead: cheap/fast. Effort is encoded in the model id; no thinkingOptionId."},
+      {"id": "agy-lead--gemini-4-argon-medium", "name": "agy-lead · gemini-4-argon-medium", "provider": "agy-lead", "model": "gemini-4-argon-medium", "modeId": "yolo", "notes": "Lead: careful. Effort is encoded in the model id; no thinkingOptionId."},
       {"id": "claude-supervisor--claude-opus-5-5--low", "name": "claude-supervisor · claude-opus-5-5 · low", "provider": "claude-supervisor", "model": "claude-opus-5-5", "thinkingOptionId": "low"},
       {"id": "claude-supervisor--claude-opus-5-5--medium", "name": "claude-supervisor · claude-opus-5-5 · medium", "provider": "claude-supervisor", "model": "claude-opus-5-5", "thinkingOptionId": "medium"},
       {"id": "claude-supervisor--claude-sonnet-5-5--low", "name": "claude-supervisor · claude-sonnet-5-5 · low", "provider": "claude-supervisor", "model": "claude-sonnet-5-5", "thinkingOptionId": "low"},
@@ -1587,19 +1612,19 @@
       {"id": "kiro-supervisor--claude-opus-5-5--medium", "name": "kiro-supervisor · claude-opus-5.5 · medium", "provider": "kiro-supervisor", "model": "claude-opus-5.5", "thinkingOptionId": "medium"},
       {"id": "kiro-supervisor--claude-sonnet-5-5--low", "name": "kiro-supervisor · claude-sonnet-5.5 · low", "provider": "kiro-supervisor", "model": "claude-sonnet-5.5", "thinkingOptionId": "low"},
       {"id": "kiro-supervisor--claude-sonnet-5-5--medium", "name": "kiro-supervisor · claude-sonnet-5.5 · medium", "provider": "kiro-supervisor", "model": "claude-sonnet-5.5", "thinkingOptionId": "medium"},
-      {"id": "droid-lead--claude-opus-5-5--low", "name": "droid-lead · claude-opus-5-5 · low", "provider": "droid-lead", "model": "claude-opus-5-5", "thinkingOptionId": "low", "modeId": "normal"},
-      {"id": "droid-lead--claude-opus-5-5--medium", "name": "droid-lead · claude-opus-5-5 · medium", "provider": "droid-lead", "model": "claude-opus-5-5", "thinkingOptionId": "medium", "modeId": "normal"},
-      {"id": "droid-lead--claude-sonnet-5-5--low", "name": "droid-lead · claude-sonnet-5-5 · low", "provider": "droid-lead", "model": "claude-sonnet-5-5", "thinkingOptionId": "low", "modeId": "normal"},
-      {"id": "droid-lead--claude-sonnet-5-5--medium", "name": "droid-lead · claude-sonnet-5-5 · medium", "provider": "droid-lead", "model": "claude-sonnet-5-5", "thinkingOptionId": "medium", "modeId": "normal"},
-      {"id": "droid-lead--gpt-6-1-sol--low", "name": "droid-lead · gpt-6.1-sol · low", "provider": "droid-lead", "model": "gpt-6.1-sol", "thinkingOptionId": "low", "modeId": "normal"},
-      {"id": "droid-lead--gpt-6-1-sol--medium", "name": "droid-lead · gpt-6.1-sol · medium", "provider": "droid-lead", "model": "gpt-6.1-sol", "thinkingOptionId": "medium", "modeId": "normal"},
-      {"id": "droid-lead--gemini-4-argon--low", "name": "droid-lead · gemini-4-argon · low", "provider": "droid-lead", "model": "gemini-4-argon", "thinkingOptionId": "low", "modeId": "normal"},
-      {"id": "droid-lead--gemini-4-argon--medium", "name": "droid-lead · gemini-4-argon · medium", "provider": "droid-lead", "model": "gemini-4-argon", "thinkingOptionId": "medium", "modeId": "normal"},
+      {"id": "droid-lead--claude-opus-5-5--low", "name": "droid-lead · claude-opus-5-5 · low", "provider": "droid-lead", "model": "claude-opus-5-5", "thinkingOptionId": "low", "modeId": "auto-high"},
+      {"id": "droid-lead--claude-opus-5-5--medium", "name": "droid-lead · claude-opus-5-5 · medium", "provider": "droid-lead", "model": "claude-opus-5-5", "thinkingOptionId": "medium", "modeId": "auto-high"},
+      {"id": "droid-lead--claude-sonnet-5-5--low", "name": "droid-lead · claude-sonnet-5-5 · low", "provider": "droid-lead", "model": "claude-sonnet-5-5", "thinkingOptionId": "low", "modeId": "auto-high"},
+      {"id": "droid-lead--claude-sonnet-5-5--medium", "name": "droid-lead · claude-sonnet-5-5 · medium", "provider": "droid-lead", "model": "claude-sonnet-5-5", "thinkingOptionId": "medium", "modeId": "auto-high"},
+      {"id": "droid-lead--gpt-6-1-sol--low", "name": "droid-lead · gpt-6.1-sol · low", "provider": "droid-lead", "model": "gpt-6.1-sol", "thinkingOptionId": "low", "modeId": "auto-high"},
+      {"id": "droid-lead--gpt-6-1-sol--medium", "name": "droid-lead · gpt-6.1-sol · medium", "provider": "droid-lead", "model": "gpt-6.1-sol", "thinkingOptionId": "medium", "modeId": "auto-high"},
+      {"id": "droid-lead--gemini-4-argon--low", "name": "droid-lead · gemini-4-argon · low", "provider": "droid-lead", "model": "gemini-4-argon", "thinkingOptionId": "low", "modeId": "auto-high"},
+      {"id": "droid-lead--gemini-4-argon--medium", "name": "droid-lead · gemini-4-argon · medium", "provider": "droid-lead", "model": "gemini-4-argon", "thinkingOptionId": "medium", "modeId": "auto-high"},
       {"id": "amp-peer--low", "name": "amp-peer · low", "provider": "amp-peer", "model": "low"},
-      {"id": "amp-lead--medium", "name": "amp-lead · medium", "provider": "amp-lead", "model": "medium"},
+      {"id": "amp-lead--medium", "name": "amp-lead · medium", "provider": "amp-lead", "model": "medium", "modeId": "local"},
       {"id": "devin-peer--swe-2-high--high", "name": "devin-peer · swe-2-high · high", "provider": "devin-peer", "model": "swe-2-high", "thinkingOptionId": "high"},
       {"id": "devin-supervisor--swe-2-high--high", "name": "devin-supervisor · swe-2-high · high", "provider": "devin-supervisor", "model": "swe-2-high", "thinkingOptionId": "high"},
-      {"id": "claude-lead--claude-opus-5-5--low", "name": "claude-lead · claude-opus-5-5 · low", "provider": "claude-lead", "model": "claude-opus-5-5", "thinkingOptionId": "low"},
+      {"id": "claude-lead--claude-opus-5-5--low", "name": "claude-lead · claude-opus-5-5 · low", "provider": "claude-lead", "model": "claude-opus-5-5", "thinkingOptionId": "low", "modeId": "bypassPermissions"},
       {"id": "cursor-peer--composer-2-5-fast", "name": "cursor-peer · composer-2.5[fast=true]", "provider": "cursor-peer", "model": "composer-2.5[fast=true]"}
     ]
   }

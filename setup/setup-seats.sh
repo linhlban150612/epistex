@@ -32,7 +32,7 @@ for seat in LEAD PEER SUPERVISOR; do
   fi
 done
 
-for name in codex-room codex-room-sync role-agent kiro-acp claude-sdk; do
+for name in codex-room role-agent kiro-acp claude-sdk; do
   wrapper="$kit/setup/$name"
   if [[ ! -f "$wrapper" ]]; then
     fail "missing $wrapper"
@@ -74,9 +74,9 @@ else
       + ["claude-peer"]) | unique[]
   ' "$paseo_config")
 
-  expected_deny_lead='["archive_workspace","browser_back","browser_click","browser_close_tab","browser_drag","browser_evaluate","browser_fill","browser_forward","browser_hover","browser_keypress","browser_list_tabs","browser_logs","browser_navigate","browser_new_tab","browser_reload","browser_resize","browser_screenshot","browser_scroll","browser_select","browser_snapshot","browser_type","browser_upload","browser_wait","capture_terminal","create_heartbeat","create_schedule","create_terminal","create_workspace","delete_heartbeat","delete_schedule","get_agent_status","inspect_provider","inspect_schedule","kill_agent","kill_terminal","list_agents","list_schedules","list_terminals","list_workspace_scripts","pause_schedule","rename_workspace","resume_schedule","run_schedule_once","schedule_logs","send_terminal_keys","start_workspace_script","stop_workspace_script","update_agent","update_schedule"]'
-  # Lead waits for notifications, so it has no status or list tools to poll with. Supervisor keeps them.
-  expected_deny_supervisor=$(jq -c 'map(select(. != "create_workspace" and . != "get_agent_status" and . != "list_agents"))' <<<"$expected_deny_lead")
+  expected_deny_lead='["archive_workspace","browser_back","browser_click","browser_close_tab","browser_drag","browser_evaluate","browser_fill","browser_forward","browser_hover","browser_keypress","browser_list_tabs","browser_logs","browser_navigate","browser_new_tab","browser_reload","browser_resize","browser_screenshot","browser_scroll","browser_select","browser_snapshot","browser_type","browser_upload","browser_wait","capture_terminal","create_heartbeat","create_schedule","create_terminal","create_workspace","delete_heartbeat","delete_schedule","get_agent_activity","get_agent_status","inspect_provider","inspect_schedule","kill_agent","kill_terminal","list_agents","list_schedules","list_terminals","list_workspace_scripts","pause_schedule","rename_workspace","resume_schedule","run_schedule_once","schedule_logs","send_terminal_keys","start_workspace_script","stop_workspace_script","update_agent","update_schedule"]'
+  # Lead waits for notifications, so it has no status, list or activity tools to poll with. Supervisor keeps them.
+  expected_deny_supervisor=$(jq -c 'map(select(. != "create_workspace" and . != "get_agent_activity" and . != "get_agent_status" and . != "list_agents"))' <<<"$expected_deny_lead")
 
   while IFS= read -r provider; do
     [[ -n "$provider" ]] || continue
@@ -135,6 +135,16 @@ else
       (if $role == "peer" then any(.models[]; .id == "gpt-6.1-sol" and .isDefault != true and ([.thinkingOptions[].id] | sort) == ["low","medium"]) else true end)
     ' "$paseo_config" >/dev/null || fail "codex-$seat: wrong wrapper, tool permissions or model/effort"
   done
+  jq -e '.agents.providers["codex-lead"].models[] | select(.id == "gpt-6.1-sol") |
+    ([.thinkingOptions[].id] | sort) == ["low","medium"]
+  ' "$paseo_config" >/dev/null || fail 'codex-lead: gpt-6.1-sol needs low and medium efforts'
+  for effort in low medium; do
+    jq -e --arg effort "$effort" '
+      [.daemon.agentProfiles[]? | select(.id == ("codex-lead--gpt-6-1-sol--" + $effort))] |
+      length == 1 and all(.[]; .provider == "codex-lead" and .model == "gpt-6.1-sol" and
+        .thinkingOptionId == $effort and .modeId == "full-access")
+    ' "$paseo_config" >/dev/null || fail "codex-lead: missing or wrong gpt-6.1-sol $effort profile"
+  done
   jq -e '
     .agents.providers["omp-peer"].models |
     [ .[] | select(.id == "github-copilot/gpt-6-luna") ] == [{
@@ -187,8 +197,8 @@ else
       jq -e --arg model "$model" '
         [.daemon.agentProfiles[]? | select(.id == ("agy-lead--" + $model))] |
         length == 1 and all(.[];
-          .provider == "agy-lead" and .model == $model and .modeId == "default" and
-          .modeId != "yolo" and (has("thinkingOptionId") | not))
+          .provider == "agy-lead" and .model == $model and .modeId == "yolo" and
+          (has("thinkingOptionId") | not))
       ' "$paseo_config" >/dev/null || fail "agy-lead: missing or wrong $model profile"
     done
   fi
@@ -219,8 +229,8 @@ else
           [.daemon.agentProfiles[]? | select(.id == ("droid-lead--" + ($model | gsub("\\.";"-")) + "--" + $effort))] |
           length == 1 and all(.[];
             .provider == "droid-lead" and .model == $model and .thinkingOptionId == $effort and
-            .modeId == "normal" and (.modeId | test("^auto") | not))
-        ' "$paseo_config" >/dev/null || fail "droid-lead: missing, wrong or auto-approving $model $effort profile"
+            .modeId == "auto-high")
+        ' "$paseo_config" >/dev/null || fail "droid-lead: missing or wrong $model $effort profile"
       done
     done
   fi
@@ -233,7 +243,7 @@ else
     ' "$paseo_config" >/dev/null || fail 'amp-lead: wrong launcher, tools or model'
     jq -e '
       [.daemon.agentProfiles[]? | select(.id == "amp-lead--medium")] |
-      length == 1 and all(.[]; .provider == "amp-lead" and .model == "medium")
+      length == 1 and all(.[]; .provider == "amp-lead" and .model == "medium" and .modeId == "local")
     ' "$paseo_config" >/dev/null || fail 'amp-lead: missing or wrong medium profile'
   fi
   jq -e --arg command "$kit/setup/role-agent" '

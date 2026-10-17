@@ -48,7 +48,7 @@ Supervisor opens a Lead in the project workspace and does not create a Peer.
 | Discovery | Supervisor uses Paseo `list_workspaces`, `list_agents`, `list_providers`, `list_models` |
 | Assignment | Supervisor opens a Human-authorized Lead with `create_agent(workspaceId=...)`; passes the Supervisor agentId in `initialPrompt` |
 | Implementation | Lead defines scope and creates a Peer through Paseo; Peer is the sole writer |
-| Handoff | Peer returns all six items in its session; the handoff is its last message. Lead reads only that message via Paseo `get_agent_activity` with `limit` 1 (done / not done, candidate identification details), not the Peer timeline |
+| Handoff | Peer returns all six items in its session; the handoff is its last message. Lead reads only that message from the Paseo finish notification (`<agent-response>`; if truncated, `paseo agent logs <id> --filter assistant_message --tail 1`) for done / not done and candidate identification details, not the Peer timeline |
 | Review | Lead reads the exact candidate and evidence. Complex/review tasks use [Dual-Lane review](agents/LEAD.md#dual-lane-review--complex--review-tasks): two read-only Peers with verified distinct model families, same frozen candidate and neutral brief; initial briefs and handoffs stay blind until both return. Shared findings are high-confidence; divergences get blind cross-critique (at most 2 rounds), Lead arbitrates, no third Peer. Existing Human review and agent-creation gates apply |
 | Rework | Lead sends exactly one `send_agent_prompt` specifying task, round, feedback, baseline and rejected candidate identities (commit or frozen snapshot/diff); preserves both. See [Peer handoff](agents/PEER.md#handoff--always-return) and [Lead acceptance](agents/LEAD.md#acceptance) |
 | Intervention | Only on an event (notification, Lead question, Human request), Supervisor may use `list_pending_permissions`, `respond_to_permission`, `cancel_agent`, `set_agent_mode`, then tells the owning Lead |
@@ -67,8 +67,8 @@ family or no valid authorized pair means `BLOCKED`, never a one-lane downgrade o
 model/effort change.
 
 There is no coordination desk, registry, ledger, patrol, timer, recurring schedule, or heartbeat.
-Lead retrieves Peer responses through Paseo `get_agent_activity`; idle/notification status does
-not prove that work is complete.
+Lead reads Peer responses from the Paseo finish notification, or from `paseo agent logs` when it is truncated;
+idle/notification status does not prove that work is complete.
 
 ## Codex runtime and resume
 
@@ -84,7 +84,7 @@ according to the target repo's hygiene; do not commit process documents into eve
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests
-bash -n setup/codex-room
+python3 -c 'compile(open("setup/codex-room").read(), "setup/codex-room", "exec")'
 bash -n setup/setup-seats.sh
 git diff --check
 ```
@@ -100,8 +100,8 @@ actual CWD, or live recovery checks.
 - All roles run as the same Unix user; scope and tool visibility are not an OS sandbox (see above).
 - Paseo is the sole agent control plane and owns lifecycle and topology. Inspect live state before
   operating.
-- `setup/codex-room-sync` preserves private runtime data and canonical config, disables native
+- `setup/codex-room` preserves private runtime data and canonical config, disables native
   multi-agent features, and rejects ambiguous or symlinked runtimes. These contracts are covered by
-  `tests/test_codex_room_sync.py` and `tests/test_codex_room.py`; see the [runtime guide](docs/setup/codex-runtime.md).
+  `tests/test_codex_room_runtime.py` and `tests/test_codex_room.py`; see the [runtime guide](docs/setup/codex-runtime.md).
 - ACP child-exit limitation: `setup/role-agent` forwards stdin until EOF, so a backend that exits
   early may surface only on the next input.

@@ -50,10 +50,10 @@ kiro-cli agent validate --path ~/.kiro/agents/epistex_lead.json
 ```
 
 Provider: `extends=acp`, command `["<KIT>/setup/role-agent","lead","kiro"]`,
-`paseoTools.enabled=true` với đúng 49 `disabledTools` của Lead policy trong
+`paseoTools.enabled=true` với đúng 50 `disabledTools` của Lead policy trong
 [SETUP.md](../../SETUP.md); Paseo enforce danh sách đó ở server. Agent file chỉ cho phép
-native tools của Peer cộng đúng 12 tool Lead dạng `@paseo/<tool>`; `allowedTools=[]` nên mọi
-tool call đi qua ACP `session/request_permission` mà Paseo relay — không auto-approve.
+native tools của Peer cộng đúng 11 tool Lead dạng `@paseo/<tool>`; `allowedTools` bằng đúng danh sách
+`tools`, nên Lead tự duyệt mọi tool (bypass). Peer vẫn có `allowedTools=[]`.
 `includeMcpJson=false`, `mcpServers={}`: không đọc MCP từ workspace hoặc global config.
 
 **MCP được chấp nhận** trên `session/new`, `session/load`, `session/resume`: `[]` hoặc đúng một
@@ -70,7 +70,7 @@ resume thay thế trạng thái cũ, huỷ confirmation đang chờ và không �
 bị refuse. Peer vẫn reject mọi MCP server.
 
 Kiro v2 quảng bá tool runtime bằng tên bare (native lẫn MCP, vd `list_agents` chứ không
-`@paseo/list_agents`); adapter so với native cộng tên bare của 12 entry `@paseo/<tool>` trong
+`@paseo/list_agents`); adapter so với native cộng tên bare của 11 entry `@paseo/<tool>` trong
 agent file. Tool lạ (kể cả `speak`, tool Paseo bị chặn, server khác, literal `@paseo/x` hoặc
 `subagent`) làm session thất bại thay vì expose. Giới hạn chưa chứng minh: metadata probe
 (`kiro-cli acp` initialize) đòi đăng nhập nên `mcpCapabilities.http` của v2 chưa được quan

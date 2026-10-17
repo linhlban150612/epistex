@@ -87,7 +87,7 @@ for line in sys.stdin:
 
 PASEO = {'type': 'http', 'name': 'paseo', 'url': 'http://127.0.0.1:6767/mcp/agents?callerAgentId=lead-1', 'headers': []}
 LEAD_POLICY = ['list_workspaces', 'list_providers', 'list_models', 'list_profiles', 'create_agent',
-               'send_agent_prompt', 'get_agent_activity', 'cancel_agent', 'archive_agent',
+               'send_agent_prompt', 'cancel_agent', 'archive_agent',
                'list_pending_permissions', 'respond_to_permission', 'set_agent_mode']
 
 
@@ -304,9 +304,9 @@ class KiroACPTest(unittest.TestCase):
         self.assertEqual([t for t in lead['tools'] if not t.startswith('@')], peer['tools'])
         script = (ROOT / 'setup/setup-seats.sh').read_text()
         deny = json.loads(script.split("expected_deny_lead='", 1)[1].split("'", 1)[0])
-        self.assertEqual((len(deny), set(deny) & set(paseo)), (49, set()))
+        self.assertEqual((len(deny), set(deny) & set(paseo)), (50, set()))
         self.assertEqual((lead['name'], lead['allowedTools'], lead['mcpServers'], lead['includeMcpJson']),
-                         ('epistex_lead', [], {}, False))
+                         ('epistex_lead', lead['tools'], {}, False))
 
     def test_lead_accepts_only_exact_paseo_server_and_primes_lead_role(self):
         for server in (PASEO, {**PASEO, 'url': 'http://[::1]:6767/mcp/agents?callerAgentId=x'},

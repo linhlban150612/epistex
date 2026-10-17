@@ -93,8 +93,8 @@ decision and risk recorded; never turn skipped into passed.
 
 After finishing or clearly recording what is unfinished, return the six-cell handoff in your
 current session for your Lead to retrieve and review. Identify the current task and assigned round;
-do not change the round. The Lead reads only your last message (Paseo `get_agent_activity`,
-`limit` 1) and checks task, round and exact candidate. A notification or
+do not change the round. The Lead reads only your last message (the Paseo finish notification, cut at 4000 characters, so
+keep the handoff compact) and checks task, round and exact candidate. A notification or
 idle status alone is not acceptance. Keep all Paseo MCP, CLI, API and shell coordination
 prohibited; Peer tools remain disabled. After handback, stop editing/committing. Resume writing only
 when your Lead sends one explicit `send_agent_prompt` through Paseo in the same session naming the

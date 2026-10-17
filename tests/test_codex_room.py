@@ -1,7 +1,6 @@
 import hashlib
 import json
 import pathlib
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -24,11 +23,6 @@ class CodexRoomTest(unittest.TestCase):
         (self.canonical / "config.toml").write_text('model = "fixture"\n')
         self.bin = self.root / "bin"
         self.bin.mkdir()
-        for name in ("bash", "dirname"):
-            target = shutil.which(name)
-            if target is None:
-                raise RuntimeError(f"test prerequisite missing: {name}")
-            (self.bin / name).symlink_to(target)
         (self.bin / "python3").symlink_to(sys.executable)
         self.codex = self.bin / "fake codex"
         self.codex.write_text(
@@ -44,7 +38,7 @@ class CodexRoomTest(unittest.TestCase):
                     "CODEX_BIN": str(self.codex), "PYTHONDONTWRITEBYTECODE": "1"}
 
     def run_room(self, *args):
-        return subprocess.run([str(self.bin / "bash"), str(WRAPPER), *args],
+        return subprocess.run([str(self.bin / "python3"), str(WRAPPER), *args],
                               cwd=self.project, env=self.env, text=True, capture_output=True)
 
     def assert_launch(self, result, role, project, args):

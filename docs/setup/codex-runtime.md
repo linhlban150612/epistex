@@ -7,7 +7,7 @@ project prerequisites. Backend-specific seat setup remains in the linked
 ## Codex runtime and resume
 
 ```text
-Paseo provider → setup/codex-room <role> → setup/codex-room-sync
+Paseo provider → setup/codex-room <role> (sync runtime, then exec Codex)
   → ~/.codex-runtime/epistex/<project-id>/<role>/
        config.toml          generated, role prompt
        auth.json            → canonical Codex home
@@ -107,7 +107,7 @@ Linux Desktop: nếu `paseo` là symlink tới `/opt/Paseo/Paseo` và `paseo run
 |---|---|
 | `agents/*.md` | Supervisor, Lead, and Peer prompts |
 | `setup/role-agent` | Native Claude/Pi launcher and ACP instruction proxy |
-| `setup/codex-room`, `setup/codex-room-sync` | Select runtime/resume and generate Codex config |
+| `setup/codex-room` | Select runtime/resume and generate Codex config |
 | `setup/setup-seats.sh`, `examples/paseo-providers.json` | Three role seats and provider check |
 | `SETUP.md` | Setup entry point: common steps, Codex seats, live verification |
 | `docs/setup/*.md` | Backend-specific seats: Claude, Amp, Pi/OMP, Devin/Copilot/Cursor, Droid |

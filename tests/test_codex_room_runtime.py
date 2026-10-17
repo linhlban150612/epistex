@@ -2,16 +2,19 @@ import hashlib
 import os
 import pathlib
 import subprocess
+import sys
 import tempfile
 import tomllib
 import unittest
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SYNC = ROOT / "setup" / "codex-room-sync"
+ROOM = ROOT / "setup" / "codex-room"
+# Prints CODEX_HOME so tests observe the selected runtime.
+PRINT_HOME = "import os; print(os.environ['CODEX_HOME'])"
 
 
-class CodexRoomSyncTest(unittest.TestCase):
+class CodexRoomRuntimeTest(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.home = pathlib.Path(self.temporary.name) / "home"
@@ -19,6 +22,9 @@ class CodexRoomSyncTest(unittest.TestCase):
         self.project = pathlib.Path(self.temporary.name) / "project"
         self.canonical.mkdir(parents=True)
         self.project.mkdir()
+        self.codex = pathlib.Path(self.temporary.name) / "fake-codex"
+        self.codex.write_text(f"#!{sys.executable}\n{PRINT_HOME}\n")
+        self.codex.chmod(0o755)
         (self.canonical / "config.toml").write_text(
             """model = "test-model"
 
@@ -45,11 +51,12 @@ command = "other"
 
     def sync(self, role: str, session_id: str = "", extra_env=None, project=None) -> subprocess.CompletedProcess[str]:
         env = os.environ.copy()
-        env.update(HOME=str(self.home), EPISTEX_CODEX_HOME=str(self.canonical))
+        env.update(HOME=str(self.home), EPISTEX_CODEX_HOME=str(self.canonical),
+                   EPISTEX_PROJECT_ROOT=str(project or self.project), CODEX_BIN=str(self.codex))
         if extra_env:
             env.update(extra_env)
         return subprocess.run(
-            [str(SYNC), role, str(project or self.project), session_id],
+            [str(ROOM), role, *(["resume", session_id] if session_id else [])],
             env=env,
             text=True,
             capture_output=True,

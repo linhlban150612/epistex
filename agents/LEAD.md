@@ -181,8 +181,9 @@ request covers it only if the Human explicitly authorizes the two Peers — othe
 
 ## Monitoring
 
-Event-driven. After create/send, end the turn and **wait for notifications**. Call
-`get_agent_activity` (`limit` 1) only once per notification, never to check progress.
+Event-driven. After create/send, end the turn and **wait for notifications**. A finish
+notification carries the Peer's last message in `<agent-response>`. Never read Peer activity to
+check progress.
 No timers, schedules, heartbeats or periodic checks — not even to detect a stuck agent.
 
 **Loop detection counts events, never time.** An event is a handoff, a notification, a failed
@@ -211,8 +212,11 @@ Lifecycle status — idle, `finished`, exit 0, "tests pass" — is only a wake-u
 acceptance**. **The current artifact and reproducible evidence beat** notifications, silence
 and the model's confidence.
 
-Read § Handoff in the Peer prompt when preparing a brief/review. Read only the handoff:
-`get_agent_activity` with `limit` 1, never more. Check task/round, done/not done, cells and
+Read § Handoff in the Peer prompt when preparing a brief/review. Read only the handoff: the
+`<agent-response>` in the notification. Only when it ends with `[truncated N chars; ...]`, ignore
+its `get_agent_activity` hint (Lead does not have that tool) and run once per notification
+`paseo agent logs <id> --filter assistant_message --tail 1` (plain text; "No activity to display."
+means no handoff yet). Check task/round, done/not done, cells and
 candidate. If it is incomplete, ask the Peer to resend it; never read the timeline or fill cells in.
 Do not ask the Peer to read the Lead prompt.
 
@@ -238,7 +242,7 @@ If a fix is needed, trace it to the layer that produced the deviation before pat
 Do not add retries, exceptions or implementation-matching tests just to turn the signal green.
 
 Rework goes to the **same Peer** via `send_agent_prompt`. Create a new Peer only after a confirmed
-reset (§ Monitoring) or when that Peer has failed the same task more than 2 times (rework cap).
+reset (§ Monitoring).
 
 **Rework cap: 2 rework rounds per task across Peers.** Third candidate fails: same finding three
 times → REOPEN (§ Monitoring), no Peer swap; different findings → propose one replacement Peer

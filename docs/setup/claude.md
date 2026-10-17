@@ -26,6 +26,7 @@ Profile pins:
 | `claude-supervisor` | `claude-fable-5-1` | `medium` (unverified: provider credits) |
 
 Claude Lead dùng deny-list tại [SETUP.md §3](../../SETUP.md); không áp dụng cho Peer.
+Profile `claude-lead` dùng `modeId: "bypassPermissions"`.
 
 Đặt label/description theo role và thay `<KIT>` bằng đường dẫn tuyệt đối. `role-agent` và
 `claude-sdk` phải executable. `role-agent <role> claude` chuyển sang launcher riêng

@@ -83,7 +83,7 @@ low/high models does not prove runtime medium support.
 ## droid-lead
 
 Provider `droid-lead`, command `["<KIT>/setup/role-agent","lead","droid"]`, Lead Paseo tool policy
-per SETUP.md (49-entry deny-list). Models `claude-opus-5-5`, `claude-sonnet-5-5`, `gpt-6.1-sol`,
-`gemini-4-argon` with low/medium effort. Profiles carry `modeId: "normal"` (Auto Off — only read
-operations are auto-approved). Droid's advertised modes: `normal`, `spec`, `auto-low`,
+per SETUP.md (50-entry deny-list). Models `claude-opus-5-5`, `claude-sonnet-5-5`, `gpt-6.1-sol`,
+`gemini-4-argon` with low/medium effort. Profiles carry `modeId: "auto-high"` (all operations are
+auto-approved, so Lead never waits for permission). Droid's advertised modes: `normal`, `spec`, `auto-low`,
 `auto-medium`, `auto-high`.

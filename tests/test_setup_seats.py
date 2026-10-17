@@ -11,8 +11,8 @@ from collections import Counter
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "setup" / "setup-seats.sh"
 CATALOG = set("""archive_agent archive_workspace browser_back browser_click browser_close_tab browser_drag browser_evaluate browser_fill browser_forward browser_hover browser_keypress browser_list_tabs browser_logs browser_navigate browser_new_tab browser_reload browser_resize browser_screenshot browser_scroll browser_select browser_snapshot browser_type browser_upload browser_wait cancel_agent capture_terminal create_agent create_heartbeat create_schedule create_terminal create_workspace delete_heartbeat delete_schedule get_agent_activity get_agent_status inspect_provider inspect_schedule kill_agent kill_terminal list_agents list_models list_pending_permissions list_profiles list_providers list_schedules list_terminals list_workspace_scripts list_workspaces pause_schedule rename_workspace respond_to_permission resume_schedule run_schedule_once schedule_logs send_agent_prompt send_terminal_keys set_agent_mode start_workspace_script stop_workspace_script update_agent update_schedule""".split())
-KEEP_LEAD = set("""list_workspaces list_providers list_models list_profiles create_agent send_agent_prompt get_agent_activity cancel_agent archive_agent list_pending_permissions respond_to_permission set_agent_mode""".split())
-KEEP_SUPERVISOR = KEEP_LEAD | {"create_workspace", "get_agent_status", "list_agents"}
+KEEP_LEAD = set("""list_workspaces list_providers list_models list_profiles create_agent send_agent_prompt cancel_agent archive_agent list_pending_permissions respond_to_permission set_agent_mode""".split())
+KEEP_SUPERVISOR = KEEP_LEAD | {"create_workspace", "get_agent_activity", "get_agent_status", "list_agents"}
 DENY_LEAD = CATALOG - KEEP_LEAD
 DENY_SUPERVISOR = CATALOG - KEEP_SUPERVISOR
 
@@ -147,7 +147,7 @@ class SetupSeatsTest(unittest.TestCase):
             self.assertEqual("Devin user-wide" in result.stdout, value != 100000)
 
     def test_catalog_partition_and_example_policy(self):
-        self.assertEqual((len(CATALOG), len(KEEP_LEAD), len(DENY_LEAD)), (61, 12, 49))
+        self.assertEqual((len(CATALOG), len(KEEP_LEAD), len(DENY_LEAD)), (61, 11, 50))
         self.assertEqual((len(KEEP_SUPERVISOR), len(DENY_SUPERVISOR)), (15, 46))
         self.assertEqual(KEEP_LEAD | DENY_LEAD, CATALOG)
         self.assertEqual(KEEP_SUPERVISOR | DENY_SUPERVISOR, CATALOG)
@@ -158,10 +158,10 @@ class SetupSeatsTest(unittest.TestCase):
             if provider.get("paseoTools", {}).get("enabled") is True:
                 expected = DENY_SUPERVISOR if key.endswith("-supervisor") else DENY_LEAD
                 self.assertEqual(set(provider["paseoTools"]["disabledTools"]), expected, key)
-        self.assertEqual(len(example["daemon"]["agentProfiles"]), 101)
+        self.assertEqual(len(example["daemon"]["agentProfiles"]), 103)
         counts = Counter(p["provider"] for p in example["daemon"]["agentProfiles"])
         self.assertEqual(counts, Counter({"amp-peer": 1, "amp-lead": 1, "amp-supervisor": 2,
-            "claude-peer": 6, "claude-supervisor": 5, "codex-peer": 2,
+            "claude-peer": 6, "claude-supervisor": 5, "codex-lead": 2, "codex-peer": 2,
             "codex-supervisor": 4, "copilot-peer": 10, "omp-peer": 9,
             "pi-peer": 9, "agy-peer": 4, "agy-lead": 2, "kiro-peer": 4, "kiro-lead": 4,
             "kiro-supervisor": 4, "droid-peer": 22, "droid-lead": 8, "devin-peer": 1, "devin-supervisor": 1, "claude-lead": 1, "cursor-peer": 1}))
@@ -169,7 +169,7 @@ class SetupSeatsTest(unittest.TestCase):
         match = re.search(r"expected_deny_lead='(\[.*?\])'", script)
         self.assertIsNotNone(match, "checker deny-list constant not found")
         self.assertEqual(set(json.loads(match.group(1))), DENY_LEAD)
-        self.assertEqual(set(json.loads(match.group(1))) - {"create_workspace", "get_agent_status", "list_agents"}, DENY_SUPERVISOR)
+        self.assertEqual(set(json.loads(match.group(1))) - {"create_workspace", "get_agent_activity", "get_agent_status", "list_agents"}, DENY_SUPERVISOR)
 
     def test_omp_luna_cell_and_profiles(self):
         providers = self.data["agents"]["providers"]
@@ -307,8 +307,8 @@ class SetupSeatsTest(unittest.TestCase):
         for model in ("gemini-4-argon-low", "gemini-4-argon-medium"):
             with self.subTest(model=model):
                 profile = next(p for p in self.data["daemon"]["agentProfiles"] if p["id"] == f"agy-lead--{model}")
-                self.assertEqual(profile["modeId"], "default")
-                for bad_mode in ("yolo", "auto_edit"):
+                self.assertEqual(profile["modeId"], "yolo")
+                for bad_mode in ("default", "auto_edit"):
                     with self.subTest(model=model, modeId=bad_mode):
                         original = profile["modeId"]
                         profile["modeId"] = bad_mode
@@ -460,6 +460,24 @@ class SetupSeatsTest(unittest.TestCase):
         result = self.run_check("--check")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("agentProfiles", result.stderr)
+
+    def test_codex_lead_requires_full_access_profiles(self):
+        self.save()
+        result = self.run_check("--check")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        profiles = self.data["daemon"]["agentProfiles"]
+        for effort in ("low", "medium"):
+            profile = next(p for p in profiles if p["id"] == f"codex-lead--gpt-6-1-sol--{effort}")
+            for mode in ("auto", "auto-review", None):
+                with self.subTest(effort=effort, mode=mode):
+                    original = profile.pop("modeId")
+                    if mode:
+                        profile["modeId"] = mode
+                    self.save()
+                    result = self.run_check("--check")
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(f"codex-lead: missing or wrong gpt-6.1-sol {effort} profile", result.stderr)
+                    profile["modeId"] = original
 
     def test_amp_claude_codex_supervisor_seat_checks(self):
         self.save()

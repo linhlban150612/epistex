@@ -34,8 +34,8 @@ Profile pins:
 | `amp-peer` | `low` | `amp-peer--low` | Không có |
 | `amp-supervisor` | `medium`, `high` | `amp-supervisor--medium`, `amp-supervisor--high` | Không có |
 
-Chọn permission mode từ discovery (adapter hiện có `default` và `bypass`); dùng `default`
-cho smoke test. Thay `<KIT>` bằng đường dẫn tuyệt
+Chọn permission mode từ discovery (amp-acp v0.10.0 chỉ có `local` và `orb`, không có mode bypass);
+`amp-lead--medium` dùng `local`. Thay `<KIT>` bằng đường dẫn tuyệt
 đối, giữ `role-agent` executable, rồi chạy `paseo reload` và tạo phiên mới.
 
 ACP proxy thêm role instructions vào prompt đầu tiên của mỗi session trong vòng đời proxy,

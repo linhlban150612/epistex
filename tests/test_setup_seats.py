@@ -157,13 +157,13 @@ class SetupSeatsTest(unittest.TestCase):
             if provider.get("paseoTools", {}).get("enabled") is True:
                 expected = DENY_SUPERVISOR if key.endswith("-supervisor") else DENY_LEAD
                 self.assertEqual(set(provider["paseoTools"]["disabledTools"]), expected, key)
-        self.assertEqual(len(example["daemon"]["agentProfiles"]), 104)
+        self.assertEqual(len(example["daemon"]["agentProfiles"]), 109)
         counts = Counter(p["provider"] for p in example["daemon"]["agentProfiles"])
         self.assertEqual(counts, Counter({"amp-peer": 1, "amp-lead": 1, "amp-supervisor": 2,
             "claude-peer": 6, "claude-supervisor": 5, "codex-lead": 2, "codex-peer": 4,
-            "codex-supervisor": 4, "copilot-peer": 10, "omp-peer": 9,
-            "pi-peer": 9, "agy-peer": 4, "agy-lead": 2, "kiro-peer": 4, "kiro-lead": 4,
-            "kiro-supervisor": 4, "droid-peer": 22, "droid-lead": 8, "devin-peer": 1, "claude-lead": 1, "cursor-peer": 1}))
+            "codex-supervisor": 4, "copilot-peer": 10, "omp-peer": 11,
+            "pi-peer": 11, "agy-peer": 4, "agy-lead": 2, "kiro-peer": 4, "kiro-lead": 4,
+            "kiro-supervisor": 4, "droid-peer": 22, "droid-lead": 8, "devin-peer": 1, "claude-lead": 1, "cursor-peer": 2}))
         script = SCRIPT.read_text()
         match = re.search(r"expected_deny_lead='(\[.*?\])'", script)
         self.assertIsNotNone(match, "checker deny-list constant not found")
@@ -493,6 +493,78 @@ class SetupSeatsTest(unittest.TestCase):
         result = self.run_check("--check")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("agentProfiles", result.stderr)
+
+    def test_disabled_optional_seats_require_profile_removal_and_validate_when_reenabled(self):
+        for seat in ("amp-supervisor", "claude-supervisor", "codex-supervisor",
+                     "copilot-peer", "devin-peer", "agy-lead"):
+            self.data["agents"]["providers"][seat]["enabled"] = False
+        self.save()
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("daemon.agentProfiles", result.stderr)
+        self.data["daemon"]["agentProfiles"] = [
+            p for p in self.data["daemon"]["agentProfiles"]
+            if self.data["agents"]["providers"][p["provider"]]["enabled"]]
+        self.save()
+        before = self.config.read_bytes()
+        result = self.run_check("--check")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.config.read_bytes(), before)
+        for seat in ("amp-supervisor", "devin-peer", "agy-lead"):
+            with self.subTest(seat=seat):
+                provider = self.data["agents"]["providers"][seat]
+                provider["enabled"] = True
+                command = provider.pop("command")
+                self.save()
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(seat + ": wrong launcher", result.stderr)
+                provider["command"] = command
+                provider["enabled"] = False
+
+    def test_profile_optional_settings_types(self):
+        profile = self.data["daemon"]["agentProfiles"][0]
+        for key, value in (("modeId", 12), ("modeId", ""), ("featureValues", [])):
+            with self.subTest(key=key, value=value):
+                profile[key] = value
+                self.save()
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("daemon.agentProfiles", result.stderr)
+                profile.pop(key)
+
+    def test_profile_normalization_preserves_catalog_launch_settings_and_foreign_profiles(self):
+        profiles = self.data["daemon"]["agentProfiles"]
+        profiles[0]["featureValues"] = {"example_feature": False}
+        foreign = {"id": "personal", "provider": "personal-peer", "notes": "Keep mine"}
+        profiles.append(foreign)
+        for seat in ("copilot-peer", "amp-supervisor", "devin-peer"):
+            self.data["agents"]["providers"][seat]["enabled"] = False
+        self.save()
+        for catalog in (True, False):
+            with self.subTest(catalog=catalog):
+                command = [str(self.bin / "jq"), "--argjson", "catalog", json.dumps(catalog),
+                           "-f", str(ROOT / "setup/normalize-profiles.jq")]
+                result = subprocess.run(command + [str(self.config)], text=True,
+                                        capture_output=True, check=True)
+                data = json.loads(result.stdout)
+                actual = data["daemon"]["agentProfiles"]
+                self.assertEqual(len(actual), len(profiles) - (0 if catalog else 13))
+                self.assertEqual(actual[-1], foreign)
+                self.assertEqual(data["agents"], self.data["agents"])
+                expected = [p for p in profiles if catalog or p == foreign or
+                            self.data["agents"]["providers"][p["provider"]]["enabled"]]
+                for old, new in zip(expected, actual):
+                    self.assertEqual({k: v for k, v in old.items() if k != "notes"},
+                                     {k: v for k, v in new.items() if k != "notes"})
+                    if new != foreign:
+                        self.assertNotIn("cheap/fast", new["notes"])
+                        self.assertIn("featureValues to settings.features", new["notes"])
+                        self.assertIn("modeId to settings.modeId", new["notes"])
+                        self.assertIn("thinkingOptionId to settings.thinkingOptionId", new["notes"])
+                again = subprocess.run(command, input=result.stdout, text=True,
+                                       capture_output=True, check=True)
+                self.assertEqual(json.loads(again.stdout), data)
 
     def test_codex_lead_requires_full_access_profiles(self):
         self.save()

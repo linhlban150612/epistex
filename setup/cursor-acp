@@ -2,19 +2,211 @@
 """Start a Cursor seat through cursor-agent ACP and inject role instructions into each ACP session."""
 
 import importlib.machinery
+import json
+import os
 import pathlib
+import queue
+import shutil
+import signal
+import subprocess
 import sys
+import tempfile
+import threading
+import uuid
 
 sys.dont_write_bytecode = True
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ROLES = ("supervisor", "lead", "peer")
 
 
+def run(role, args):
+    """Translate the two seat model IDs into confirmed native ACP parameters."""
+    role_agent = importlib.machinery.SourceFileLoader("role_agent", str(ROOT / "setup/role-agent")).load_module()
+    source = pathlib.Path(os.environ.get("CURSOR_CONFIG_DIR") or
+                          (pathlib.Path(os.environ["XDG_CONFIG_HOME"]) / "cursor"
+                           if os.environ.get("XDG_CONFIG_HOME") else pathlib.Path.home() / ".cursor"))
+    # Cursor persists ACP model parameters in cli-config.json. Isolate that file,
+    # but retain the original auth, MCP configuration and durable session stores.
+    source.mkdir(parents=True, exist_ok=True)
+    (source / "acp-sessions").mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="epistex-cursor-") as folder:
+        local = pathlib.Path(folder)
+        for entry in source.iterdir():
+            if entry.name not in ("cli-config.json", "acp-config.json"):
+                (local / entry.name).symlink_to(entry.resolve())
+        if (source / "cli-config.json").exists():
+            shutil.copyfile(source / "cli-config.json", local / "cli-config.json")
+            (local / "cli-config.json").chmod(0o600)
+        child = subprocess.Popen(["cursor-agent", "acp", *args], stdin=subprocess.PIPE,
+                                 stdout=subprocess.PIPE, env={**os.environ, "CURSOR_CONFIG_DIR": folder})
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            signal.signal(sig, lambda signum, frame: child.send_signal(signum) if child.poll() is None else None)
+        pending = {}
+        pending_confirmation = {}
+        lock = threading.Lock()
+        seen = set()
+        selected = None
+        sessions = set()
+        confirmed = {}
+        selection_lock = threading.RLock()
+
+        def emit(message):
+            with lock:
+                print(json.dumps(message, ensure_ascii=False), flush=True)
+
+        def send(message):
+            child.stdin.write((json.dumps(message) + "\n").encode())
+            child.stdin.flush()
+
+        def reader():
+            nonlocal selected
+            for line in child.stdout:
+                message = json.loads(line)
+                waiter = pending.get(message.get("id")) if "method" not in message else None
+                if waiter is not None:
+                    confirmation = pending_confirmation.get(message.get("id"))
+                    if confirmation and "error" not in message:
+                        sid, model, expected = confirmation
+                        result = message.get("result", {})
+                        actual = {o.get("id"): o.get("currentValue")
+                                  for o in result.get("configOptions", []) if isinstance(o, dict)}
+                        with selection_lock:
+                            if all(actual.get(key) == value for key, value in expected.items()):
+                                selected = model
+                                confirmed[sid] = model
+                            else:
+                                confirmed.pop(sid, None)
+                                if selected == model:
+                                    selected = None
+                    waiter.put(message)
+                else:
+                    update = message.get("params", {}).get("update", {})
+                    kind = update.get("sessionUpdate")
+                    sid = message.get("params", {}).get("sessionId")
+                    if kind in ("current_model_update", "config_option_update") and sid:
+                        with selection_lock:
+                            model = confirmed.get(sid)
+                            if model:
+                                expected = {"model": "grok-4.7", "fast": "false", "context": "256k",
+                                            "reasoning_effort": model.removeprefix("grok-4.7-")}
+                                mismatch = False
+                                if kind == "current_model_update":
+                                    mismatch = update.get("currentModelId") != model
+                                else:
+                                    values = {o.get("id"): o.get("currentValue")
+                                              for o in update.get("configOptions", []) if isinstance(o, dict)}
+                                    mismatch = any(key in values and values[key] != value
+                                                   for key, value in expected.items())
+                                if mismatch:
+                                    confirmed.pop(sid, None)
+                                    if selected == model:
+                                        selected = None
+                        # Keep native model/config updates internal; selection confirmation is the public state.
+                    else:
+                        emit(message)
+            for waiter in list(pending.values()):
+                waiter.put({"error": {"code": -32603, "message": "Cursor exited before confirmation"}})
+
+        output = threading.Thread(target=reader, daemon=True)
+        output.start()
+
+        def call(method, params, confirmation=None):
+            ident = "epistex-cursor-" + uuid.uuid4().hex
+            waiter = pending[ident] = queue.Queue()
+            if confirmation:
+                pending_confirmation[ident] = confirmation
+            try:
+                send({"jsonrpc": "2.0", "id": ident, "method": method, "params": params})
+                response = waiter.get(timeout=40)
+                if "error" in response:
+                    raise ValueError(response["error"])
+                return response["result"]
+            finally:
+                pending.pop(ident, None)
+                pending_confirmation.pop(ident, None)
+
+        def model_state():
+            return {"currentModelId": selected, "availableModels": [
+                {"modelId": "grok-4.7-" + effort, "name": "Grok 4.7 " + effort + " (Fast off)"}
+                for effort in ("low", "medium")]}
+
+        def options():
+            return [{"id": "model", "name": "Model", "category": "model", "type": "select",
+                     "currentValue": selected, "options": [
+                         {"value": m["modelId"], "name": m["name"]}
+                         for m in model_state()["availableModels"]]}]
+
+        def choose(sid, model):
+            nonlocal selected
+            with selection_lock:
+                confirmed.pop(sid, None)
+                selected = None  # A partial or rejected selection must never allow a prompt.
+            if model not in ("grok-4.7-low", "grok-4.7-medium"):
+                raise ValueError("Cursor seat requires Grok 4.7 low/medium with Fast off")
+            expected = {"model": "grok-4.7", "fast": "false", "context": "256k",
+                        "reasoning_effort": model.removeprefix("grok-4.7-")}
+            for index, (key, value) in enumerate(expected.items()):
+                confirmation = (sid, model, expected) if index == len(expected) - 1 else None
+                result = call("session/set_config_option", {"sessionId": sid, "configId": key, "value": value},
+                              confirmation)
+            actual = {o["id"]: o["currentValue"] for o in result.get("configOptions", [])}
+            if any(actual.get(key) != value for key, value in expected.items()):
+                raise ValueError("Cursor did not confirm Grok model, effort, context and Fast off")
+            for session in sessions:
+                emit({"jsonrpc": "2.0", "method": "session/update", "params": {
+                    "sessionId": session, "update": {"sessionUpdate": "current_model_update", "currentModelId": model}}})
+
+        try:
+            for line in sys.stdin.buffer:
+                message = json.loads(line)
+                method, params = message.get("method"), message.get("params", {})
+                try:
+                    if method == "initialize":
+                        caps = params.setdefault("clientCapabilities", {})
+                        caps.setdefault("_meta", {})["parameterizedModelPicker"] = True
+                        send(message)
+                        continue
+                    if method in ("session/new", "session/load"):
+                        result = call(method, params)
+                        sid = result.get("sessionId", params.get("sessionId"))
+                        choose(sid, "grok-4.7-low")
+                        sessions.add(sid)
+                        result["models"], result["configOptions"] = model_state(), options()
+                    elif method == "session/set_model" or (method == "session/set_config_option" and params.get("configId") == "model"):
+                        choose(params["sessionId"], params.get("modelId", params.get("value")))
+                        result = {} if method == "session/set_model" else {"configOptions": options()}
+                    elif method == "session/set_config_option" and params.get("configId") != "mode":
+                        raise ValueError("Select a seat model; direct parameter changes are not allowed")
+                    elif method == "session/prompt":
+                        with selection_lock:
+                            sid = params.get("sessionId")
+                            if selected is None or sid not in sessions or confirmed.get(sid) != selected:
+                                raise ValueError("Cursor model parameters are not confirmed; reselect a seat model")
+                            child.stdin.write(role_agent.prime(line, role, seen))
+                            child.stdin.flush()
+                        continue
+                    else:
+                        send(message)
+                        continue
+                    emit({"jsonrpc": "2.0", "id": message["id"], "result": result})
+                except (ValueError, queue.Empty) as error:
+                    emit({"jsonrpc": "2.0", "id": message["id"], "error": {
+                        "code": -32602, "message": "Cursor selection failed: " + str(error)}})
+        finally:
+            child.stdin.close()
+            try:
+                child.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                child.terminate()
+                child.wait(timeout=10)
+            output.join(timeout=5)
+    return child.returncode
+
+
 def main() -> int:
     if len(sys.argv) < 2 or sys.argv[1] not in ROLES:
         raise SystemExit("usage: cursor-acp <supervisor|lead|peer> [cursor-agent args...]")
-    role_agent = importlib.machinery.SourceFileLoader("role_agent", str(ROOT / "setup/role-agent")).load_module()
-    return role_agent.run_acp(["cursor-agent", "acp", *sys.argv[2:]], sys.argv[1])
+    return run(sys.argv[1], sys.argv[2:])
 
 
 if __name__ == "__main__":

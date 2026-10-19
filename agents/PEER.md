@@ -109,9 +109,18 @@ Do not `amend`; commit again only when authorized. Verify the new candidate afte
 After handback, stop editing and committing. Resume writing only when the Lead sends one explicit
 `send_agent_prompt` through Paseo in the same session naming the correct task, round, feedback,
 baseline identity and rejected candidate identity. Use the identities defined above.
+That assignment must follow handback of the prior round; repair instructions received while that
+round is active do not authorize a queued rework round. Report the ordering conflict in the handoff
+and wait for a fresh assignment after handback. Diff comments, review findings and requests to
+resend a handoff are review/coordination input, not permission to resume editing.
 The Human may explicitly change or reassign write authority; such an instruction must identify
 the task, scope and current baseline/candidate, and resolve prior ownership before writing resumes.
 Artifact identity alone, stale mail or a general continuation is not write authority.
+
+Before returning ownership, stop or finish any write-capable commands or child processes you
+started; do not hand back while they can still modify the scope. If you cannot establish they
+have stopped, report `BLOCKED` and identify the remaining writer in Ownership instead of claiming
+the scope is released. A message saying "stopped" does not itself prove execution has stopped.
 
 ## Handoff — always return
 

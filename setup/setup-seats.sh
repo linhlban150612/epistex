@@ -87,10 +87,11 @@ else
     esac
     actual=$(jq -c --arg id "$provider" '.agents.providers[$id].paseoTools.disabledTools | if type == "array" and all(.[]; type == "string") then sort else null end' "$paseo_config")
     [[ "$actual" == "$(jq -c 'sort' <<<"$expected_deny")" ]] || fail "$provider: paseoTools.disabledTools must exactly match the deny-list"
-  done < <(jq -r '.agents.providers | to_entries[] | select(.value.paseoTools.enabled == true) | .key' "$paseo_config")
+  done < <(jq -r '.agents.providers | to_entries[] | select(.value.enabled == true and .value.paseoTools.enabled == true) | .key' "$paseo_config")
   jq -e '.daemon.mcp.enabled != false and .daemon.mcp.injectIntoAgents == true' \
     "$paseo_config" >/dev/null || fail 'Paseo MCP injection is not enabled'
   for seat in amp-supervisor claude-supervisor codex-supervisor; do
+    jq -e --arg seat "$seat" '.agents.providers[$seat].enabled == false' "$paseo_config" >/dev/null && continue
     case "$seat" in
       amp-supervisor) command="$kit/setup/role-agent"; args='["supervisor","amp"]'; model=medium; effort= ;;
       claude-supervisor) command="$kit/setup/role-agent"; args='["supervisor","claude"]'; model=claude-sonnet-5-5; effort=low ;;
@@ -188,7 +189,7 @@ else
         .modeId != "yolo" and (has("thinkingOptionId") | not))
     ' "$paseo_config" >/dev/null || fail "agy-peer: missing or wrong $model profile"
   done
-  if jq -e '.agents.providers | has("agy-lead")' "$paseo_config" >/dev/null; then
+  if jq -e '.agents.providers | has("agy-lead") and .["agy-lead"].enabled != false' "$paseo_config" >/dev/null; then
     jq -e --arg command "$kit/setup/role-agent" '
       .agents.providers["agy-lead"] as $p |
       $p.extends == "acp" and $p.enabled == true and
@@ -208,19 +209,21 @@ else
       ' "$paseo_config" >/dev/null || fail "agy-lead: missing or wrong $model profile"
     done
   fi
-  jq -e --arg command "$kit/setup/role-agent" '
-    .agents.providers["devin-peer"] |
-    .extends == "acp" and .enabled == true and
-    .command == [$command, "peer", "devin"] and .paseoTools.enabled == false and
-    .env == {} and ([.models[].id]) == ["swe-2-high"] and
-    all(.models[]; ([.thinkingOptions[].id] | sort) == ["high"])
-  ' "$paseo_config" >/dev/null || fail 'devin-peer: wrong launcher, tools or model'
-  for seat in devin-peer; do
-    jq -e --arg seat "$seat" '
-      [.daemon.agentProfiles[]? | select(.id == ($seat + "--swe-2-high--high"))] |
-      length == 1 and all(.[]; .provider == $seat and .model == "swe-2-high" and .thinkingOptionId == "high")
-    ' "$paseo_config" >/dev/null || fail "$seat: missing or wrong swe-2-high profile"
-  done
+  if ! jq -e '.agents.providers["devin-peer"].enabled == false' "$paseo_config" >/dev/null; then
+    jq -e --arg command "$kit/setup/role-agent" '
+      .agents.providers["devin-peer"] |
+      .extends == "acp" and .enabled == true and
+      .command == [$command, "peer", "devin"] and .paseoTools.enabled == false and
+      .env == {} and ([.models[].id]) == ["swe-2-high"] and
+      all(.models[]; ([.thinkingOptions[].id] | sort) == ["high"])
+    ' "$paseo_config" >/dev/null || fail 'devin-peer: wrong launcher, tools or model'
+    for seat in devin-peer; do
+      jq -e --arg seat "$seat" '
+        [.daemon.agentProfiles[]? | select(.id == ($seat + "--swe-2-high--high"))] |
+        length == 1 and all(.[]; .provider == $seat and .model == "swe-2-high" and .thinkingOptionId == "high")
+      ' "$paseo_config" >/dev/null || fail "$seat: missing or wrong swe-2-high profile"
+    done
+  fi
   if jq -e '.agents.providers["droid-lead"].enabled == true' "$paseo_config" >/dev/null; then
     jq -e --arg command "$kit/setup/role-agent" '
       .agents.providers["droid-lead"] |
@@ -335,12 +338,14 @@ PY
       select(($seat | type) != "object" or $seat.enabled != true or
         (($p.provider | test("^(codex|claude|amp|agy|pi|omp|copilot|cursor|kiro|droid|devin)-")) | not) or
         (([ $seat.models[]?.id ] | index($p.model)) == null) or
+        (($p | has("modeId")) and (($p.modeId | type) != "string" or $p.modeId == "")) or
+        (($p | has("featureValues")) and ($p.featureValues | type) != "object") or
         (if any($seat.models[]?; .id == $p.model and has("thinkingOptions"))
          then (($p | has("thinkingOptionId")) | not) or
               (([ $seat.models[] | select(.id == $p.model) | .thinkingOptions[]?.id ] | index($p.thinkingOptionId)) == null)
          else ($p | has("thinkingOptionId")) end)
       )] | length == 0
-  ' "$paseo_config" >/dev/null || fail 'daemon.agentProfiles: invalid seat, model or thinking option'
+  ' "$paseo_config" >/dev/null || fail 'daemon.agentProfiles: invalid seat, model or thinking option (or malformed mode/features settings)'
 fi
 
 (( errs == 0 )) || { printf '! %s error(s) — setup is not ready.\n' "$errs" >&2; exit 1; }

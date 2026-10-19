@@ -71,8 +71,14 @@ needed within that request, unless the Human forbids or limits delegation. Once 
 facts, delegate through Paseo yourself; do not re-ask permission for each task.
 Delegation authority does not authorize enabling schedules or side effects outside the task.
 
-One Peer profile (on any backend provider); the **disposition** goes in the task prompt
-(Engineer / Architect / Scout).
+One Peer profile; the **disposition** goes in the task prompt (Engineer / Architect / Scout).
+Do not automatically create a Peer on the Lead's own backend provider: Lead and Peer may share
+the session quota and fail with `You've hit your session limit`. Different role-seat IDs (for
+example, `codex-lead` and `codex-peer`) do not make them different backend providers. Select a
+different provider only from Human-authorized choices; different providers do not prove independent
+quotas. If none is available, report `BLOCKED` and ask the Human for another provider or an explicit
+same-provider exception. Never silently fall back to the Lead's provider or retry a session-limit
+failure by creating more Peers on it.
 
 Write the brief in **first person, as the task owner**: "I need…", "I have decided…". Never
 quote, cite or relay the Human's words; restate each requirement as your own constraint with a
@@ -164,6 +170,10 @@ notification carries the Peer's last message in `<agent-response>`. Never read P
 check progress.
 No timers, schedules, heartbeats or periodic checks — not even to detect a stuck agent.
 
+`send_agent_prompt` may steer a running turn or interrupt/replace it, depending on the backend.
+A message, stop request or Peer reply saying "stopped" proves neither termination nor transfer of
+write authority. A finish notification only prompts handback validation (§ Acceptance).
+
 **Loop detection counts events, never time.** An event is a handoff, a notification, a failed
 tool call or a Peer report. For the same symptom (same command, error or finding):
 
@@ -179,8 +189,14 @@ frozen identities (§ Ownership). You **propose**; the Human **confirms** throug
 1. Send the Supervisor (`send_agent_prompt`) agent ID, task, round, baseline and last frozen candidate
    identities (or explicitly no candidate), plus symptom evidence. No Supervisor → ask the Human.
 2. No confirmation → no reset. Silence is not confirmation.
-3. On confirmation: `cancel_agent` if it is running, then `archive_agent`, and confirm it can no
-   longer write. Replacement brief keeps task, round, baseline and authority,
+3. On confirmation: `cancel_agent` if it is running, then `archive_agent`. Before opening any new
+   writer for that scope, verify from lifecycle/tool execution evidence that the old turn has
+   terminated and any write-capable commands or child processes it started have stopped or lost
+   access to that scope. Requests/acknowledgements, messages, idle status, silence and unchanged
+   diffs are insufficient. Use a bounded check triggered by the cancellation result or a lifecycle
+   event, never periodic checks. Unverified termination or remaining writers → `BLOCKED`, no new
+   writer; ask the Human. This also applies to cancellation/reassignment without a reset.
+   Replacement brief keeps task, round, baseline and authority,
    resuming from the last frozen candidate (baseline if none). Preserve frozen artifacts; other
    uncommitted work is not a candidate and must not be deleted without the Human.
 
@@ -221,8 +237,14 @@ Before closing:
 If a fix is needed, trace it to the layer that produced the deviation before patching the symptom.
 Do not add retries, exceptions or implementation-matching tests just to turn the signal green.
 
-Rework goes to the **same Peer** via `send_agent_prompt`. Create a new Peer only after a confirmed
-reset (§ Monitoring).
+Rework goes to the **same Peer** via `send_agent_prompt`, only after receiving and validating its
+handback for the current task/round and frozen candidate, with ownership returned to the Lead.
+Never send or queue repairs before handback. Send one explicit next-round assignment naming
+task, round, feedback, baseline and rejected candidate
+identities; retain the baseline and prior candidate. An incomplete handoff may be requested again,
+but that request grants no permission to edit.
+Diff comments/findings are review input, not rework authority; candidate identity grants none.
+Create a new Peer only after confirmed reset and verified cessation of the old writer (§ Monitoring).
 
 **Rework cap: 2 rework rounds per task across Peers.** Third candidate fails: same finding three
 times → REOPEN (§ Monitoring), no Peer swap; different findings → propose one replacement Peer

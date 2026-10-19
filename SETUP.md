@@ -57,7 +57,10 @@ when Paseo is upgraded. The `--check` script confirms the exact deny-list on eve
 ## 4. Merge provider seats
 
 Back up the config, then merge `agents.providers` and `daemon.agentProfiles` from `examples/paseo-providers.json`
-into the matching sections of the existing Paseo file. Do not replace the whole file: keep other providers and the daemon configuration. Before
+into the matching sections of the existing Paseo file, selecting only the profiles for seats you enable.
+The example is a backend catalog, not an instruction to enable every backend or overwrite an existing
+`enabled: false`. Keep disabled provider definitions and session state; remove their profiles from the
+operational `daemon.agentProfiles` list. Do not replace the whole file: keep other providers and the daemon configuration. Before
 merging: replace `<KIT>` with the absolute path to `epistex`; if you need to pin the project, add an absolute
 `env.EPISTEX_PROJECT_ROOT`; delete `_doc`; confirm model IDs with
 `paseo provider diagnostic codex --json` or provider discovery. The example selects Lead `gpt-6.1-sol` and
@@ -65,11 +68,46 @@ Peer `gpt-6-luna`, default effort `low`. `command` must keep the correct role, `
 
 ## 5. Paseo agent profiles
 
-`examples/paseo-providers.json` holds the inventory under `daemon.agentProfiles`, the same as the live config. IDs use
-the pattern `<seat>--<model-slug>--<thinking>`; profiles contain no prompt. The orchestrator copies `provider`,
-`model` and `thinkingOptionId` when it calls `create_agent`; Lead/Supervisor discover the inventory with
-`list_profiles`. Amp profiles have no thinking option when the model declares no options. After you change the config, run `paseo reload`, then verify with a new session or a separate launch; the reload output does not prove the model
-or role by itself.
+`examples/paseo-providers.json` holds the full backend catalog under `daemon.agentProfiles`; the live
+config holds the operational subset. Being enabled is necessary, not project authorization: use the
+Human-authorized provider/profile choices in the project's `WORKSPACE_PROTOCOL.md`. Lead must not
+automatically create a Peer on its own backend provider, even through a different role-seat ID.
+Use an authorized alternative or report `BLOCKED`; only Human can grant a same-provider exception.
+Different providers do not guarantee independent quotas.
+
+IDs use the pattern `<seat>--<model-slug>--<thinking>` where applicable; profiles contain no role prompt.
+Lead/Supervisor read `list_profiles` notes before selecting. Notes describe role responsibilities,
+not measured cost or speed: Supervisor observes and supports Human without implementing, assigning
+Peers or accepting candidates; Lead coordinates, reviews and accepts; Peer implements, verifies and
+hands off evidence. Effort and model names do not establish price or latency.
+
+Follow the [MCP reference](https://paseo.sh/docs/mcp.md) when materializing a profile:
+
+| Profile field | `create_agent` field |
+|---|---|
+| `provider` + `model` | `provider` as `provider/model` |
+| `modeId` | `settings.modeId` |
+| `thinkingOptionId` | `settings.thinkingOptionId` |
+| `featureValues` | `settings.features` |
+
+Omit absent optional settings. If model is absent, discover an available model with `list_models`
+before launching; never guess. Only use feature IDs discovered from `inspect_provider`. Supply the
+task in `initialPrompt`, not in profile notes. Amp profiles omit thinking when the model has no options;
+some ACP models encode effort in the model ID rather than `thinkingOptionId`.
+
+To normalize Epistex notes and remove profiles for explicitly disabled Epistex seats, back up the
+config outside Git, generate a candidate, inspect its diff, then install it:
+
+```bash
+jq --argjson catalog false -f <KIT>/setup/normalize-profiles.jq <CONFIG> > <CANDIDATE>
+```
+
+The filter preserves provider definitions, launch settings and non-Epistex profiles. Use
+`--argjson catalog true` when maintaining the example catalog so disabled backend profiles stay there.
+It does not authorize profiles or choose models. Validate the candidate with
+`PASEO_CONFIG=<CANDIDATE> bash <KIT>/setup/setup-seats.sh --check`.
+After installing, run `paseo reload`, then verify with a new session or a separate launch; reload
+output alone does not prove model, settings or role. Existing sessions retain their launch catalog.
 
 ## 6. Set the contract and protocol in the target project
 

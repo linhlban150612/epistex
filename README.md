@@ -50,7 +50,7 @@ Supervisor opens a Lead in the project workspace and does not create a Peer.
 | Implementation | Lead defines scope and creates a Peer through Paseo; Peer is the sole writer |
 | Handoff | Peer returns all six items in its session; the handoff is its last message. Lead reads only that message from the Paseo finish notification (`<agent-response>`; if truncated, `paseo agent logs <id> --filter assistant_message --tail 1`) for done / not done and candidate identification details, not the Peer timeline |
 | Review | Lead reads the exact candidate and evidence. Complex/review tasks use the [Dual-Lane review skill](.agents/skills/dual-lane-review/SKILL.md) (two Peers from different model families). Existing Human review and agent-creation gates apply |
-| Rework | Lead sends exactly one `send_agent_prompt` specifying task, round, feedback, baseline and rejected candidate identities (commit or frozen snapshot/diff); preserves both. See [Peer handoff](agents/PEER.md#handoff--always-return) and [Lead acceptance](agents/LEAD.md#acceptance) |
+| Rework | Only after validated Peer handback, Lead sends exactly one next-round `send_agent_prompt` specifying task, round, feedback, baseline and rejected candidate identities (commit or frozen snapshot/diff); preserves both. Diff comments are review input, not write authority; do not queue repair requests into an active turn. See [Peer handoff](agents/PEER.md#handoff--always-return) and [Lead acceptance](agents/LEAD.md#acceptance) |
 | Intervention | Only on an event (notification, Lead question, Human request), Supervisor may use `list_pending_permissions`, `respond_to_permission`, `cancel_agent`, `set_agent_mode`, then tells the owning Lead |
 | Loops / reset | Loops are counted in events, never time. Lead proposes reset from the same baseline and last frozen candidate identities (baseline if none), preserving frozen artifacts and authority. Human confirmation through Supervisor (directly if none) is required before stopping/archiving the old agent; confirm it can no longer write before replacement. See [Lead monitoring](agents/LEAD.md#monitoring) and [Supervisor reset](agents/SUPERVISOR.md#loops-and-context-reset) |
 | Acceptance | Lead decides; Supervisor does not decide in their place |
@@ -69,6 +69,10 @@ model/effort change.
 There is no coordination desk, registry, ledger, patrol, timer, recurring schedule, or heartbeat.
 Lead reads Peer responses from the Paseo finish notification, or from `paseo agent logs` when it is truncated;
 idle/notification status does not prove that work is complete.
+Messages can steer a running turn; sending one does not prove the Peer stopped. Cancellation/reset
+requires lifecycle/tool evidence that the old turn and its write-capable commands/children can no
+longer write before opening a new writer. If that cannot be established, keep replacement blocked;
+do not add polling or heartbeat. See the [Lead cessation gate](agents/LEAD.md#monitoring).
 
 ## Codex runtime and resume
 

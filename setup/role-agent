@@ -54,6 +54,44 @@ def session_cwd(line: bytes) -> str | None:
     return cwd if isinstance(cwd, str) else None
 
 
+def omp_args(role: str, args: list[str]) -> list[str]:
+    """Combine OMP's last-wins append flag while preserving its text/file inputs."""
+    append_values = []
+    forwarded = []
+    index = 0
+    while index < len(args):
+        arg = args[index]
+        if arg == "--":
+            forwarded.extend(args[index:])
+            break
+        if arg == "--append-system-prompt" and index + 1 < len(args):
+            append_values.append(args[index + 1])
+            index += 2
+            continue
+        if arg.startswith("--append-system-prompt="):
+            append_values.append(arg.split("=", 1)[1])
+            index += 1
+            continue
+        forwarded.append(arg)
+        index += 1
+
+    parts = []
+    for value in append_values:
+        # OMP resolves a newline-free append value as a file when it can read
+        # that path; otherwise it treats the value as literal prompt text.
+        if "\n" not in value:
+            try:
+                value = pathlib.Path(value).read_text()
+            except (OSError, UnicodeError):
+                pass
+        if value:
+            parts.append(value)
+    role_prompt = (ROOT / "agents" / f"{role.upper()}.md").read_text()
+    parts.append(role_prompt)
+    combined = "\n\n".join(parts)
+    return ["--append-system-prompt", combined, *forwarded]
+
+
 def run_acp(command: list[str], role: str, pin_cwd: bool = False) -> int:
     if shutil.which(command[0]) is None:
         raise SystemExit(f"agent executable not found: {command[0]}")
@@ -96,7 +134,12 @@ def main() -> int:
         os.execv(sys.executable, [sys.executable, str(ROOT / "setup/claude-sdk"), role, *sys.argv[3:]])
     if agent in ("amp", "devin", "copilot", "cursor"):
         os.execv(sys.executable, [sys.executable, str(ROOT / f"setup/{agent}-acp"), role, *sys.argv[3:]])
-    if agent in ("pi", "omp"):
+    if agent == "omp":
+        command = ["omp", *omp_args(role, sys.argv[3:])]
+        if shutil.which(command[0]) is None:
+            raise SystemExit(f"agent executable not found: {command[0]}")
+        os.execvp(command[0], command)
+    if agent == "pi":
         command = [agent, "--append-system-prompt", str(ROOT / "agents" / f"{role.upper()}.md"), *sys.argv[3:]]
         if shutil.which(command[0]) is None:
             raise SystemExit(f"agent executable not found: {command[0]}")

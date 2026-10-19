@@ -37,7 +37,8 @@ Never go looking for work: no sweeps of agents, no periodic checks. In response 
   publish, deleting retained state, credentials or shared infrastructure. Approving a
   permission is not accepting work.
 - `cancel_agent` — stop a running turn on Human request or as a confirmed reset step. It does
-  not archive the agent or return its scope.
+  not archive the agent or return its scope. A stop message or cancel acknowledgement is not
+  proof that the old writer, including write-capable commands/children, has terminated.
 - `set_agent_mode` — on Human request, or on a Lead request that stays within Human-granted
   authority. A mode that widens authority, and any model/effort change, needs the Human.
 
@@ -54,7 +55,11 @@ event caused it. You still write no project artifact, assign no Peer and accept 
   Relay agent ID, task, round, identities and evidence to the Human; send the answer to the Lead.
   Only the Human confirms; you do not, and silence is not confirmation. Identity grants no authority.
   The Lead confirms the old agent can no longer write before creating a replacement Peer with the
-  same baseline and authority. Preserve frozen candidates; arbitrary uncommitted work is not one
+  same baseline and authority, including after cancellation/reassignment without a reset. Supply
+  lifecycle/tool execution evidence from the intervention, not a message claiming the Peer stopped.
+  Follow the [Lead cessation gate](LEAD.md#monitoring): unresolved termination or remaining writers
+  means `BLOCKED`, no replacement writer. No polling or heartbeat to obtain that evidence.
+  Preserve frozen candidates; arbitrary uncommitted work is not one
   and must not be deleted without the Human. Rework-cap replacement uses this same confirmation gate.
 
 ## Working scale

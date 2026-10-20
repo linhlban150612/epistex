@@ -9,6 +9,9 @@ import subprocess
 import sys
 import threading
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from role_prompt import load_prompt
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ROLES = ("supervisor", "lead", "peer")
 ACP = {
@@ -33,7 +36,7 @@ def prime(line: bytes, role: str, seen: set[str], cwd: str | None = None) -> byt
     prompt = params.get("prompt")
     if not isinstance(prompt, list):
         return line
-    instructions = (ROOT / "agents" / f"{role.upper()}.md").read_text()
+    instructions = load_prompt(role)
     text = "Role instructions for this session:\n" + instructions
     if cwd:
         text = f"Session working directory: {cwd}. Run every shell command in that directory.\n\n" + text
@@ -86,13 +89,13 @@ def omp_args(role: str, args: list[str]) -> list[str]:
                 pass
         if value:
             parts.append(value)
-    role_prompt = (ROOT / "agents" / f"{role.upper()}.md").read_text()
-    parts.append(role_prompt)
+    parts.append(load_prompt(role))
     combined = "\n\n".join(parts)
     return ["--append-system-prompt", combined, *forwarded]
 
 
 def run_acp(command: list[str], role: str, pin_cwd: bool = False) -> int:
+    load_prompt(role)  # Fail before starting a backend if the contract is unavailable.
     if shutil.which(command[0]) is None:
         raise SystemExit(f"agent executable not found: {command[0]}")
     child = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -140,7 +143,7 @@ def main() -> int:
             raise SystemExit(f"agent executable not found: {command[0]}")
         os.execvp(command[0], command)
     if agent == "pi":
-        command = [agent, "--append-system-prompt", str(ROOT / "agents" / f"{role.upper()}.md"), *sys.argv[3:]]
+        command = [agent, "--append-system-prompt", load_prompt(role), *sys.argv[3:]]
         if shutil.which(command[0]) is None:
             raise SystemExit(f"agent executable not found: {command[0]}")
         os.execvp(command[0], command)

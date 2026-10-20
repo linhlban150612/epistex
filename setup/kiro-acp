@@ -12,6 +12,9 @@ import time
 import urllib.parse
 import uuid
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from role_prompt import load_prompt
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ROLE = "peer"
 NAME = "Kiro Peer"
@@ -86,7 +89,7 @@ def main():
         raise SystemExit("usage: kiro-acp <peer|lead|supervisor>")
     ROLE = sys.argv[1]
     NAME, MODE = "Kiro " + ROLE.title(), "epistex_" + ROLE
-    instructions = (ROOT / f"agents/{ROLE.upper()}.md").read_text()
+    instructions = load_prompt(ROLE)
     failure = runtime_error(str(pathlib.Path.cwd()))
     if failure:
         raise SystemExit(failure)

@@ -97,8 +97,12 @@ command = "other"
         self.assertIn("paseo", tomllib.loads(lead_config)["mcp_servers"])
         self.assertNotIn("paseo", tomllib.loads(peer_config)["mcp_servers"])
         self.assertTrue((self.runtime("lead") / "auth.json").is_symlink())
-        self.assertEqual(tomllib.loads(lead_config)["model_instructions_file"], str(ROOT / "agents" / "LEAD.md"))
-        self.assertEqual(tomllib.loads(peer_config)["model_instructions_file"], str(ROOT / "agents" / "PEER.md"))
+        for role, config in (("lead", lead_config), ("peer", peer_config)):
+            prompt = pathlib.Path(tomllib.loads(config)["model_instructions_file"])
+            self.assertEqual(prompt, self.runtime(role) / "role-instructions.md")
+            expected = ((ROOT / "agents/contract/COMMON.md").read_text().rstrip() + "\n\n"
+                        + (ROOT / "agents" / f"{role.upper()}.md").read_text())
+            self.assertEqual(prompt.read_text(), expected)
         self.assertNotEqual(self.runtime("lead"), self.runtime("peer"))
 
         private_state = self.runtime("lead") / "session.jsonl"
@@ -201,7 +205,10 @@ command = "other"
                 result = self.sync(role)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 config = tomllib.loads((self.runtime(role) / "config.toml").read_text())
-                self.assertEqual(config["model_instructions_file"], str(ROOT / "agents" / f"{role.upper()}.md"))
+                prompt = pathlib.Path(config["model_instructions_file"])
+                self.assertEqual(prompt, self.runtime(role) / "role-instructions.md")
+                self.assertIn("# Common contract", prompt.read_text())
+                self.assertIn(f"# {role.title()}", prompt.read_text())
                 self.assertEqual("paseo" in config["mcp_servers"], role == "supervisor")
 
     def test_refuses_symlinked_role_runtime(self) -> None:
@@ -243,7 +250,7 @@ command = "other"
         result = self.sync("lead")
         self.assertEqual(result.returncode, 0, result.stderr)
         parsed = tomllib.loads((self.runtime("lead") / "config.toml").read_text())
-        self.assertEqual(parsed["model_instructions_file"], str(ROOT / "agents" / "LEAD.md"))
+        self.assertEqual(parsed["model_instructions_file"], str(self.runtime("lead") / "role-instructions.md"))
 
     def test_inline_and_quoted_policy_tables_are_supported(self) -> None:
         (self.canonical / "config.toml").write_text(
@@ -290,7 +297,7 @@ command = "other"
         expected = tomllib.loads(original)
         expected["features"].update(multi_agent=False, multi_agent_v2=False)
         expected["agents"] = {"enabled": False}
-        expected["model_instructions_file"] = str(ROOT / "agents" / "PEER.md")
+        expected["model_instructions_file"] = str(self.runtime("peer") / "role-instructions.md")
         expected["model_auto_compact_token_limit"] = 100000
         del expected["mcp_servers"]["paseo"]
         result = self.sync("peer")
@@ -358,6 +365,18 @@ command = "other"
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("refusing non-regular runtime config", result.stderr)
         self.assertEqual([path.name for path in runtime.iterdir()], ["config.toml"])
+
+    def test_prompt_symlink_conflict_preserves_target_and_runtime_state(self) -> None:
+        runtime = self.runtime("peer")
+        runtime.mkdir(parents=True)
+        target = self.project / "retained.md"
+        target.write_text("retain me")
+        (runtime / "role-instructions.md").symlink_to(target)
+        result = self.sync("peer")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("refusing non-regular runtime role-instructions.md", result.stderr)
+        self.assertEqual(target.read_text(), "retain me")
+        self.assertEqual([path.name for path in runtime.iterdir()], ["role-instructions.md"])
 
 
 if __name__ == "__main__":

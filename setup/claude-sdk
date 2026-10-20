@@ -8,7 +8,9 @@ import subprocess
 import sys
 import threading
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from role_prompt import load_prompt
+
 ROLES = ("supervisor", "lead", "peer")
 # Paseo owns topology; AGENTS.md forbids schedules and heartbeats. Paseo's initialize carries no tool
 # fields, so this CLI deny-list survives the SDK handshake.
@@ -36,7 +38,7 @@ def main() -> int:
     if len(sys.argv) < 2 or sys.argv[1] not in ROLES:
         raise SystemExit("usage: claude-sdk <supervisor|lead|peer> [claude args...]")
     role, args = sys.argv[1], sys.argv[2:]
-    instructions = (ROOT / "agents" / f"{role.upper()}.md").read_text()
+    instructions = load_prompt(role)
     stream = any(flag == "--input-format" and value == "stream-json" for flag, value in zip(args, args[1:]))
     if shutil.which("claude") is None:
         raise SystemExit("agent executable not found: claude")

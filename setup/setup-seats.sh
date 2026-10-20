@@ -24,12 +24,8 @@ codex_bin=${CODEX_BIN:-codex}
 command -v "$codex_bin" >/dev/null || fail "CODEX_BIN executable not found: $codex_bin"
 
 for seat in LEAD PEER SUPERVISOR; do
-  prompt="$kit/agents/$seat.md"
-  if [[ ! -f "$prompt" ]]; then
-    fail "missing $prompt"
-  elif (( $(wc -c < "$prompt") > 16384 )); then
-    fail "$prompt exceeds 16 KiB"
-  fi
+  PYTHONDONTWRITEBYTECODE=1 python3 "$kit/setup/role_prompt.py" "$seat" >/dev/null \
+    || fail "$seat: common contract and role prompt must load within 16 KiB combined"
 done
 
 for name in codex-room role-agent kiro-acp claude-sdk devin-acp copilot-acp cursor-acp; do

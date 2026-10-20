@@ -16,6 +16,10 @@ verifies, and accepts or requests rework; if the Peer is blocked, the Lead repor
 not write in their place. Read-only requests do not authorize agent creation; delegation does not
 authorize automation, model/effort changes, pushing, or deployment.
 
+The shared [role contract](agents/contract/COMMON.md) is prepended to each role's own prompt
+by the launchers, resolved from the kit rather than the session directory. Missing/unreadable
+sources or a combined prompt over 16 KiB block launch; a Markdown link is not the loader.
+
 Backends: **Claude, Codex, Devin, Copilot, Cursor, Pi, Amp, Kiro, Droid, Antigravity**. Codex loads prompts with
 `model_instructions_file`. Claude adds the role to `appendSystemPrompt` in the SDK
 `initialize` message when using stream-json, or uses `--append-system-prompt` outside the SDK.

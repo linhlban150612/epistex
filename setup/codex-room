@@ -15,7 +15,10 @@ import tempfile
 import tomllib
 import uuid
 
-ROLES = {role: role.upper() + ".md" for role in ("supervisor", "lead", "peer")}
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from role_prompt import load_prompt
+
+ROLES = ("supervisor", "lead", "peer")
 SHARED_FILES = ("auth.json", "model-instructions.md", "hooks.json")
 SHARED_DIRS = ("skills", "plugins")
 UUID_FORM = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
@@ -92,9 +95,10 @@ def preflight(runtime: pathlib.Path, canonical: pathlib.Path) -> None:
     """Reject predictable destination conflicts before changing any runtime entry."""
     if runtime.exists() and not runtime.is_dir():
         raise SystemExit(f"runtime is not a directory: {runtime}")
-    config = runtime / "config.toml"
-    if config.is_symlink() or (config.exists() and not config.is_file()):
-        raise SystemExit(f"refusing non-regular runtime config: {config}")
+    for name in ("config.toml", "role-instructions.md"):
+        destination = runtime / name
+        if destination.is_symlink() or (destination.exists() and not destination.is_file()):
+            raise SystemExit(f"refusing non-regular runtime {name}: {destination}")
     for name in SHARED_FILES + SHARED_DIRS:
         destination = runtime / name
         if (canonical / name).exists() and destination.exists() and not destination.is_symlink():
@@ -158,10 +162,7 @@ def runtime_for(project: pathlib.Path, role: str, session_id: str) -> pathlib.Pa
 
 
 def sync(role: str, project: pathlib.Path, session_id: str) -> pathlib.Path:
-    kit = pathlib.Path(__file__).resolve().parent.parent
-    prompt = kit / "agents" / ROLES[role]
-    if not prompt.is_file():
-        raise SystemExit(f"seat prompt not found: {prompt}")
+    instructions = load_prompt(role)
 
     default_home = pathlib.Path.home() / ".codex"
     canonical_setting = os.environ.get("EPISTEX_CODEX_HOME") or os.environ.get("SEATWORKS_CODEX_HOME")
@@ -177,7 +178,7 @@ def sync(role: str, project: pathlib.Path, session_id: str) -> pathlib.Path:
     if runtime.is_symlink():
         raise SystemExit(f"refusing symlinked role runtime: {runtime}")
     try:
-        config = render_config(base_config.read_text(encoding="utf-8"), role, prompt)
+        config = render_config(base_config.read_text(encoding="utf-8"), role, runtime / "role-instructions.md")
     except ValueError:
         # Parser exceptions may contain canonical configuration values.
         raise SystemExit("invalid canonical TOML or unsupported configuration values") from None
@@ -189,7 +190,8 @@ def sync(role: str, project: pathlib.Path, session_id: str) -> pathlib.Path:
     for name in SHARED_DIRS:
         link(runtime, name, canonical / name)
 
-    # Only this replacement is atomic; filesystem errors can leave partial link updates.
+    # Each replacement is atomic, not the whole sync; preserve private runtime state.
+    atomic_write(runtime / "role-instructions.md", instructions)
     atomic_write(runtime / "config.toml", config)
     return runtime
 

@@ -2,6 +2,7 @@ import importlib.machinery
 import json
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -41,7 +42,8 @@ class ProfilesTest(unittest.TestCase):
                         args, first, second = map(json.loads, result.stdout.splitlines())
                         self.assertEqual(args, [acp_arg, "--extra"])
                         expected = json.loads(raw)
-                        instructions = (ROOT / "agents" / f"{role.upper()}.md").read_text()
+                        instructions = ((ROOT / "agents/contract/COMMON.md").read_text().rstrip() + "\n\n"
+                                        + (ROOT / "agents" / f"{role.upper()}.md").read_text())
                         expected["params"]["prompt"].insert(0, {
                             "type": "text", "text": "Role instructions for this session:\n" + instructions})
                         self.assertEqual(first, expected)
@@ -340,13 +342,10 @@ for line in sys.stdin:
                     self.assertEqual(result.returncode, 7, result.stderr)
                     args, message = result.stdout.splitlines()
                     parsed_args = json.loads(args)
-                    if agent == "pi":
-                        self.assertEqual(parsed_args, ["--append-system-prompt", str(ROOT / "agents" / "PEER.md"),
-                                                        "--mode", "rpc", "--model", "provider/model"])
-                    else:
-                        self.assertEqual(parsed_args[0], "--append-system-prompt")
-                        self.assertIn("# Peer — independent co-worker", parsed_args[1])
-                        self.assertEqual(parsed_args[2:], ["--mode", "rpc", "--model", "provider/model"])
+                    self.assertEqual(parsed_args[0], "--append-system-prompt")
+                    self.assertIn("# Common contract", parsed_args[1])
+                    self.assertIn("# Peer — independent co-worker", parsed_args[1])
+                    self.assertEqual(parsed_args[2:], ["--mode", "rpc", "--model", "provider/model"])
                     self.assertEqual(message, '{"type":"prompt","message":"unchanged"}')
 
     def test_omp_combines_last_wins_append_text_and_file_sources(self):
@@ -413,7 +412,7 @@ print(json.dumps({"effective":append, "args":args}))
             initialize = {"type": "control_request", "request_id": "init",
                           "request": {"subtype": "initialize", "appendSystemPrompt": "keep me"}}
             user = {"type": "user", "message": {"role": "user", "content": "unchanged task"}}
-            for role in ("lead", "peer"):
+            for role in ("supervisor", "lead", "peer"):
                 with self.subTest(role=role):
                     result = subprocess.run(
                         [sys.executable, str(ROOT / "setup" / "role-agent"), role, "claude",
@@ -424,10 +423,53 @@ print(json.dumps({"effective":append, "args":args}))
                     args, first, second = map(json.loads, result.stdout.splitlines())
                     self.assertEqual(args, ["--disallowed-tools", ",".join(claude_sdk.DISALLOWED),
                                             "--input-format", "stream-json", "--output-format", "stream-json"])
-                    instructions = (ROOT / "agents" / f"{role.upper()}.md").read_text()
+                    instructions = ((ROOT / "agents/contract/COMMON.md").read_text().rstrip() + "\n\n"
+                                    + (ROOT / "agents" / f"{role.upper()}.md").read_text())
                     self.assertEqual(first["request"]["appendSystemPrompt"], "keep me\n\n" + instructions)
                     self.assertEqual(first["request_id"], "init")
                     self.assertEqual(second, user)
+
+    def test_launchers_load_common_from_kit_and_reject_missing_or_oversized_contract(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = pathlib.Path(folder)
+            kit = root / "kit"
+            shutil.copytree(ROOT / "setup", kit / "setup")
+            (kit / "agents/contract").mkdir(parents=True)
+            common = kit / "agents/contract/COMMON.md"
+            common.write_text("COMMON SENTINEL\n", encoding="utf-8")
+            for role in ("supervisor", "lead", "peer"):
+                (kit / f"agents/{role.upper()}.md").write_text(f"ROLE {role}\n", encoding="utf-8")
+            (root / "agents/contract").mkdir(parents=True)
+            (root / "agents/contract/COMMON.md").write_text("WRONG CWD CONTRACT")
+            binary = root / "pi"
+            binary.write_text(f"#!{sys.executable}\nimport json, sys\nprint(json.dumps(sys.argv[1:]))\n")
+            binary.chmod(0o755)
+            env = {**os.environ, "PATH": str(root), "PYTHONDONTWRITEBYTECODE": "1"}
+            for role in ("supervisor", "lead", "peer"):
+                result = subprocess.run([sys.executable, str(kit / "setup/role-agent"), role, "pi"],
+                                        cwd=root, env=env, text=True, capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(json.loads(result.stdout),
+                                 ["--append-system-prompt", f"COMMON SENTINEL\n\nROLE {role}\n"])
+            # Byte boundary: multi-byte text must not be counted as characters.
+            common.write_text("é" * 8186, encoding="utf-8")
+            command = [sys.executable, str(kit / "setup/role-agent"), "peer", "pi"]
+            result = subprocess.run(command, cwd=root, env=env, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)  # 16372 + 2 + 10 = 16384
+            common.write_text("é" * 8187, encoding="utf-8")
+            result = subprocess.run(command, cwd=root, env=env, text=True, capture_output=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("exceeds 16 KiB", result.stderr)
+            self.assertEqual(result.stdout, "")
+            common.unlink()
+            for launcher in (["role-agent", "peer", "pi"], ["amp-acp", "peer"],
+                             ["claude-sdk", "lead"], ["kiro-acp", "supervisor"],
+                             ["cursor-acp", "peer"], ["codex-room", "peer"]):
+                result = subprocess.run([sys.executable, str(kit / "setup" / launcher[0]), *launcher[1:]],
+                                        cwd=root, env=env, text=True, capture_output=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("COMMON.md", result.stderr)
+                self.assertEqual(result.stdout, "")
 
     def test_acp_primes_each_session_once_and_preserves_other_messages(self):
         seen = set()

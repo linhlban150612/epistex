@@ -22,6 +22,7 @@ ROLES = ("supervisor", "lead", "peer")
 def run(role, args):
     """Translate the two seat model IDs into confirmed native ACP parameters."""
     role_agent = importlib.machinery.SourceFileLoader("role_agent", str(ROOT / "setup/role-agent")).load_module()
+    role_agent.load_prompt(role)
     source = pathlib.Path(os.environ.get("CURSOR_CONFIG_DIR") or
                           (pathlib.Path(os.environ["XDG_CONFIG_HOME"]) / "cursor"
                            if os.environ.get("XDG_CONFIG_HOME") else pathlib.Path.home() / ".cursor"))

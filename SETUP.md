@@ -140,18 +140,25 @@ does not prove auth, the daemon, model availability or a successful launch: thos
 
 ## 8. Prove isolation
 
-Start a `codex-peer` agent and ask it to print the first line of the role prompt it reads; the result must be
-`# Peer — independent co-worker`. Do the same with `codex-lead`; the result starts with `# Lead`.
+Start a `codex-peer` agent and ask it to report the common and role headings from its received
+instructions (without reading source files): `# Common contract — Supervisor, Lead and Peer`
+and `# Peer — independent co-worker`. Repeat with `codex-lead` and its `# Lead` heading.
+Some models do not reliably quote received instructions. A `MISSING` reply alone is not
+proof of missing injection: inspect the native session's recorded `base_instructions`
+and ask behavioral questions about failure limits, non-Git candidate identities and
+writer cessation. Do not put the expected answers in the smoke prompt.
 Also check `find ~/.codex-runtime/epistex -maxdepth 3 -name config.toml`.
 
 The two roles must have separate runtimes. `auth.json`, `skills` and `plugins` are symlinks; `config.toml` is a
-separate generated copy that holds `model_instructions_file` pointing to the prompt in the kit, with `[agents].enabled`,
+separate generated copy that holds `model_instructions_file` pointing to runtime `role-instructions.md`
+(common contract + role prompt), with `[agents].enabled`,
 `[features].multi_agent` and `[features].multi_agent_v2` all `false`: Paseo is the only owner of
 topology. Invalid TOML or a wrong policy table type makes the launch fail before the runtime changes.
 The generated copy uses inline tables and keeps no comments or formatting, but keeps values outside the policy unchanged (including
 multi-line strings); the canonical file is not modified. Sync does not delete private state and rejects a runtime or
-parent directory that is a symlink; only replacing `config.toml` is atomic, and an I/O error or concurrent change can leave
-some links changed (details: [Codex runtime and resume](docs/setup/codex-runtime.md#codex-runtime-and-resume)).
+parent directory that is a symlink. Each config/prompt replacement is atomic, not the entire sync;
+an I/O error or concurrent change can leave partial updates
+(details: [Codex runtime and resume](docs/setup/codex-runtime.md#codex-runtime-and-resume)).
 
 This separates state and MCP permissions. It is not a sandbox against a malicious agent: the roles run as the same Unix
 user, share skills/plugins and still have a shell. The Peer prompt forbids calling Paseo; hiding the Paseo MCP
@@ -182,4 +189,5 @@ Common part for Devin, Copilot and Cursor ([devin.md](docs/setup/devin.md),
 Lead always creates a Peer with the role provider (`codex-peer` or a `*-peer` provider in `docs/setup/`);
 never the original backend provider. Pass `modeId` and `thinkingOptionId` explicitly when you create an agent. A running
 agent does not pick up provider changes; after you edit `~/.paseo/config.json`, run `paseo reload` and
-create a new session. Prompts in the kit have a discipline ceiling of 16 KiB; after an edit, run `setup-seats.sh --check` again.
+create a new session. Common + role instructions have a combined ceiling of 16 KiB, checked
+by setup and launchers; after an edit, run `setup-seats.sh --check` again.

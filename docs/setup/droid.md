@@ -3,7 +3,8 @@
 This guide covers `droid-peer` and `droid-lead`, Paseo seats backed by Factory Droid through the ACP proxy in
 `setup/role-agent`. Paseo remains the only lifecycle/topology owner. The seat is a role-wrapped
 provider: do not use the plain `factory-droid` provider or attach Peer profiles to it, because that
-provider does not inject `agents/PEER.md`.
+provider does not inject the common contract and the selected role prompt
+(`agents/contract/COMMON.md` + the role file).
 
 ## Prerequisites
 

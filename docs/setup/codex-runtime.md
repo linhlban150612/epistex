@@ -9,7 +9,8 @@ project prerequisites. Backend-specific seat setup remains in the linked
 ```text
 Paseo provider → setup/codex-room <role> (sync runtime, then exec Codex)
   → ~/.codex-runtime/epistex/<project-id>/<role>/
-       config.toml          generated, role prompt
+       config.toml          generated runtime configuration, model_instructions_file → role-instructions.md
+       role-instructions.md generated, COMMON.md + selected role
        auth.json            → canonical Codex home
        skills/, plugins/    → canonical Codex home
        sessions/logs/...    private mutable state
@@ -25,7 +26,9 @@ Sync links shared resources from the canonical home, parses/round-trips TOML, ap
 and disables `agents.enabled`, `features.multi_agent`, and `features.multi_agent_v2`. For Peer, it
 removes the MCP server named `paseo` from runtime config. Canonical config is not modified. Sync
 preserves private sessions/logs/database, rejects runtime or ancestor symlinks, and preflights
-conflicts; **only replacing `config.toml` is atomic**, not the entire link update.
+conflicts; replacing each of `config.toml` and `role-instructions.md` is atomic, not the
+entire sync. Instructions are resolved from the kit, not the project CWD; missing sources
+or common + role text over 16 KiB block sync before runtime changes.
 
 UUID resume can find the same-role runtime in both the `epistex` and `seatworks` namespaces; it
 does not copy the session:
@@ -112,6 +115,7 @@ Không pin CWD của Supervisor bằng env: workspace `~/work/SUPERVISOR` để 
 | Path | Role |
 |---|---|
 | `agents/*.md` | Supervisor, Lead, and Peer prompts |
+| `agents/contract/COMMON.md`, `setup/role_prompt.py` | Shared role invariants and combined prompt loader/size check |
 | `setup/role-agent` | Native Claude/Pi launcher and ACP instruction proxy |
 | `setup/{amp,devin,copilot,cursor}-acp` | Per-backend ACP launchers |
 | `setup/codex-room` | Select runtime/resume and generate Codex config |

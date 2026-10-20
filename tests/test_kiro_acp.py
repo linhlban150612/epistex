@@ -186,7 +186,9 @@ class KiroACPTest(unittest.TestCase):
                 observed = c.call('session/prompt', sessionId='seat', prompt=[{'type':'text','text':'inspect'}])['result']['observed']
                 self.assertEqual((observed['model'], observed['effort'], observed['cwd']), (model, effort, str(self.cwd)))
                 if model == 'claude-sonnet-5.5' and effort == 'medium':
-                    self.assertEqual(observed['prompt'][0]['text'], 'Role instructions for this session:\n' + (ROOT / 'agents/PEER.md').read_text())
+                    self.assertEqual(observed['prompt'][0]['text'], 'Role instructions for this session:\n'
+                                     + (ROOT / 'agents/contract/COMMON.md').read_text().rstrip() + '\n\n'
+                                     + (ROOT / 'agents/PEER.md').read_text())
                 else: self.assertEqual(observed['prompt'], [{'type':'text','text':'inspect'}])
         c.send('session/prompt', {'sessionId':'seat','prompt':[{'type':'text','text':'wait'}]}, 'waiting')
         c.send('session/cancel', {'sessionId':'seat'})
@@ -318,7 +320,9 @@ class KiroACPTest(unittest.TestCase):
                 observed = c.call('session/prompt', sessionId='seat', prompt=[{'type':'text','text':'inspect'}])['result']['observed']
                 self.assertEqual(observed['servers'], [server])
                 self.assertEqual(observed['prompt'][0]['text'],
-                                 'Role instructions for this session:\n' + (ROOT / 'agents/LEAD.md').read_text())
+                                 'Role instructions for this session:\n'
+                                 + (ROOT / 'agents/contract/COMMON.md').read_text().rstrip() + '\n\n'
+                                 + (ROOT / 'agents/LEAD.md').read_text())
                 self.assertIn('result', c.call('session/load', sessionId='seat', cwd=str(self.cwd), mcpServers=[server]))
 
     def test_lead_rejects_every_other_mcp_server_shape(self):

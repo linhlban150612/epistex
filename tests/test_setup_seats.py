@@ -83,6 +83,18 @@ class SetupSeatsTest(unittest.TestCase):
         self.assertEqual(self.config.read_bytes(), before)
         self.assertIn("auth, daemon and launch not checked", result.stdout)
 
+    def test_check_requires_common_and_enforces_combined_prompt_limit(self):
+        self.save()
+        common = self.kit / "agents/contract/COMMON.md"
+        common.write_text("x" * 16000)
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("combined lead prompt exceeds 16 KiB", result.stderr)
+        common.unlink()
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("COMMON.md", result.stderr)
+
     def test_claude_compaction_env_checks_each_enabled_seat_and_peer(self):
         providers = self.data["agents"]["providers"]
         self.save()

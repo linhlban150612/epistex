@@ -17,7 +17,7 @@ with the Lead.
 | Cursor Agent 2026.10.18-ea085cb, Peer | No verified threshold in CLI configuration docs, help, ACP config options or bundled JS search | — | Backend default; 100k not configurable through a verified setting | Re-checked 2026-10-19: `/summarize` (`/compress`) is manual, not an automatic threshold; no guessed setting added |
 | Devin 3000.11.3, Peer | `agent.compaction_threshold_tokens=100000` in `~/.config/devin/config.json` | User-wide, **not workspace-scoped** | 100,000 | Applied user-wide (Human opt-in); existing file left untouched |
 | Kiro 2.30 (kiro-cli acp v2), Supervisor/Lead/Peer | No exposed compaction threshold in `setup/kiro-*.json` agent schema | — | Backend default; no project setting | Re-checked 2026-10-17: no compaction key in agent JSON or `kiro-cli --help` |
-| Factory Droid 0.241.1, Lead/Peer | No exposed threshold in `droid exec --help` / ACP surface | — | Backend default; no project setting | Re-checked 2026-10-17: `droid --help` shows no compaction option |
+| Factory Droid 0.247.0, Lead/Peer | `compactionTokenLimit=100000` in `~/.factory/settings.json` ([settings docs](https://docs.factory.com/droid-cli/settings)) | User-wide, **not workspace-scoped** | 100,000 | Present in user settings (checked 2026-10-22); no org-managed override found; live compaction not yet probed. No CLI flag; `droid --help` has no compaction option |
 | Antigravity (agy_acp_server.par), Lead/Peer | No exposed threshold in probed session/new result | — | Backend default; no project setting | No compaction option in the probed ACP session/new result |
 
 ## Model windows

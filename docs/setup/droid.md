@@ -9,11 +9,14 @@ provider does not inject the common contract and the selected role prompt
 ## Prerequisites
 
 1. Install Factory Droid and ensure the `droid` binary is on the PATH inherited by Paseo.
-   `role-agent peer droid` runs `droid exec --output-format acp`.
+   `role-agent peer droid` runs `droid exec --output-format acp`. Verified version: 0.247.0
+   (`droid update --version 0.247.0`). The ACP registry entry for 0.247.0 launches
+   `--output-format acp-daemon`; the seat keeps `acp`, which 0.247.0 still supports.
 2. Authenticate Droid with Factory's supported login flow before launching a seat. Credentials stay
    in Droid's user state, never in this repository.
-3. Droid 0.241.1 reports `auto` ("Auto Model") with reasoning `none` only, and `gpt-6-luna`
-   ("GPT-6 Luna") with `none`, `low`, `medium`, `high`, `xhigh`, `max`, default `medium`. The seat
+3. Droid 0.247.0 reports `auto` ("Auto Model") with reasoning `none` only, and `gpt-6-luna`
+   ("GPT-6 Luna") with `none`, `low`, `medium`, `high`, `xhigh`, `max`, upstream default `medium`
+   (observed on 0.241.1; `~/.factory/settings.json` `reasoningEffort` overrides it). The seat
    keeps Paseo's `off` id for Droid's `none`.   The seat's model list contains exactly the models in the table below.
 
 ## Configure Paseo
@@ -40,7 +43,8 @@ configs without Droid still pass.
 
 ## Additional model capabilities and profiles
 
-The capability source is the Lead's direct ACP inventory of Droid 0.241.1: start
+The capability source is a direct ACP inventory of Droid 0.241.1, re-checked unchanged on 0.247.0
+(2026-10-22): start
 `droid exec --output-format acp`, initialize a session without a prompt, select each
 model using `session/set_config_option` with `configId=model`, then inspect the returned
 `reasoning_effort` select. This verifies advertised per-model choices, not successful model
@@ -79,6 +83,8 @@ low/high models does not prove runtime medium support.
 - Droid does not support Paseo MCP through this configuration; Peers have Paseo tools disabled anyway.
 - Static checks do not prove authentication, the `acp` output mode, effort mapping or runtime
   integration. The operator merges/reloads the config and performs an actual Paseo launch.
+  Last verified on 0.247.0 (2026-10-22): `droid-peer` (`gpt-6-luna`, `low`) and `droid-lead`
+  (`claude-opus-5-5`, `low`, `auto-high`) completed a Paseo prompt.
 
 
 ## droid-lead

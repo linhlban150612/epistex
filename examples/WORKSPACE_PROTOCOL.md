@@ -76,6 +76,8 @@ Refer to Authority in `AGENTS.md`; record only additional coordination decisions
   only with Human approval; discovery does not grant authority to switch.
 - Paseo manages sessions, parentage, lifecycle and workspace; this protocol governs tactics.
 - Dual-Lane Peer pair: `<Human-selected pair from two different model families>`.
+- Context reset or exhausted rework cap: follow `.agents/skills/context-reset/SKILL.md` and
+  `.agents/skills/rework-escalation/SKILL.md`; Human confirmation stays required.
 
 ## Verification
 

@@ -93,6 +93,7 @@ def main():
             "WORKTREE": str(worktree), "BRANCH": branch, "BASE_SHA": base_sha,
             "DISPOSITION": scenario.get("disposition", "implementation"), "OBJECTIVE": scenario["objective"],
             "MUST_HOLD_EXTRA": scenario.get("must_hold_extra", ""), "DECIDED": scenario["decided"],
+            "VERIFIED_FACTS": scenario.get("verified_facts", "none checked; treat every premise as a claim"),
             "OWNED": ", ".join(brief["owned_scope"]), "EXCLUDED": ", ".join(brief.get("excluded_scope", [])) or "none",
             "VERIFICATION": scenario["verification"]}
     text = scenario["brief_template"]

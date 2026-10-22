@@ -66,6 +66,27 @@ this repository and a reconsideration trigger. Examples to adapt or delete:
   Review trigger: <the same change repeatedly touches more than N unrelated files>.
 ```
 
+## Lessons recorded from Peer evals
+
+Lessons enter this file only through Human review, with the evidence that produced them (eval run
+or real task), never through a ledger or memory outside Git. Examples from `eval/` on a Spring Boot
+repo (2026-10-22), to adapt or delete:
+
+```md
+- A premise stated in a brief is a claim; verify it against the code before changing behaviour,
+  and report `REOPEN_REQUEST` when it is false.
+  Reason: a false premise produced a silent behaviour change that passed every mechanical gate.
+  Review trigger: the brief carries a `Verified facts` line for every premise the Lead checked.
+- Do not write or commit before a round is assigned; report `BLOCKED` with `Round: not assigned`.
+  Reason: Peers created and committed a test file with no round in 2 of 5 runs.
+  Review trigger: the handoff gate rejects every candidate without a round.
+- Use the literal status words `REOPEN_REQUEST`, `DEPENDENCY_REQUEST`, `BLOCKED`; prose such as
+  "blocked" or "cannot proceed" is not a status.
+  Review trigger: the handoff gate parses the status cell.
+- Commits are required or forbidden, never "allowed".
+  Reason: "allowed" produced uncommitted snapshots the gate cannot verify.
+```
+
 ## Repository-specific risks
 
 - hard-to-reverse decisions:

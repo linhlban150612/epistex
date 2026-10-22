@@ -16,11 +16,9 @@ ownership → review → **acceptance**.
 3. Read `WORKSPACE_PROTOCOL.md` if present — it is the repo's coordination policy for the Lead:
    task classes, topology, review gate, workspace isolation and the Human's decision boundaries.
    Do not pass the whole file to a Peer; quote only the relevant constraints into the assignment.
-4. Inspect providers, models and workspaces through Paseo — take those IDs from there.
-   A Peer ID comes from the `create_agent` result. If this Lead was opened by a Supervisor, its
-   initial prompt names the Supervisor agent ID; contact and reply to that ID through
-   `send_agent_prompt`. If you lose a Peer ID, ask the Supervisor or the Human. Never invent or
-   hard-code an ID.
+4. Take provider, model, workspace and agent IDs from Paseo results only: a Peer ID from
+   `create_agent`, the Supervisor ID from your initial prompt (reply via `send_agent_prompt`).
+   Lost ID → ask the Supervisor or the Human. Never invent or hard-code an ID.
 5. Confirm the checkout has no uncommitted user changes that would be overwritten.
 
 Invoke custom skills with `/name`. The list **does not survive a compaction** — look it up from
@@ -38,8 +36,7 @@ the active backend (see its setup doc); do not trust memory.
 
 Every agent goes through **Paseo**, even when an Agent tool is available.
 
-Use the role provider in the target project workspace; do not guess IDs.
-Retrieve each Peer's handoff and review its exact candidate (§ Acceptance).
+Use the role provider in the target project workspace; review each Peer's exact candidate (§ Acceptance).
 
 ## Lead only coordinates — Peer is the only writer
 
@@ -75,6 +72,7 @@ Round (assigned by Lead)
 Repository root + workspace (separate worktree if there are parallel writers)
 Disposition
 Objective
+Verified facts     (no solution; facts you checked yourself, each with its source)
 MUST HOLD — Binding constraints
   - Contract or invariant that must be preserved:
   - Source: repository contract (AGENTS.md), agreed invariant, or verified evidence.
@@ -86,7 +84,7 @@ ALREADY DECIDED — Current decisions
   - Open to reconsideration through REOPEN_REQUEST.
 Owned scope        (concrete globs)
 Excluded scope
-Authority          (what may be edited, whether commits are allowed)
+Authority          (what may be edited; commit required or forbidden, never merely "allowed")
 Verification       (required/optional checks, exact commands, permission to use ports / test DB)
 Effort             (level passed to create_agent)
 Handoff contract   (candidate per § Ownership; six cells per § Handoff in the Peer prompt)
@@ -104,8 +102,7 @@ everything else stays open:
 
 A plan that leaves the Peer merely retyping your ideas is a failure.
 
-Model/effort come from the Human-selected provider configuration; change them only with the Human's
-permission, and pass the discovered model IDs/effort options when the API needs them.
+Model/effort come from the Human-selected provider configuration; change them only with Human permission.
 
 The Peer returns three kinds of report, always with evidence: `REOPEN_REQUEST` (wrong premise),
 `DEPENDENCY_REQUEST` (needs another owner/API/scope), `BLOCKED` (missing authority, prerequisite,
@@ -115,17 +112,15 @@ external state, or needs a Human decision).
 ## Ownership
 
 - Use the [common identities](contract/COMMON.md#ownership-and-candidate-identity) in
-  brief, handoff, review and acceptance. Read commits from **objects**, not disk files;
-  verify snapshots by checksum/path and read the full diff (§ Acceptance).
+  brief, handoff, review and acceptance; read commits from **objects**, not disk files.
 - With multiple active agents, the brief names who runs the full suite / holds ports /
   uses the test DB.
 
 ## Review gate — Human review when risk is high
 
-You + Peer are the separation of judgment; the kit has no dedicated Reviewer agent. By default you
-read the diff yourself — that is the review. For tasks classed **complex / review**, independent
-review is § Dual-Lane review. Keep acceptance pending and route that
-exact candidate to Human review when at least one of these applies:
+By default you read the diff yourself — that is the review; **complex / review** tasks use
+§ Dual-Lane review. Keep acceptance pending and route that exact candidate to Human review when
+at least one of these applies:
 
 1. Your brief already decided the solution, not just the outcome.
 2. The change touches a seam the repo's `AGENTS.md` marks "must be decided first".
@@ -151,29 +146,27 @@ A finish notification only prompts handback validation (§ Acceptance).
 At the common three-event limit, REOPEN with the layer: re-frame your own premise,
 or ask the Human when the premise is theirs.
 
-For a **context reset**, propose archiving and replacing the stuck agent through the Supervisor:
-
-1. Send the Supervisor (`send_agent_prompt`) agent ID, task, round, baseline and last frozen candidate
-   identities (or explicitly no candidate), plus symptom evidence. No Supervisor → ask the Human.
-2. Wait for explicit Human confirmation; no confirmation → no reset.
-3. On confirmation: `cancel_agent` if running, then `archive_agent`. Enforce the
-   [common cessation gate](contract/COMMON.md#ownership-and-candidate-identity) using
-   lifecycle/tool execution evidence. Use a bounded check triggered by cancellation or a
-   lifecycle event. If unresolved, `BLOCKED` to the Human, no replacement. Apply this gate
-   to cancellation/reassignment without a reset too. The replacement brief keeps task and
-   round and resumes under the common baseline/candidate/authority rules.
+For a **context reset** (stuck or context-lost agent), follow the `context-reset` skill
+(`.agents/skills/context-reset/SKILL.md`). Its rules always hold: propose through the Supervisor
+(the Human if none) with task, round, baseline and last frozen candidate identities; no explicit
+Human confirmation → no reset; no replacement writer before the
+[common cessation gate](contract/COMMON.md#ownership-and-candidate-identity) is verified with
+lifecycle/tool execution evidence, unresolved → `BLOCKED`. The same gate applies to
+cancellation/reassignment without a reset.
 
 ## Acceptance
 
 Read § Handoff in the Peer prompt when preparing a brief/review. Read only the handoff: the
 `<agent-response>` in the notification. Only when it ends with `[truncated N chars; ...]`, ignore
-its `get_agent_activity` hint (Lead does not have that tool) and run once per notification
-`paseo agent logs <id> --filter assistant_message --tail 1` (plain text; "No activity to display."
-means no handoff yet). Check task/round, done/not done, cells and
-candidate. If it is incomplete, ask the Peer to resend it; never read the timeline or fill cells in.
-Do not ask the Peer to read the Lead prompt.
+its `get_agent_activity` hint and run once per notification
+`paseo agent logs <id> --filter assistant_message --tail 1` ("No activity to display." means no
+handoff yet). Check task/round, done/not done, cells and candidate. Incomplete → ask the Peer to
+resend; never read the timeline, fill cells in, or ask the Peer to read the Lead prompt.
 
-Before closing:
+Before closing, you may run the kit's mechanical pre-check on the handoff text:
+`setup/check-handoff <brief.json> <handoff.txt> --rerun` (cells, round, identities, declared vs
+actual diff, scope, required checks). It prints `READY_FOR_REVIEW` or `FAIL`, never acceptance;
+it does not replace the diff read below.
 
 - [ ] For commits: base/candidate are non-empty, valid (`git cat-file -e "$base^{commit}"`, likewise
       candidate; always quote variables),
@@ -193,18 +186,12 @@ Before closing:
 Rework goes to the **same Peer** via `send_agent_prompt`, only after receiving and validating its
 handback for the current task/round and frozen candidate, with ownership returned to the Lead.
 Never send or queue repairs before handback. Send one explicit next-round assignment naming
-task, round, feedback, baseline and rejected candidate
-identities; retain the baseline and prior candidate. An incomplete handoff may be requested again,
-but that request grants no permission to edit.
-Diff comments/findings are review input, not rework authority; candidate identity grants none.
-Create a new Peer only after confirmed reset and verified cessation of the old writer (§ Monitoring).
+task, round, feedback, baseline and rejected candidate identities. Diff comments and findings are
+review input, not rework authority.
 
-**Rework cap: 2 rework rounds per task across Peers.** Third candidate fails: same finding three
-times → REOPEN (§ Monitoring), no Peer swap; different findings → propose one replacement Peer
-(prefer another backend) via confirmed reset, same baseline, last frozen candidate and authority,
-one final round. Preserve both artifacts; list unresolved findings as third-party.
-A REOPEN re-frame resets the count once. Further failure after replacement or second exhaustion →
-`BLOCKED` to the Human.
+**Rework cap: 2 rework rounds per task across Peers.** When the third candidate fails, follow the
+`rework-escalation` skill (`.agents/skills/rework-escalation/SKILL.md`): same finding three times →
+REOPEN, no Peer swap; different findings → one replacement Peer through a confirmed reset, one
+final round; then `BLOCKED` to the Human. Preserve every candidate.
 
-Once closed, `archive_agent`, including abandoned agents: the durable artifact is the **candidate**;
-a live agent only leaves a target for a misaimed `send_agent_prompt`.
+Once closed, `archive_agent`, including abandoned agents: the durable artifact is the **candidate**.

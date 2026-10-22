@@ -106,7 +106,7 @@ Codex home chuẩn mặc định là `~/.codex`; nếu credential/config thật 
 `~/.codex-runtime/seatworks` chỉ được dùng tại chỗ khi là kết quả duy nhất phù hợp; không có
 migration, dữ liệu cũ không bị xóa; nhiều runtime cũ/mới cùng phù hợp thì launch dừng.
 
-Dual-Lane review: xem `.agents/skills/dual-lane-review/SKILL.md`.
+Skill của Lead trong `.agents/skills/`: `dual-lane-review`, `context-reset`, `rework-escalation`. Prompt Lead giữ điều kiện kích hoạt và luật cốt lõi; skill giữ các bước chi tiết.
 
 Linux Desktop: nếu `paseo` là symlink tới `/opt/Paseo/Paseo` và `paseo run` mở GUI, dùng launcher
 đi kèm `/opt/Paseo/resources/bin/paseo` cho các lệnh CLI; không cần đổi symlink hay restart daemon.

@@ -33,7 +33,7 @@ class EvalHarnessTest(unittest.TestCase):
 
     def test_brief_template_placeholders_are_known(self):
         known = {"TASK_ID", "ROUND_LINE", "WORKTREE", "BRANCH", "BASE_SHA", "DISPOSITION", "OBJECTIVE",
-                 "MUST_HOLD_EXTRA", "DECIDED", "OWNED", "EXCLUDED", "VERIFICATION"}
+                 "MUST_HOLD_EXTRA", "DECIDED", "OWNED", "EXCLUDED", "VERIFICATION", "VERIFIED_FACTS"}
         import re
         for path in SCENARIOS:
             used = set(re.findall(r"{{(\w+)}}", json.loads(path.read_text())["brief_template"]))

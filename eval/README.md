@@ -46,6 +46,7 @@ Exit status: 0 when the run matches `expect`, 1 otherwise.
 | Field | Meaning |
 |---|---|
 | `objective`, `decided`, `verification`, `disposition` | Text rendered into the brief template |
+| `verified_facts` | Optional `Verified facts (no solution)` line under Objective; default says no premise was checked |
 | `omit_round` | Leave `Round` out of the brief and `brief.json` (expects `BLOCKED`) |
 | `brief_json` | `owned_scope`, `excluded_scope`, `required_checks`, `optional_checks`, `commit_allowed`, optional `bug_reproducible` + `regression_check` |
 | `expect.status` | Allowed Peer status: `complete`, `partial`, `BLOCKED`, `REOPEN_REQUEST`, `DEPENDENCY_REQUEST` |

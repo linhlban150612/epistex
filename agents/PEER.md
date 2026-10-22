@@ -122,7 +122,7 @@ Task ID: … | Round: …
 
 Outcome            complete | partial | blocked | reopen; Done: …; Not done: …
 Candidate          base SHA + candidate SHA + branch + worktree; or baseline and candidate snapshot/diff, each with checksum + path if not committing
-Scope              files changed / read, concrete paths
+Scope              Changed: concrete paths in the diff; Read: concrete paths, not in the diff
 Verification       commands + exit status + REAL output/excerpts; authorized full-output path + checksum if used; deliberately skipped checks
 Unknown / risk     assumptions you are standing on, decisions that need the Human
 Ownership          stopped writing and returned scope to the Lead, or which scope you still hold and why

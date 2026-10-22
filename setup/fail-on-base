@@ -1,0 +1,188 @@
+#!/usr/bin/env python3
+"""Prove a regression test fails on the baseline for the right reason and passes on the candidate.
+
+Usage: fail-on-base <brief.json> [--repo <path>] [--base SHA] [--candidate SHA] [--timeout SECONDS]
+
+Brief fields: bug_reproducible (true to run), regression_check (command run in both worktrees),
+regression_test_paths (globs of test files copied from candidate onto the baseline;
+default: **/test/**, **/tests/**, **/*test*). SHAs default to brief.base_sha and the
+worktree HEAD. Prints FAIL_ON_BASE_OK, FAIL_ON_BASE_INVALID or SKIPPED; exit 0/1/2.
+Supplementary evidence only: the Lead still reads the test.
+"""
+
+import argparse
+import json
+import pathlib
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+
+DEFAULT_TEST_GLOBS = ["**/test/**", "**/tests/**", "**/*test*"]
+INVALID = [
+    # Maven/Gradle/javac, Python, TypeScript/esbuild/Node syntax errors.
+    ("COMPILE", r"COMPILATION ERROR|cannot find symbol|compileJava FAILED|compileTestJava FAILED|"
+                r"SyntaxError|error: incompatible types|\berror: .*expected|"
+                r"\berror TS\d+:|Transform failed with \d+ error|Unexpected token|"
+                r"ReferenceError: .* is not defined|Type error:"),
+    # Maven/Gradle artifacts, Python modules, Node modules and npm/pnpm/yarn resolution.
+    ("MISSING_DEP", r"Could not resolve dependencies|Could not find artifact|ModuleNotFoundError|"
+                    r"package [\w.]+ does not exist|Could not resolve all (files|dependencies)|"
+                    r"Cannot find module|ERR_MODULE_NOT_FOUND|Cannot find package|"
+                    r"npm ERR! (missing|404|ERESOLVE)|ERR_PNPM_|Couldn't find package"),
+    # Missing files/classes, empty test selection in Surefire, pytest, Jest, Vitest, Mocha, node --test.
+    ("MISSING_FILE", r"No such file or directory|ClassNotFoundException|No tests (were executed|found|matching)|"
+                     r"can't open file|Could not find class|ENOENT|No test files found|"
+                     r"Error: Could not find (config|test)|Error: No test suites found|"
+                     r"Pattern: .* - 0 matches|Cannot find test file"),
+]
+# JUnit/Hamcrest, Python assert/unittest, Node assert, Jest/Vitest, Mocha, tap/node --test.
+ASSERTION = re.compile(r"AssertionError|AssertionFailedError|ComparisonFailure|expected:?\s*<?|"
+                       r"Tests run: \d+, Failures: [1-9]|FAILED \(failures=|\bassert\b|"
+                       r"ERR_ASSERTION|expect\(received\)|Expected:.*Received:|Expected .* to (be|equal|have)|"
+                       r"Tests:\s+\d+ failed|Test Files\s+\d+ failed|\d+ failing\b|"
+                       r"^# fail [1-9]|not ok \d+", re.I | re.M)
+
+
+def glob_to_regex(pattern):
+    out, i = "", 0
+    while i < len(pattern):
+        if pattern.startswith("**/", i):
+            out += "(?:.*/)?"
+            i += 3
+            continue
+        if pattern.startswith("**", i):
+            out += ".*"
+            i += 2
+            continue
+        out += {"*": "[^/]*", "?": "[^/]"}.get(pattern[i], re.escape(pattern[i]))
+        i += 1
+    return re.compile("^" + out + "$")
+
+
+def git(repo, *args):
+    result = subprocess.run(["git", "-C", str(repo), *args], text=True, capture_output=True)
+    if result.returncode:
+        raise RuntimeError(f"git {' '.join(args)}: {result.stderr.strip()}")
+    return result.stdout
+
+
+def classify(result):
+    if result is None:
+        return "TIMEOUT"
+    output = result.stdout + result.stderr
+    for label, pattern in INVALID:
+        if re.search(pattern, output):
+            return label
+    if ASSERTION.search(output):
+        return "ASSERTION"
+    return "UNKNOWN"
+
+
+def run(command, cwd, timeout):
+    try:
+        return subprocess.run(command, shell=True, cwd=cwd, text=True, capture_output=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return None
+
+
+def tail(result, lines=5):
+    if result is None:
+        return "(timeout)"
+    return " | ".join((result.stdout + result.stderr).strip().splitlines()[-lines:])
+
+
+def test_files(repo, base, candidate, globs):
+    regexes = [glob_to_regex(g) for g in globs]
+    copied, removed = [], []
+    for line in git(repo, "diff", "--name-status", "-M", base, candidate).splitlines():
+        parts = line.split("\t")
+        status, paths = parts[0], parts[1:]
+        for path in paths:
+            if not any(r.match(path) for r in regexes):
+                continue
+            if status.startswith("D") or (status.startswith("R") and path == paths[0]):
+                removed.append(path)
+            else:
+                copied.append(path)
+    return copied, removed
+
+
+def check(brief, repo, base, candidate, timeout):
+    reasons = []
+    command = brief.get("regression_check")
+    if not command:
+        return ["brief.regression_check is missing"]
+    base = git(repo, "rev-parse", f"{base}^{{commit}}").strip()
+    candidate = git(repo, "rev-parse", f"{candidate}^{{commit}}").strip()
+    copied, removed = test_files(repo, base, candidate, brief.get("regression_test_paths") or DEFAULT_TEST_GLOBS)
+    if not copied:
+        return [f"no test file changed between {base[:12]} and {candidate[:12]}; nothing to prove"]
+    tmp = pathlib.Path(tempfile.mkdtemp(prefix="fail-on-base-"))
+    try:
+        baseline, cand = tmp / "baseline", tmp / "candidate"
+        git(repo, "worktree", "add", "--detach", "-q", str(baseline), base)
+        git(repo, "worktree", "add", "--detach", "-q", str(cand), candidate)
+        for path in copied:
+            target = baseline / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(subprocess.run(["git", "-C", str(repo), "show", f"{candidate}:{path}"],
+                                              capture_output=True, check=True).stdout)
+        for path in removed:
+            (baseline / path).unlink(missing_ok=True)
+        print(f"tests copied onto baseline: {', '.join(copied)}")
+        base_result = run(command, baseline, timeout)
+        if base_result is not None and base_result.returncode == 0:
+            reasons.append(f"baseline {base[:12]}: test PASSED; it does not reproduce the bug")
+        else:
+            label = classify(base_result)
+            print(f"baseline {base[:12]}: exit {'timeout' if base_result is None else base_result.returncode}, "
+                  f"cause {label}: {tail(base_result)}")
+            if label != "ASSERTION":
+                reasons.append(f"baseline failed for {label}, not ASSERTION; fix the test setup")
+        cand_result = run(command, cand, timeout)
+        if cand_result is None or cand_result.returncode:
+            reasons.append(f"candidate {candidate[:12]}: test did not pass ({classify(cand_result)}): {tail(cand_result)}")
+        else:
+            print(f"candidate {candidate[:12]}: exit 0")
+    finally:
+        for name in ("baseline", "candidate"):
+            subprocess.run(["git", "-C", str(repo), "worktree", "remove", "--force", str(tmp / name)],
+                           capture_output=True)
+        shutil.rmtree(tmp, ignore_errors=True)
+    return reasons
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("brief")
+    parser.add_argument("--repo")
+    parser.add_argument("--base")
+    parser.add_argument("--candidate")
+    parser.add_argument("--timeout", type=int, default=600)
+    args = parser.parse_args(argv)
+    try:
+        brief = json.loads(pathlib.Path(args.brief).read_text(encoding="utf-8"))
+        if brief.get("bug_reproducible") is not True:
+            print("SKIPPED: brief.bug_reproducible is not true")
+            return 2
+        repo = pathlib.Path(args.repo or brief.get("repo_root") or brief.get("worktree") or ".")
+        base = args.base or brief.get("base_sha")
+        candidate = args.candidate or git(pathlib.Path(brief.get("worktree") or repo), "rev-parse", "HEAD").strip()
+        if not base:
+            raise RuntimeError("base SHA missing: pass --base or brief.base_sha")
+        reasons = check(brief, repo, base, candidate, args.timeout)
+    except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:
+        reasons = [str(error)]
+    if reasons:
+        print("FAIL_ON_BASE_INVALID")
+        for reason in reasons:
+            print(f"- {reason}")
+        return 1
+    print("FAIL_ON_BASE_OK")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

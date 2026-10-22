@@ -54,5 +54,10 @@ With Testcontainers the container owns its DB, so `DB_NAME` only matters for a s
 - `required_checks`: `["./verify quick"]` for routine changes.
 - `optional_checks`: `["./verify it"]` or `["./verify full"]`, plus the sentence that grants
   Docker, port and DB for this turn. Without that sentence the Peer reports `BLOCKED`.
+- For a reproducible bug, add `"bug_reproducible": true` and
+  `"regression_check": "./mvnw -B -q -Dtest=OrderServiceTest test"`. The Lead then runs
+  `setup/fail-on-base brief.json`: the changed test files are copied onto a baseline worktree at
+  `base_sha`; the test must fail there for `ASSERTION` (not `COMPILE`, `MISSING_DEP`, `MISSING_FILE`,
+  `TIMEOUT`) and pass on the candidate. Output `FAIL_ON_BASE_OK` is supplementary evidence only.
 - Record in the target repository's `AGENTS.md` (see `../AGENTS_MD_SNIPPET.md`, section
   *Authority → environment boundaries*) which groups a Peer may run without asking.

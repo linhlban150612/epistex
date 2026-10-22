@@ -47,7 +47,9 @@ routing does not prove that an old Supervisor in Paseo can resume.
 
 Codex custom skills live in `$CODEX_HOME/skills/`; in a role runtime that directory links to the
 canonical Codex home (see the tree above). The skill list does not survive a context compaction,
-so a Codex Lead re-reads `$CODEX_HOME/skills/` instead of relying on memory.
+so a Codex Lead re-reads `$CODEX_HOME/skills/` instead of relying on memory. The kit's Lead skills live in
+`.agents/skills/`: `dual-lane-review`, `context-reset`, `rework-escalation`. `LEAD.md` keeps the trigger and
+the core rules; each skill holds the detailed steps.
 
 ### Environment variables and Seatworks compatibility
 
@@ -77,7 +79,7 @@ candidate needs `full-access` (no sandbox); the Human decides this per project i
 
 ## Project paths and runtime prerequisites
 
-## 1. Đặt kit và project ở đường dẫn ổn định
+### 1. Đặt kit và project ở đường dẫn ổn định
 
 `<KIT>` là đường dẫn tuyệt đối tới thư mục `epistex`; `<PROJECT>` là repository mà các seat làm
 việc. Paseo daemon phải chạy dưới đúng user sở hữu Codex home và project. Mặc định provider dùng
@@ -90,7 +92,7 @@ Session tạo từ thư mục con/worktree/project khác chỉ resume được b
 Picker, tên session, `--last` và app-server chỉ thấy runtime của project hiện tại. Quy tắc chọn
 runtime theo UUID: [Codex runtime and resume](#codex-runtime-and-resume).
 
-## 2. Kiểm tiền đề
+### 2. Kiểm tiền đề
 
 ```bash
 bash --version
@@ -101,12 +103,8 @@ paseo daemon status --json
 ```
 
 Codex home chuẩn mặc định là `~/.codex`; nếu credential/config thật nằm nơi khác, khai
-`EPISTEX_CODEX_HOME` trong `env` của các Codex provider. Biến cũ `SEATWORKS_PROJECT_ROOT`,
-`SEATWORKS_CODEX_HOME` vẫn được đọc; biến `EPISTEX_*` tương ứng luôn ưu tiên. Runtime cũ dưới
-`~/.codex-runtime/seatworks` chỉ được dùng tại chỗ khi là kết quả duy nhất phù hợp; không có
-migration, dữ liệu cũ không bị xóa; nhiều runtime cũ/mới cùng phù hợp thì launch dừng.
-
-Skill của Lead trong `.agents/skills/`: `dual-lane-review`, `context-reset`, `rework-escalation`. Prompt Lead giữ điều kiện kích hoạt và luật cốt lõi; skill giữ các bước chi tiết.
+`EPISTEX_CODEX_HOME` trong `env` của các Codex provider. Biến và runtime cũ `SEATWORKS_*`:
+[Environment variables and Seatworks compatibility](#environment-variables-and-seatworks-compatibility).
 
 Linux Desktop: nếu `paseo` là symlink tới `/opt/Paseo/Paseo` và `paseo run` mở GUI, dùng launcher
 đi kèm `/opt/Paseo/resources/bin/paseo` cho các lệnh CLI; không cần đổi symlink hay restart daemon.
@@ -126,10 +124,13 @@ Không pin CWD của Supervisor bằng env: workspace `~/work/SUPERVISOR` để 
 | `agents/*.md` | Supervisor, Lead, and Peer prompts |
 | `agents/contract/COMMON.md`, `setup/role_prompt.py` | Shared role invariants and combined prompt loader/size check |
 | `setup/role-agent` | Native Claude/Pi launcher and ACP instruction proxy |
-| `setup/{amp,devin,copilot,cursor}-acp` | Per-backend ACP launchers |
+| `setup/{amp,devin,copilot,cursor,kiro}-acp`, `setup/claude-sdk`, `setup/kiro-*.json` | Per-backend launchers and Kiro agent configs |
 | `setup/codex-room` | Select runtime/resume and generate Codex config |
-| `setup/setup-seats.sh`, `examples/paseo-providers.json` | Three role seats and provider check |
+| `setup/setup-seats.sh`, `setup/normalize-profiles.jq`, `examples/paseo-providers.json` | Seat checker, profile normalizer and provider catalog |
+| `setup/check-handoff`, `setup/fail-on-base` | Mechanical gates for handoffs and reproducible-bug fixes |
+| `.agents/skills/*/SKILL.md` | Lead skills: Dual-Lane review, context reset, rework escalation |
 | `SETUP.md` | Setup entry point: common steps, Codex seats, live verification |
-| `docs/setup/*.md` | Backend-specific seats: Claude, Amp, Pi/OMP, Devin, Copilot, Cursor, Droid |
-| `examples/AGENTS_MD_SNIPPET.md`, `examples/WORKSPACE_PROTOCOL.md` | Contract/policy templates for target repos |
-| `tests/` | Runtime, role launcher, and seat-checker regression tests |
+| `docs/setup/*.md` | Backend-specific seats and context compaction |
+| `examples/AGENTS_MD_SNIPPET.md`, `examples/WORKSPACE_PROTOCOL.md`, `examples/target-repo/` | Contract/policy and verify templates for target repos |
+| `eval/` | Peer behavior scenarios run against real agents; results stay outside Git |
+| `tests/` | Runtime, launcher, seat-checker, gate and eval-harness regression tests |

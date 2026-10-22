@@ -139,7 +139,7 @@ and the runtime is prepared when Paseo starts the seat. `--check` fails if the c
 wrong model, effort or tool permission; it needs Bash, jq, Python 3.11+, dirname, wc, grep and
 `${CODEX_BIN:-codex}`, and does not need Paseo on PATH. `PASEO_HOME`/`PASEO_CONFIG` select a config at a non-default
 location; if you use `CODEX_BIN`, set the same value for the checker and the providers. A passing result
-does not prove auth, the daemon, model availability or a successful launch: those are step 2 and step 7.
+does not prove auth, the daemon, model availability or a successful launch: those are steps 2 and 8.
 
 ## 8. Prove isolation
 

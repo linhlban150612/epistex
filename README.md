@@ -37,7 +37,7 @@ that every backend can launch.
 
 Requires a configured Paseo CLI/daemon, Python **3.11+**, Bash, Git, `jq`, Codex, and
 credentials for the selected backend. Preserve the existing Paseo/Codex configuration and
-runtime state; the kit is not an OS sandbox and configuration checks do not prove a live launch.
+runtime state.
 Follow [SETUP.md](SETUP.md) for installation and live verification; backend-specific instructions
 are in [docs/setup/](docs/setup/), including [Antigravity](docs/setup/antigravity.md) and [Factory Droid](docs/setup/droid.md).
 
@@ -56,7 +56,7 @@ Supervisor opens a Lead in the project workspace and does not create a Peer.
 | Review | Lead reads the exact candidate and evidence. Complex/review tasks use the [Dual-Lane review skill](.agents/skills/dual-lane-review/SKILL.md) (two Peers from different model families, one property checklist). Existing Human review and agent-creation gates apply |
 | Rework | Only after validated Peer handback, Lead sends exactly one next-round `send_agent_prompt` specifying task, round, feedback, baseline and rejected candidate identities (commit or frozen snapshot/diff); preserves both. Diff comments are review input, not write authority; do not queue repair requests into an active turn. See [Peer handoff](agents/PEER.md#handoff--always-return) and [Lead acceptance](agents/LEAD.md#acceptance) |
 | Intervention | Only on an event (notification, Lead question, Human request), Supervisor may use `list_pending_permissions`, `respond_to_permission`, `cancel_agent`, `set_agent_mode`, then tells the owning Lead |
-| Loops / reset | Loops are counted in events, never time. Lead proposes reset from the same baseline and last frozen candidate identities (baseline if none), preserving frozen artifacts and authority. Human confirmation through Supervisor (directly if none) is required before stopping/archiving the old agent; confirm it can no longer write before replacement. Procedure: [context-reset skill](.agents/skills/context-reset/SKILL.md); rework cap: [rework-escalation skill](.agents/skills/rework-escalation/SKILL.md). See [Lead monitoring](agents/LEAD.md#monitoring) and [Supervisor reset](agents/SUPERVISOR.md#loops-and-context-reset) |
+| Loops / reset | Loops are counted in events, never time. Lead proposes reset from the same baseline and last frozen candidate identities (baseline if none), preserving frozen artifacts and authority. Human confirmation through Supervisor (directly if none) is required before stopping/archiving the old agent; confirm it can no longer write before replacement. Procedure: [context-reset skill](.agents/skills/context-reset/SKILL.md); rework cap: [rework-escalation skill](.agents/skills/rework-escalation/SKILL.md). See [Lead monitoring](agents/LEAD.md#monitoring) and [Supervisor reset](agents/SUPERVISOR.md#escalation-and-context-reset) |
 | Acceptance | Lead decides; Supervisor does not decide in their place |
 | Archiving | Supervisor archives the Lead when the Human confirms the project is closed |
 
@@ -105,16 +105,13 @@ actual CWD, or live recovery checks.
 - Context compaction is backend-dependent; some seats remain unconfigured and Devin is user-wide,
   not workspace-scoped. See [context compaction](docs/setup/context-compaction.md).
 
-- All roles run as the same Unix user; scope and tool visibility are not an OS sandbox (see above).
 - Paseo is the sole agent control plane and owns lifecycle and topology. Inspect live state before
   operating.
 - `setup/codex-room` preserves private runtime data and canonical config, disables native
   multi-agent features, and rejects ambiguous or symlinked runtimes. These contracts are covered by
   `tests/test_codex_room_runtime.py` and `tests/test_codex_room.py`; see the [runtime guide](docs/setup/codex-runtime.md).
-- Codex Peer sandbox: `codex-peer` profiles must set `modeId: auto-review`; the provider default `auto` runs a
-  non-interactive Peer in a read-only sandbox. `auto-review` writes only under the workspace cwd and keeps `.git`
-  read-only, so the Peer can edit and run `./verify` but cannot commit (`index.lock: Read-only file system`, also
-  in a full clone). A committed candidate needs `full-access`, which the Human must authorize per project.
-  Measured with `eval/` on 2026-10-22.
+- Codex Peer sandbox: `codex-peer` profiles must set `modeId: auto-review`; that mode keeps `.git` read-only,
+  so a committed candidate needs Human-authorized `full-access`. Details and measurement:
+  [Peer sandbox and worktrees](docs/setup/codex-runtime.md#peer-sandbox-and-worktrees).
 - ACP child-exit limitation: `setup/role-agent` forwards stdin until EOF, so a backend that exits
   early may surface only on the next input.

@@ -15,10 +15,17 @@ import subprocess
 import sys
 
 CELLS = ("Outcome", "Candidate", "Scope", "Verification", "Unknown / risk", "Ownership")
-HEADER = re.compile(r"^Task ID:\s*(?P<task>.+?)\s*\|\s*Round:\s*(?P<round>\S+)\s*$")
-CELL_START = re.compile(r"^(%s)(?:\s{2,}|:\s*|\s*$)" % "|".join(re.escape(c) for c in CELLS))
+# Round is the first token after "Round:"; a trailing note such as "(not changed by me)" is tolerated.
+HEADER = re.compile(r"^Task ID:\s*(?P<task>.+?)\s*\|\s*Round:\s*(?P<round>\S+)")
+# Cell name at line start, optionally wrapped in Markdown emphasis (**Outcome**, *Outcome*, `Outcome`),
+# followed by two spaces, a colon, or the end of the line.
+CELL_START = re.compile(r"^(?:[*_`]{1,2})?(%s)(?:[*_`]{1,2})?(?:\s{2,}|\s*:\s*|\s*$|(?<=[*_`])\s+)"
+                        % "|".join(re.escape(c) for c in CELLS))
 SHA = re.compile(r"\b[0-9a-f]{7,40}\b")
 EXIT = re.compile(r"\b(?:exit(?:\s+(?:status|code))?|rc|status)\s*[:=]?\s*(\d+)\b", re.I)
+# A reported run is a deliberate baseline run when its line names the base, a stash or a
+# regression check. Such runs may fail; the candidate run must still report exit 0.
+BASELINE = re.compile(r"\b(?:base|baseline|stash(?:ed)?|regression|before the fix|without the fix)\b", re.I)
 
 
 def parse_handoff(text):
@@ -73,7 +80,16 @@ def diff_paths(repo, base, candidate):
 
 
 def split_paths(text):
-    return {token.strip("`'\",;") for token in re.split(r"[\s,;]+", text) if token.strip("`'\",;")}
+    # Tokens may carry Markdown quotes and sentence punctuation: `path`. or (path),
+    def clean(token):
+        while True:
+            stripped = token.strip("`'\"*()[]").rstrip(".:;,")
+            if stripped == token:
+                return token
+            token = stripped
+    # Only path-like tokens count: list bullets ("-") and notes such as "(new file)" are ignored.
+    return {clean(token) for token in re.split(r"[\s,;]+", text)
+            if clean(token) and re.search(r"[/.]", clean(token)) and not re.search(r"[()]", clean(token))}
 
 
 def check(brief, handoff, repo, rerun):
@@ -95,20 +111,17 @@ def check(brief, handoff, repo, rerun):
         return reasons
 
     candidate_cell = cells["Candidate"]
-    shas = SHA.findall(candidate_cell)
+    # Keep only hex tokens that resolve to commits: branch names, timestamps and checksums also look like hex.
+    shas = [sha for sha in SHA.findall(candidate_cell)
+            if not subprocess.run(["git", "-C", str(repo), "cat-file", "-e", f"{sha}^{{commit}}"],
+                                  capture_output=True).returncode]
     if len(shas) < 2:
-        if re.search(r"snapshot|checksum", candidate_cell, re.I):
+        if re.search(r"snapshot|checksum|uncommitted|no candidate SHA", candidate_cell, re.I):
             reasons.append("snapshot candidate: UNSUPPORTED; verify checksums by hand")
         else:
-            reasons.append("Candidate cell needs base SHA and candidate SHA")
+            reasons.append(f"Candidate cell needs base SHA and candidate SHA that resolve to commits in {repo} (found {len(shas)})")
         return reasons
     base, candidate = shas[0], shas[1]
-    for name, sha in (("base", base), ("candidate", candidate)):
-        if subprocess.run(["git", "-C", str(repo), "cat-file", "-e", f"{sha}^{{commit}}"],
-                          capture_output=True).returncode:
-            reasons.append(f"{name} SHA {sha} is not a commit in {repo}")
-    if reasons:
-        return reasons
     base = git(repo, "rev-parse", base).strip()
     candidate = git(repo, "rev-parse", candidate).strip()
     brief_base = brief.get("base_sha")
@@ -147,10 +160,14 @@ def check(brief, handoff, repo, rerun):
         if not lines:
             reasons.append(f"required check not reported: {command}")
             continue
-        codes = [m.group(1) for l in lines for m in [EXIT.search(l.split(command, 1)[1])] if m]
-        if not codes:
+        runs = [(BASELINE.search(l) is not None, m.group(1))
+                for l in lines for m in [EXIT.search(l.split(command, 1)[1])] if m]
+        if not runs:
             reasons.append(f"required check without exit status: {command}")
-        elif any(code != "0" for code in codes):
+        elif not any(code == "0" for _, code in runs):
+            reasons.append(f"required check reported non-zero exit: {command}")
+        elif any(code != "0" and not base for base, code in runs):
+            # Non-zero exits are tolerated only on lines that name a baseline run.
             reasons.append(f"required check reported non-zero exit: {command}")
 
     if rerun:

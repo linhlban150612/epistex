@@ -1,0 +1,2 @@
+date,task_id,target_repo,peer_provider,lead_provider,rounds,gate_verdict,fail_on_base,lead_decision,wrong_acceptance,escaped_bug,review_minutes,notes
+2026-10-22,EXAMPLE-1,fastair-analyze-process,claude-peer/claude-sonnet-5-5,claude-lead/claude-opus-5-5,1,READY_FOR_REVIEW,-,accepted,no,no,12,"example row; delete"

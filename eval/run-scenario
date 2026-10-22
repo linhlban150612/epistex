@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+"""Run one eval scenario against a target repo with a real Peer agent through Paseo.
+
+Usage: eval/run-scenario <scenario.json> --provider <seat/model> [--thinking low]
+       --target-repo <path> [--base-branch eval-base] [--results eval/results]
+       [--wait-timeout 20m] [--keep-worktree]
+
+The script plays the Lead-side harness: it creates a fresh worktree, writes brief.json,
+launches the Peer with the rendered brief, retrieves the handoff (last assistant message),
+runs setup/check-handoff (--rerun) and setup/fail-on-base, and records a result JSON.
+It never prints ACCEPTED: the gate output is READY_FOR_REVIEW or FAIL.
+"""
+import argparse, datetime, json, pathlib, re, shutil, subprocess, sys, time
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+STATUS_RE = re.compile(r"REOPEN_REQUEST|DEPENDENCY_REQUEST|BLOCKED|Outcome\W*\s*(complete|partial|blocked|reopen)\b", re.I)
+OUTCOME_MAP = {"blocked": "BLOCKED", "reopen": "REOPEN_REQUEST", "complete": "complete", "partial": "partial"}
+
+
+def sh(args, cwd=None, check=True, timeout=None):
+    return subprocess.run(args, cwd=cwd, text=True, capture_output=True, check=check, timeout=timeout)
+
+
+def glob_to_regex(pattern):
+    out, i = "", 0
+    while i < len(pattern):
+        c = pattern[i]
+        if pattern.startswith("**/", i):
+            out, i = out + "(?:.*/)?", i + 3
+        elif pattern.startswith("**", i):
+            out, i = out + ".*", i + 2
+        elif c == "*":
+            out, i = out + "[^/]*", i + 1
+        elif c == "?":
+            out, i = out + "[^/]", i + 1
+        else:
+            out, i = out + re.escape(c), i + 1
+    return re.compile("^" + out + "$")
+
+
+def in_scope(path, owned, excluded):
+    return any(g.match(path) for g in owned) and not any(g.match(path) for g in excluded)
+
+
+def detect_status(handoff):
+    found = []
+    for m in STATUS_RE.finditer(handoff):
+        word = m.group(1).lower() if m.group(1) else m.group(0).upper()
+        found.append(OUTCOME_MAP.get(word, word))
+    for key in ("REOPEN_REQUEST", "DEPENDENCY_REQUEST", "BLOCKED"):
+        if key in found:
+            return key
+    return found[-1] if found else "NONE"
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("scenario")
+    ap.add_argument("--provider", required=True)
+    ap.add_argument("--thinking", default="low")
+    ap.add_argument("--mode", default="", help="Paseo mode id for the seat, e.g. auto-review for codex-peer")
+    ap.add_argument("--target-repo", required=True)
+    ap.add_argument("--base-branch", default="eval-base")
+    ap.add_argument("--results", default=str(ROOT / "eval" / "results"))
+    ap.add_argument("--wait-timeout", default="20m")
+    ap.add_argument("--keep-worktree", action="store_true")
+    a = ap.parse_args()
+
+    scenario = json.loads(pathlib.Path(a.scenario).read_text())
+    target = pathlib.Path(a.target_repo).resolve()
+    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    pslug = re.sub(r"[^a-z0-9]+", "-", a.provider.lower()).strip("-")
+    run_id = f"{scenario['id']}--{pslug}--{stamp}"
+    out = pathlib.Path(a.results) / run_id
+    out.mkdir(parents=True)
+    # A shared clone, not a linked worktree: sandboxed Peers (Codex auto-review) may write only under cwd,
+    # and a linked worktree keeps its index/refs in the main repository's .git, so commits would fail.
+    worktree = target.parent / ".eval-worktrees" / run_id
+    branch = f"eval/{run_id}"
+    sh(["git", "clone", "-q", "--shared", "--branch", a.base_branch, str(target), str(worktree)])
+    sh(["git", "checkout", "-q", "-b", branch], cwd=worktree)
+    sh(["git", "config", "user.name", "eval-peer"], cwd=worktree)
+    sh(["git", "config", "user.email", "eval-peer@localhost"], cwd=worktree)
+    base_sha = sh(["git", "rev-parse", "HEAD"], cwd=worktree).stdout.strip()
+
+    brief = {"task_id": run_id, "repo_root": str(worktree), "worktree": str(worktree), "branch": branch,
+             "base_sha": base_sha, **scenario["brief_json"]}
+    if not scenario.get("omit_round"):
+        brief["round"] = 1
+    (out / "brief.json").write_text(json.dumps(brief, indent=2) + "\n")
+
+    fill = {"TASK_ID": run_id, "ROUND_LINE": "" if scenario.get("omit_round") else "Round: 1\n",
+            "WORKTREE": str(worktree), "BRANCH": branch, "BASE_SHA": base_sha,
+            "DISPOSITION": scenario.get("disposition", "implementation"), "OBJECTIVE": scenario["objective"],
+            "MUST_HOLD_EXTRA": scenario.get("must_hold_extra", ""), "DECIDED": scenario["decided"],
+            "OWNED": ", ".join(brief["owned_scope"]), "EXCLUDED": ", ".join(brief.get("excluded_scope", [])) or "none",
+            "VERIFICATION": scenario["verification"]}
+    text = scenario["brief_template"]
+    for k, v in fill.items():
+        text = text.replace("{{%s}}" % k, v)
+    (out / "brief.txt").write_text(text)
+
+    started = time.time()
+    cmd = ["paseo", "run", "--provider", a.provider, "--thinking", a.thinking, "--title", f"eval {run_id}",
+           "--label", "epistex-eval=1", "--cwd", str(worktree), "--wait-timeout", a.wait_timeout, "--json"]
+    if a.mode:
+        cmd += ["--mode", a.mode]
+    launch = subprocess.run(cmd + [text], text=True, capture_output=True)
+    duration = round(time.time() - started)
+    m = re.search(r"\{.*\}", launch.stdout, re.S)
+    launch_info = json.loads(m.group(0)) if m else {"raw": launch.stdout, "stderr": launch.stderr}
+    agent_id = launch_info.get("agentId", "")
+    handoff = ""
+    if agent_id:
+        if launch_info.get("status") != "completed":
+            # The turn did not finish (permission wait, timeout, error): stop the agent so it does not linger.
+            subprocess.run(["paseo", "agent", "stop", agent_id], capture_output=True)
+        logs = subprocess.run(["paseo", "agent", "logs", agent_id, "--filter", "assistant_message", "--tail", "1"],
+                              text=True, capture_output=True)
+        handoff = logs.stdout.strip()
+        if handoff == "No activity to display.":
+            handoff = ""
+    (out / "handoff.txt").write_text(handoff + "\n")
+
+    head = sh(["git", "rev-parse", "HEAD"], cwd=worktree).stdout.strip()
+    dirty = sh(["git", "status", "--porcelain", "--untracked-files=all"], cwd=worktree).stdout
+    dirty_paths = [line[3:].split(" -> ")[-1] for line in dirty.splitlines()]
+    committed = [l.split("\t")[-1] for l in sh(["git", "diff", "--name-status", "-M", base_sha, head], cwd=worktree).stdout.splitlines()]
+    changed = sorted(set(committed) | set(p for p in dirty_paths if not p.startswith("target/")))
+    owned = [glob_to_regex(g) for g in brief["owned_scope"]]
+    excluded = [glob_to_regex(g) for g in brief.get("excluded_scope", [])]
+    outside = [p for p in changed if not in_scope(p, owned, excluded)]
+    patch = sh(["git", "diff", base_sha, head], cwd=worktree).stdout + sh(["git", "diff"], cwd=worktree).stdout
+    (out / "candidate.patch").write_text(patch)
+
+    gate = subprocess.run([str(ROOT / "setup" / "check-handoff"), str(out / "brief.json"), str(out / "handoff.txt"),
+                           "--repo", str(worktree), "--rerun"], text=True, capture_output=True)
+    gate_out = gate.stdout + gate.stderr
+    (out / "check-handoff.txt").write_text(gate_out)
+    gate_verdict = "READY_FOR_REVIEW" if gate_out.startswith("READY_FOR_REVIEW") else "FAIL"
+    fob_verdict = None
+    if brief.get("bug_reproducible"):
+        fob = subprocess.run([str(ROOT / "setup" / "fail-on-base"), str(out / "brief.json"), "--repo", str(worktree)],
+                             text=True, capture_output=True)
+        (out / "fail-on-base.txt").write_text(fob.stdout + fob.stderr)
+        fob_lines = (fob.stdout + fob.stderr).strip().splitlines()
+        fob_verdict = fob_lines[-1] if fob_lines else "NO_OUTPUT"  # verdict is the last line
+    full_ran = any(worktree.glob("target/surefire-reports/*DmsAnalyzeProcessApplicationTests*"))
+
+    status = detect_status(handoff)
+    exp = scenario["expect"]
+    mismatches = []
+    if "status" in exp and status not in exp["status"]:
+        mismatches.append(f"status {status} not in {exp['status']}")
+    if exp.get("gate") and gate_verdict != exp["gate"]:
+        mismatches.append(f"gate {gate_verdict} != {exp['gate']}")
+    if exp.get("fail_on_base") and fob_verdict != exp["fail_on_base"]:
+        mismatches.append(f"fail-on-base {fob_verdict} != {exp['fail_on_base']}")
+    if "outside_scope" in exp and len(outside) != exp["outside_scope"]:
+        mismatches.append(f"outside-scope files {outside}")
+    if exp.get("no_changes") and changed:
+        mismatches.append(f"changes made {changed}")
+    for p in exp.get("unchanged_paths", []):
+        if p in changed:
+            mismatches.append(f"changed protected path {p}")
+    if "full_suite_ran" in exp and full_ran != exp["full_suite_ran"]:
+        mismatches.append(f"full suite ran = {full_ran}")
+    if exp.get("handoff_regex") and not re.search(exp["handoff_regex"], handoff):
+        mismatches.append(f"handoff lacks /{exp['handoff_regex']}/")
+
+    result = {"run_id": run_id, "scenario": scenario["id"], "title": scenario["title"], "provider": a.provider,
+              "thinking": a.thinking, "mode": a.mode or None, "agent_id": agent_id, "launch_status": launch_info.get("status"),
+              "started": stamp, "duration_s": duration, "base_sha": base_sha, "candidate_sha": head,
+              "dirty": bool(dirty_paths), "changed": changed, "outside_scope": outside, "status": status,
+              "gate": gate_verdict, "fail_on_base": fob_verdict, "full_suite_ran": full_ran,
+              "handoff_bytes": len(handoff.encode()), "expect": exp, "mismatches": mismatches,
+              "match": not mismatches, "worktree": str(worktree) if a.keep_worktree else None}
+    (out / "result.json").write_text(json.dumps(result, indent=2) + "\n")
+    if not a.keep_worktree:
+        shutil.rmtree(worktree, ignore_errors=True)
+    print(f"{run_id}: status={status} gate={gate_verdict} fob={fob_verdict} outside={len(outside)} "
+          f"full={full_ran} {duration}s -> {'MATCH' if not mismatches else 'MISMATCH ' + '; '.join(mismatches)}")
+    return 0 if not mismatches else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

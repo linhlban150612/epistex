@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+"""Summarize eval results as a Markdown table. Usage: eval/report [results-dir]"""
+import json, pathlib, sys
+from collections import defaultdict
+
+results = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else pathlib.Path(__file__).resolve().parent / "results")
+rows = sorted((json.loads(p.read_text()) for p in results.glob("*/result.json")), key=lambda r: (r["scenario"], r["provider"]))
+if not rows:
+    sys.exit("no results")
+print("| Scenario | Provider | Status | Gate | fail-on-base | Outside scope | Full ran | Time (s) | Handoff (B) | Match |")
+print("|---|---|---|---|---|---|---|---|---|---|")
+for r in rows:
+    print(f"| {r['scenario']} | {r['provider']} | {r['status']} | {r['gate']} | {r['fail_on_base'] or '-'} | "
+          f"{len(r['outside_scope'])} | {'yes' if r['full_suite_ran'] else 'no'} | {r['duration_s']} | {r['handoff_bytes']} | "
+          f"{'yes' if r['match'] else 'NO: ' + '; '.join(r['mismatches'])} |")
+agg = defaultdict(lambda: [0, 0, 0])
+for r in rows:
+    a = agg[r["provider"]]
+    a[0] += 1; a[1] += r["match"]; a[2] += r["duration_s"]
+print("\n| Provider | Runs | Match | Mean time (s) |\n|---|---|---|---|")
+for p, (n, ok, t) in sorted(agg.items()):
+    print(f"| {p} | {n} | {ok}/{n} | {t // n} |")

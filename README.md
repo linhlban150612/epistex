@@ -111,5 +111,10 @@ actual CWD, or live recovery checks.
 - `setup/codex-room` preserves private runtime data and canonical config, disables native
   multi-agent features, and rejects ambiguous or symlinked runtimes. These contracts are covered by
   `tests/test_codex_room_runtime.py` and `tests/test_codex_room.py`; see the [runtime guide](docs/setup/codex-runtime.md).
+- Codex Peer sandbox: `codex-peer` profiles must set `modeId: auto-review`; the provider default `auto` runs a
+  non-interactive Peer in a read-only sandbox. `auto-review` writes only under the workspace cwd and keeps `.git`
+  read-only, so the Peer can edit and run `./verify` but cannot commit (`index.lock: Read-only file system`, also
+  in a full clone). A committed candidate needs `full-access`, which the Human must authorize per project.
+  Measured with `eval/` on 2026-10-22.
 - ACP child-exit limitation: `setup/role-agent` forwards stdin until EOF, so a backend that exits
   early may surface only on the next input.

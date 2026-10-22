@@ -1,4 +1,5 @@
 import json
+import re
 import os
 import pathlib
 import subprocess
@@ -103,6 +104,46 @@ class CheckHandoffTest(unittest.TestCase):
         brief = {**self.brief, "required_checks": ["false"]}
         result = self.run_check(self.handoff(verification="`false` exit 0"), brief, "--rerun")
         self.assertIn("rerun exit 1: false", result.stdout)
+
+    def test_hex_like_tokens_are_ignored(self):
+        candidate = (f"base `{self.base}` candidate `{self.candidate}` branch main (task eval/task--20261022-161431) "
+                     f"worktree {self.repo} diff sha256 0a184d9dc3b8fa90d6a48f5cc8ce41074537be65a5e848a714844125a55aeb01")
+        result = self.run_check(self.handoff(candidate=candidate))
+        self.assertEqual(result.returncode, 0, result.stdout)
+        no_commit = f"base {self.base}; uncommitted candidate on branch eval/task--20261022-161431; worktree {self.repo}"
+        result = self.run_check(self.handoff(candidate=no_commit))
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("snapshot candidate: UNSUPPORTED", result.stdout)
+        result = self.run_check(self.handoff(candidate="base 20261022 candidate 161431 branch main"))
+        self.assertIn("resolve to commits", result.stdout)
+
+    def test_scope_paths_tolerate_markdown_punctuation(self):
+        result = self.run_check(self.handoff(changed="`src/a.py`, `src/b.py`."))
+        self.assertEqual(result.returncode, 0, result.stdout)
+        result = self.run_check(self.handoff(changed="(src/a.py), src/b.py;"))
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_markdown_bold_cell_names(self):
+        handoff = self.handoff().replace("Outcome ", "**Outcome** ", 1).replace("Candidate ", "**Candidate**: ", 1)
+        handoff = handoff.replace("Verification ", "*Verification* ", 1)
+        handoff = "\n".join(re.sub(r"^(\*\*Outcome\*\*)\s+", r"\1 ", line) for line in handoff.splitlines())
+        result = self.run_check(handoff)
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_bullets_notes_and_header_tail_are_tolerated(self):
+        handoff = self.handoff(changed="\n- `src/a.py` (new file)\n- `src/b.py` (file mới).",
+                               verification="baseline run: `true` exit 1\ncandidate: `true` exit 0")
+        handoff = handoff.replace("| Round: 1", "| Round: 1 (assigned by the brief)", 1)
+        result = self.run_check(handoff)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        result = self.run_check(self.handoff(verification="`true` exit 0\nrerun: `true` exit 1"))
+        self.assertIn("non-zero exit", result.stdout)
+        # Baseline run reported after the candidate run (order must not matter).
+        result = self.run_check(self.handoff(
+            verification="`true` on the candidate: exit 0\nRegression check on base: `true` exit 1"))
+        self.assertEqual(result.returncode, 0, result.stdout)
+        result = self.run_check(self.handoff(verification="regression check: `true` exit 1"))
+        self.assertIn("non-zero exit", result.stdout)
 
     def test_snapshot_mode_unsupported(self):
         result = self.run_check(self.handoff(), {**self.brief, "commit_allowed": False})

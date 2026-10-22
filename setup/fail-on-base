@@ -38,7 +38,7 @@ INVALID = [
                      r"Pattern: .* - 0 matches|Cannot find test file"),
 ]
 # JUnit/Hamcrest, Python assert/unittest, Node assert, Jest/Vitest, Mocha, tap/node --test.
-ASSERTION = re.compile(r"AssertionError|AssertionFailedError|ComparisonFailure|expected:?\s*<?|"
+ASSERTION = re.compile(r"AssertionError|AssertionFailedError|ComparisonFailure|expected:\s*<|expected: .* but was|"
                        r"Tests run: \d+, Failures: [1-9]|FAILED \(failures=|\bassert\b|"
                        r"ERR_ASSERTION|expect\(received\)|Expected:.*Received:|Expected .* to (be|equal|have)|"
                        r"Tests:\s+\d+ failed|Test Files\s+\d+ failed|\d+ failing\b|"

@@ -136,4 +136,7 @@ class ClassifyTest(unittest.TestCase):
         self.assertEqual(self.classify("", "ModuleNotFoundError: No module named 'x'"), "MISSING_DEP")
         self.assertEqual(self.classify("No tests were executed!"), "MISSING_FILE")
         self.assertEqual(self.classify("", "something else"), "UNKNOWN")
+        # the word "expected" alone is not an assertion failure
+        self.assertEqual(self.classify("the non-numeric case logged the expected NumberFormatException"), "UNKNOWN")
+        self.assertEqual(self.classify("org.opentest4j.AssertionFailedError: expected: <4> but was: <0>"), "ASSERTION")
         self.assertEqual(self.module.classify(None), "TIMEOUT")

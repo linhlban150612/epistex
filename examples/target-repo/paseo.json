@@ -1,0 +1,23 @@
+{
+  "worktree": {
+    "setup": [
+      "cp -n \"$PASEO_ROOT_PATH/.env.local\" \"$PASEO_WORKTREE_PATH/.env.local\" 2>/dev/null || true",
+      "./mvnw -B -q -DskipTests dependency:go-offline"
+    ],
+    "teardown": [
+      "docker ps -q --filter \"label=org.testcontainers=true\" --filter \"label=paseo.branch=$PASEO_BRANCH_NAME\" | xargs -r docker rm -f"
+    ],
+    "terminals": [
+      { "name": "verify quick", "command": "./verify quick" }
+    ]
+  },
+  "scripts": {
+    "quick": { "command": "./verify quick" },
+    "it": { "command": "VERIFY_ALLOW_IT=1 ./verify it" },
+    "full": { "command": "VERIFY_ALLOW_IT=1 ./verify full" },
+    "app": {
+      "type": "service",
+      "command": "SERVER_PORT=$PASEO_PORT ./mvnw -B spring-boot:run"
+    }
+  }
+}

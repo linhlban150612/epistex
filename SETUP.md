@@ -112,6 +112,8 @@ output alone does not prove model, settings or role. Existing sessions retain th
 ## 6. Set the contract and protocol in the target project
 
 - Use `examples/AGENTS_MD_SNIPPET.md` to add the common contract that both Lead and Peer read.
+- For Java/Spring Boot repositories, copy `examples/target-repo/verify` and `examples/target-repo/paseo.json`
+  (see `examples/target-repo/README.md`) so `quick`/`it`/`full` checks, port and DB per worktree are standard.
 - Copy `examples/WORKSPACE_PROTOCOL.md` to `<PROJECT>/WORKSPACE_PROTOCOL.md`, then fill in the repo's own risk,
   authority, task class and review gate. This file is for Lead; Peer receives the necessary
   constraints through the task brief.

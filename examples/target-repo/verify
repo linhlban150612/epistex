@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Standard verification entry point for a Java/Spring Boot target repository.
+#
+#   ./verify quick            compile + unit tests; no Docker, no ports, no shared DB
+#   ./verify it               integration tests (Testcontainers); needs Docker and VERIFY_ALLOW_IT=1
+#   ./verify full             quick + it
+#   ./verify <group> --dry-run   print the commands only
+#
+# Exit codes: 0 pass; 1 a check failed; 2 usage; 3 group not authorized (BLOCKED, not skipped).
+# Every command and its exit status is printed, so the Peer can quote them in the handoff.
+set -u
+
+group="${1:-}"; shift || true
+dry_run=0
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run) dry_run=1 ;;
+    *) echo "unknown option: $arg" >&2; exit 2 ;;
+  esac
+done
+case "$group" in quick|it|full) ;; *) sed -n '2,10p' "$0" >&2; exit 2 ;; esac
+
+# One port and one DB name per worktree. Paseo sets PASEO_WORKTREE_PORT and PASEO_BRANCH_NAME
+# for worktree setup/teardown/service scripts; outside Paseo they fall back to deterministic values.
+branch="${PASEO_BRANCH_NAME:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo local)}"
+slug="$(printf '%s' "$branch" | tr -c 'a-zA-Z0-9\n' '_' | tr 'A-Z' 'a-z' | cut -c1-40)"
+hash=$(( 0x$(printf '%s' "$branch" | cksum | cut -d' ' -f1 | xargs printf '%x') % 1000 ))
+export SERVER_PORT="${PASEO_WORKTREE_PORT:-$((18000 + hash))}"
+export DB_NAME="${DB_NAME:-app_${slug}}"
+export TESTCONTAINERS_REUSE_ENABLE="${TESTCONTAINERS_REUSE_ENABLE:-false}"
+
+if [ -x ./mvnw ]; then
+  quick_cmd=(./mvnw -B -q -DskipITs test)
+  it_cmd=(./mvnw -B -Pit -DskipUnitTests verify)
+elif [ -x ./gradlew ]; then
+  quick_cmd=(./gradlew --quiet test)
+  it_cmd=(./gradlew --quiet integrationTest)
+else
+  echo "no ./mvnw or ./gradlew in $(pwd)" >&2; exit 2
+fi
+
+run() {
+  echo "+ $*"
+  if [ "$dry_run" = 1 ]; then echo "exit 0 (dry-run)"; return 0; fi
+  "$@"; local status=$?
+  echo "exit $status"
+  return $status
+}
+
+need_it() {
+  if [ "${VERIFY_ALLOW_IT:-0}" != 1 ]; then
+    echo "BLOCKED: '$group' needs Docker, port $SERVER_PORT and DB $DB_NAME; the brief must authorize it (set VERIFY_ALLOW_IT=1)." >&2
+    exit 3
+  fi
+  if [ "$dry_run" = 0 ] && ! docker info >/dev/null 2>&1; then
+    echo "BLOCKED: Docker is not reachable; Testcontainers cannot start." >&2
+    exit 3
+  fi
+}
+
+echo "verify $group: branch=$branch SERVER_PORT=$SERVER_PORT DB_NAME=$DB_NAME"
+status=0
+case "$group" in
+  quick) run "${quick_cmd[@]}" || status=1 ;;
+  it)    need_it; run "${it_cmd[@]}" || status=1 ;;
+  full)  need_it; run "${quick_cmd[@]}" || status=1; run "${it_cmd[@]}" || status=1 ;;
+esac
+echo "verify $group: $([ $status = 0 ] && echo PASS || echo FAIL)"
+exit $status

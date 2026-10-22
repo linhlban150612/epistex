@@ -34,8 +34,8 @@ Add new documentation only when it belongs to no canonical document and cannot b
 
 ## Verification
 
-- commands for routine changes:
-- commands before the Lead accepts:
+- commands for routine changes (for example `./verify quick`; see `examples/target-repo/`):
+- commands before the Lead accepts (for example `./verify full`; state who may hold Docker/port/DB):
 - evidence for UX or other subjective quality:
 
 ## Example clause with a review trigger

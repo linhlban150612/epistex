@@ -137,8 +137,8 @@ else
     jq -e --arg effort "$effort" '
       [.daemon.agentProfiles[]? | select(.id == ("codex-peer--gpt-6-luna--" + $effort))] |
       length == 1 and all(.[]; .provider == "codex-peer" and .model == "gpt-6-luna" and
-        .thinkingOptionId == $effort)
-    ' "$paseo_config" >/dev/null || fail "codex-peer: missing or wrong gpt-6-luna $effort profile"
+        .thinkingOptionId == $effort and .modeId == "auto-review")
+    ' "$paseo_config" >/dev/null || fail "codex-peer: missing or wrong gpt-6-luna $effort profile (modeId must be auto-review)"
   done
   jq -e '
     .agents.providers["omp-peer"].models |

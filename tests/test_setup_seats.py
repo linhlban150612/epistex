@@ -596,6 +596,26 @@ class SetupSeatsTest(unittest.TestCase):
                     self.assertIn(f"codex-lead: missing or wrong gpt-6.1-sol {effort} profile", result.stderr)
                     profile["modeId"] = original
 
+    def test_codex_peer_requires_auto_review_profiles(self):
+        # Default mode "auto" leaves a non-interactive Peer in a read-only sandbox (observed 2026-10-22).
+        self.save()
+        result = self.run_check("--check")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        profiles = self.data["daemon"]["agentProfiles"]
+        for effort in ("low", "medium"):
+            profile = next(p for p in profiles if p["id"] == f"codex-peer--gpt-6-luna--{effort}")
+            self.assertEqual(profile["modeId"], "auto-review")
+            for mode in ("auto", "full-access", None):
+                with self.subTest(effort=effort, mode=mode):
+                    original = profile.pop("modeId")
+                    if mode:
+                        profile["modeId"] = mode
+                    self.save()
+                    result = self.run_check("--check")
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(f"codex-peer: missing or wrong gpt-6-luna {effort} profile", result.stderr)
+                    profile["modeId"] = original
+
     def test_amp_claude_codex_supervisor_seat_checks(self):
         self.save()
         self.assertEqual(self.run_check("--check").returncode, 0)

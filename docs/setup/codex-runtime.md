@@ -66,6 +66,15 @@ and new runtimes exist, ordinary launch reports ambiguity. There is no bulk migr
 delete/copy data to fix resume.
 
 
+### Peer sandbox and worktrees
+
+Paseo mode `auto-review` gives the Codex Peer a workspace-write sandbox without approval waits; the provider default
+`auto` leaves a non-interactive Peer read-only (`Read-only file system` on every write, including `./verify`).
+Writable roots are the session cwd only, and the sandbox keeps `.git` read-only, so `git commit` fails with
+`index.lock: Read-only file system` in a linked worktree and in a full clone alike. With `auto-review` the Peer
+can only hand off an uncommitted snapshot, which `setup/check-handoff` reports as UNSUPPORTED. A committed
+candidate needs `full-access` (no sandbox); the Human decides this per project in `WORKSPACE_PROTOCOL.md`.
+
 ## Project paths and runtime prerequisites
 
 ## 1. Đặt kit và project ở đường dẫn ổn định

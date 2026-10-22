@@ -2088,6 +2088,7 @@
         "name": "codex-peer · gpt-6.1-sol · low",
         "provider": "codex-peer",
         "model": "gpt-6.1-sol",
+        "modeId": "auto-review",
         "thinkingOptionId": "low",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
@@ -2096,6 +2097,7 @@
         "name": "codex-peer · gpt-6.1-sol · medium",
         "provider": "codex-peer",
         "model": "gpt-6.1-sol",
+        "modeId": "auto-review",
         "thinkingOptionId": "medium",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
@@ -2632,6 +2634,7 @@
         "name": "codex-peer · gpt-6-luna · low",
         "provider": "codex-peer",
         "model": "gpt-6-luna",
+        "modeId": "auto-review",
         "thinkingOptionId": "low",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
@@ -2640,6 +2643,7 @@
         "name": "codex-peer · gpt-6-luna · medium",
         "provider": "codex-peer",
         "model": "gpt-6-luna",
+        "modeId": "auto-review",
         "thinkingOptionId": "medium",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },

@@ -11,66 +11,80 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
-# Independent protocol backend: reported effort is derived from its state, not the request.
+# Independent V3 protocol backend modeled on live Kiro CLI 2.33.1 (--agent-engine=v3):
+# config options report backend state, unknown values are ignored with success, tools arrive as tags.
 BACKEND = r'''
 import json, os, sys
-effort = 'low'
+assert sys.argv[1:] == ['acp', '--agent-engine=v3', '--auth-method=cli'], sys.argv
+effort = 'high'
 model = 'claude-opus-5.5'
+mode = None
 cwd = None
 pending_prompt = None
 servers = None
-agent = sys.argv[sys.argv.index('--agent') + 1]
-unsafe_during_confirmation = False
-policy = {'mcpServers': [], 'trusted': []}
+unsafe_on_set = False
+late = False
 def emit(m):
     print(json.dumps({'jsonrpc':'2.0', **m}), flush=True)
+def options():
+    return [{'type':'select','id':'mode','category':'mode','currentValue':mode,'options':[{'value':v} for v in ('vibe',mode)]},
+            {'type':'select','id':'model','category':'model','currentValue':model,
+             'options':[{'value':v} for v in ('auto','claude-opus-5.5','claude-sonnet-5.5')]},
+            {'type':'select','id':'effortLevel','category':'thought_level','currentValue':effort,
+             'options':[{'value':v} for v in ('low','medium','high','max')]},
+            {'type':'select','id':'autopilot','currentValue':'on','options':[{'value':'on'},{'value':'off'}]}]
+def inventory(extra=()):
+    tags = ['read','write','shell','web'] + (['subagent'] if os.getenv('UNSAFE_TOOLS') else []) + list(extra)
+    emit({'method':'_kiro/tools/didChange','params':{'sessionId':'seat','tags':[{'source':'x','tag':t} for t in tags]}})
+extra = [t for t in os.getenv('EXTRA_TOOLS','').split(',') if t]
 for line in sys.stdin:
     m=json.loads(line); method=m.get('method'); p=m.get('params',{}); ident=m.get('id')
     if method == 'initialize':
-        emit({'id':ident,'result':{'protocolVersion':1,'agentCapabilities':{'loadSession':True},'_meta':{'future':'keep'}}})
+        emit({'id':ident,'result':{'protocolVersion':1,'agentCapabilities':{'loadSession':True,'_meta':{'kiro':{
+              'extensionMethods':['_kiro/session/context','_kiro/session/compact','_kiro/workflow/new']}}},'_meta':{'future':'keep'}}})
     elif method in ('session/new','session/load'):
-        cwd=p['cwd']; servers=p.get('mcpServers'); mode='kiro_default' if os.getenv('UNSAFE_MODE') else agent
-        result={'modes':{'currentModeId':mode,'availableModes':[{'id':mode,'name':mode}]},
-                'models':{'currentModelId':model,'availableModels':[{'modelId':model,'name':model},{'modelId':'claude-sonnet-5.5','name':'Sonnet'}]},
-                '_meta':{'future':'retain'}}
+        cwd=p['cwd']; servers=p.get('mcpServers')
+        if method=='session/new': mode=p.get('_meta',{}).get('kiro',{}).get('modeId','vibe'); effort='high'
+        if method=='session/load' and mode is None: mode=os.environ['STORED_MODE']  # session saved by an earlier process
+        if os.getenv('UNSAFE_MODE'): mode='vibe'
+        if method=='session/load' and os.getenv('BAD_LOAD_MODEL'): model='auto'
+        if method=='session/load' and os.getenv('LOAD_UNSAFE_AT_CONFIRM'): effort='high'; unsafe_on_set=True
+        late = bool(servers) and os.getenv('MCP_LATE')
+        if servers: emit({'method':'_kiro/mcp/status','params':{'sessionId':'seat','servers':[{'name':'paseo','status':'connecting' if late else 'connected'}]}})
+        inventory([] if late else extra)
+        catalog_late = method=='session/new' and os.getenv('CATALOG_LATE')  # model list not loaded yet
+        shown = [o for o in options() if not catalog_late or o['id'] not in ('model','effortLevel')]
+        result={'modes':{'currentModeId':mode,'availableModes':[{'id':'vibe'},{'id':mode}]},'configOptions':shown,'_meta':{'future':'retain'}}
         if method=='session/new': result['sessionId']='seat'
-        if method=='session/load' and os.getenv('BAD_LOAD_MODEL'): result['models']['currentModelId']='bogus'
         emit({'id':ident,'result':result})
-        unsafe_during_confirmation = method=='session/load' and bool(os.getenv('LOAD_UNSAFE_AT_CONFIRM'))
-        emit({'method':'_kiro.dev/commands/available','params':{'sessionId':'seat','commands':[{'name':'/effort'}],
-              'tools':['read','shell'] + (['subagent'] if os.getenv('UNSAFE_TOOLS') else []) +
-              [t for t in os.getenv('EXTRA_TOOLS','').split(',') if t],'_meta':{'new':'retain'}}})
-    elif method=='session/set_model':
-        if not os.getenv('IGNORE_MODEL'):model=p['modelId']
-        effort='high'
-        emit({'id':ident,'result':{}})
-    elif method=='_kiro.dev/commands/execute':
-        command=p['command']
-        if command.get('command')=='effort':
+        if catalog_late:
+            emit({'method':'session/update','params':{'sessionId':'seat','update':{'sessionUpdate':'config_option_update','configOptions':options()}}})
+    elif method=='session/set_config_option':
+        value=p['value']
+        if p['configId']=='effortLevel':
             if os.getenv('REJECT_EFFORT'):
                 emit({'id':ident,'error':{'code':-32001,'message':'backend rejected','data':{'why':'quota'}}});continue
-            if not os.getenv('IGNORE_EFFORT'):effort=command['args']['level']
-        elif command.get('command') in ('mcp','tools') and command.get('args'):
-            policy['mcpServers']=['injected'] if command['command']=='mcp' else policy['mcpServers']
-            policy['trusted']=['*'] if command['command']=='tools' else policy['trusted']
-        emit({'id':ident,'result':{'success':True,'policy':policy}})
-        emit({'method':'_kiro.dev/metadata','params':{'sessionId':'seat','reasoning':{'effort':effort},'_meta':{'opaque':True}}})
-    elif method=='_kiro.dev/commands/options':
-        if unsafe_during_confirmation:
-            emit({'method':'_kiro.dev/commands/available','params':{'sessionId':'seat','commands':[{'name':'/effort'}],
-                  'tools':['read','shell','subagent']}})
-            unsafe_during_confirmation=False
-        value=effort if p['command']=='effort' else model
-        values=['low','medium','high'] if p['command']=='effort' else ['claude-opus-5.5','claude-sonnet-5.5']
-        emit({'id':ident,'result':{'options':[{'value':v,'label':v+('  [active]' if v==value else ''),
-              'description':'model'+(' [active]' if v==value else '')} for v in values]}})
+            if not os.getenv('IGNORE_EFFORT') and value != os.getenv('IGNORE_VALUE') and value in ('low','medium','high','max'): effort=value
+        elif p['configId']=='model':
+            if not os.getenv('IGNORE_MODEL'): model=value
+            if os.getenv('MODEL_RESETS_EFFORT'): effort='high'
+        if unsafe_on_set: inventory(['subagent']); unsafe_on_set=False
+        emit({'method':'session/update','params':{'sessionId':'seat','update':{'sessionUpdate':'config_option_update','configOptions':options()}}})
+        emit({'id':ident,'result':{'configOptions':options()}})
+        if late:  # Paseo's MCP server connects only after the seat's first confirmation round.
+            late = False
+            emit({'method':'_kiro/mcp/status','params':{'sessionId':'seat','servers':[{'name':'paseo','status':'connected'}]}})
+            inventory(extra)
+    elif method=='_kiro/session/compact':
+        emit({'id':ident,'result':{}})
     elif method=='session/prompt':
         if p['prompt'][-1].get('text')=='wait':
-            if os.getenv('MIDPROMPT_UNSAFE'):
-                emit({'method':'_kiro.dev/commands/available','params':{'sessionId':'seat','commands':[{'name':'/effort'}],
-                      'tools':['read','shell','kill_agent']}})
+            if os.getenv('MIDPROMPT_UNSAFE'): inventory(['@paseo/kill_agent'])
+            if os.getenv('MIDPROMPT_MODE'):
+                mode='vibe'
+                emit({'method':'session/update','params':{'sessionId':'seat','update':{'sessionUpdate':'current_mode_update','currentModeId':'vibe'}}})
             pending_prompt=ident;continue
-        emit({'id':ident,'result':{'stopReason':'end_turn','observed':{'effort':effort,'model':model,'cwd':cwd,'prompt':p['prompt'],'pid':os.getpid(),'servers':servers}}})
+        emit({'id':ident,'result':{'stopReason':'end_turn','observed':{'effort':effort,'model':model,'mode':mode,'cwd':cwd,'prompt':p['prompt'],'pid':os.getpid(),'servers':servers}}})
     elif method=='session/cancel':
         emit({'method':'session/update','params':{'sessionId':'seat','update':{'sessionUpdate':'future_update','_meta':{'opaque':5}}}})
         if pending_prompt is not None:emit({'id':pending_prompt,'result':{'stopReason':'cancelled'}});pending_prompt=None
@@ -89,6 +103,7 @@ PASEO = {'type': 'http', 'name': 'paseo', 'url': 'http://127.0.0.1:6767/mcp/agen
 LEAD_POLICY = ['list_workspaces', 'list_providers', 'list_models', 'list_profiles', 'create_agent',
                'send_agent_prompt', 'cancel_agent', 'archive_agent',
                'list_pending_permissions', 'respond_to_permission', 'set_agent_mode']
+LEAD_TAGS = ','.join('@paseo/' + t for t in LEAD_POLICY)
 
 
 class Client:
@@ -164,7 +179,7 @@ class KiroACPTest(unittest.TestCase):
         self.temp.cleanup()
 
     def client(self, role='peer', **flags):
-        c = Client({**self.env, **flags}, self.cwd, role=role)
+        c = Client({**self.env, 'STORED_MODE': 'epistex_' + role, **flags}, self.cwd, role=role)
         self.clients.append(c)
         result = c.call('initialize', protocolVersion=1, clientCapabilities={})
         self.assertEqual(result['result']['_meta'], {'future': 'keep'})
@@ -174,73 +189,115 @@ class KiroACPTest(unittest.TestCase):
         return client.call('session/new', cwd=str(self.cwd), mcpServers=list(servers))
 
     def effort(self, client, value):
-        return client.call('session/set_config_option', sessionId='seat', configId='epistex_effort', value=value)
+        return client.call('session/set_config_option', sessionId='seat', configId='effortLevel', value=value)
 
-    def test_model_effort_role_cwd_cancel_resume_and_unknown_metadata(self):
+    def model(self, client, value):
+        return client.call('session/set_config_option', sessionId='seat', configId='model', value=value)
+
+    def prompt(self, client, text='inspect'):
+        return client.call('session/prompt', sessionId='seat', prompt=[{'type':'text','text':text}])
+
+    @staticmethod
+    def current(response, config_id):
+        return next(o['currentValue'] for o in response['result']['configOptions'] if o['id'] == config_id)
+
+    def test_model_effort_role_cwd_cancel_load_and_unknown_metadata(self):
         c = self.client()
-        self.assertEqual(self.new(c)['result']['configOptions'][0]['currentValue'], 'low')
+        created = self.new(c)
+        # V3 defaults to effort "high"; the seat pins "low" and exposes only its own choices.
+        self.assertEqual(self.current(created, 'effortLevel'), 'low')
+        self.assertEqual({o['id']: [v['value'] for v in o['options']] for o in created['result']['configOptions']},
+                         {'mode': ['epistex_peer'], 'model': ['claude-opus-5.5', 'claude-sonnet-5.5'],
+                          'effortLevel': ['low', 'medium']})
+        self.assertEqual(created['result']['modes']['availableModes'], [{'id': 'epistex_peer'}])
         for model in ('claude-sonnet-5.5', 'claude-opus-5.5'):
-            self.assertIn('result', c.call('session/set_model', sessionId='seat', modelId=model))
+            self.assertEqual(self.current(self.model(c, model), 'model'), model)
             for effort in ('medium', 'low'):
-                self.assertEqual(self.effort(c, effort)['result']['configOptions'][0]['currentValue'], effort)
-                observed = c.call('session/prompt', sessionId='seat', prompt=[{'type':'text','text':'inspect'}])['result']['observed']
-                self.assertEqual((observed['model'], observed['effort'], observed['cwd']), (model, effort, str(self.cwd)))
+                self.assertEqual(self.current(self.effort(c, effort), 'effortLevel'), effort)
+                observed = self.prompt(c)['result']['observed']
+                self.assertEqual((observed['model'], observed['effort'], observed['mode'], observed['cwd']),
+                                 (model, effort, 'epistex_peer', str(self.cwd)))
                 if model == 'claude-sonnet-5.5' and effort == 'medium':
                     self.assertEqual(observed['prompt'][0]['text'], 'Role instructions for this session:\n'
                                      + (ROOT / 'agents/contract/COMMON.md').read_text().rstrip() + '\n\n'
                                      + (ROOT / 'agents/PEER.md').read_text())
                 else: self.assertEqual(observed['prompt'], [{'type':'text','text':'inspect'}])
+        updates = [m['params']['update'] for m in c.notifications if m.get('method') == 'session/update']
+        self.assertTrue(updates and all({o['id'] for o in u['configOptions']} == {'mode', 'model', 'effortLevel'}
+                                        for u in updates if u['sessionUpdate'] == 'config_option_update'))
         c.send('session/prompt', {'sessionId':'seat','prompt':[{'type':'text','text':'wait'}]}, 'waiting')
         c.send('session/cancel', {'sessionId':'seat'})
         self.assertEqual(c.response('waiting')['result']['stopReason'], 'cancelled')
-        self.assertTrue(any(m.get('method') == 'session/update' and m['params']['update']['_meta']=={'opaque':5} for m in c.notifications))
-        resumed = c.call('session/load', sessionId='seat', cwd=str(self.cwd), mcpServers=[])
-        self.assertEqual(resumed['result']['_meta'], {'future':'retain'})
-        observed = c.call('session/prompt', sessionId='seat', prompt=[{'type':'text','text':'after resume'}])['result']['observed']
+        self.assertTrue(any(m.get('method') == 'session/update' and m['params']['update'].get('_meta')=={'opaque':5} for m in c.notifications))
+        loaded = c.call('session/load', sessionId='seat', cwd=str(self.cwd), mcpServers=[])
+        self.assertEqual(loaded['result']['_meta'], {'future':'retain'})
+        self.assertEqual((self.current(loaded, 'model'), self.current(loaded, 'effortLevel')), ('claude-opus-5.5', 'low'))
+        observed = self.prompt(c, 'after load')['result']['observed']
         self.assertIn('# Peer', observed['prompt'][0]['text'])
 
     def test_unconfirmed_effort_and_backend_errors_never_succeed(self):
         for flags in ({'IGNORE_EFFORT':'1'}, {'REJECT_EFFORT':'1'}):
             with self.subTest(flags=flags):
                 c = self.client(**flags)
-                self.new(c)
-                response = self.effort(c, 'medium')
-                self.assertIn('error', response)
+                # The initial pin from "high" to "low" is itself unconfirmed or rejected.
+                created = self.new(c)
+                self.assertIn('error', created)
                 if 'REJECT_EFFORT' in flags:
-                    self.assertEqual(response['error'], {'code':-32001,'message':'backend rejected','data':{'why':'quota'}})
-                self.assertIn('error', c.call('session/prompt', sessionId='seat', prompt=[{'type':'text','text':'inspect'}]))
+                    self.assertEqual(created['error'], {'code':-32001,'message':'backend rejected','data':{'why':'quota'}})
+                self.assertIn('error', self.prompt(c))
 
-    def test_model_switch_retains_medium_when_client_does_not_repeat_selection(self):
-        c = self.client()
+    def test_ignored_selection_on_confirmed_session_refuses_prompts(self):
+        c = self.client(IGNORE_VALUE='medium')  # V3 answers success but keeps the old value.
+        self.assertIn('result', self.new(c))
+        self.assertIn('result', self.prompt(c))
+        self.assertEqual(self.effort(c, 'medium')['error']['message'], 'Kiro did not confirm selected effortLevel')
+        self.assertIn('error', self.prompt(c))
+
+    def test_model_switch_retains_medium_even_when_backend_resets_effort(self):
+        c = self.client(MODEL_RESETS_EFFORT='1')
         self.new(c)
         self.effort(c, 'medium')
-        self.assertIn('result', c.call('session/set_model', sessionId='seat', modelId='claude-sonnet-5.5'))
-        observed = c.call('session/prompt', sessionId='seat', prompt=[{'type':'text','text':'inspect'}])['result']['observed']
+        response = self.model(c, 'claude-sonnet-5.5')
+        self.assertEqual((self.current(response, 'model'), self.current(response, 'effortLevel')), ('claude-sonnet-5.5', 'medium'))
+        observed = self.prompt(c)['result']['observed']
         self.assertEqual((observed['model'], observed['effort']), ('claude-sonnet-5.5', 'medium'))
+
+    def test_session_waits_for_model_catalog_that_loads_after_the_response(self):
+        c = self.client(CATALOG_LATE='1')
+        created = self.new(c)
+        self.assertEqual((self.current(created, 'model'), self.current(created, 'effortLevel')), ('claude-opus-5.5', 'low'))
+        observed = self.prompt(c)['result']['observed']
+        self.assertEqual((observed['model'], observed['effort']), ('claude-opus-5.5', 'low'))
 
     def test_model_success_without_backend_switch_is_rejected(self):
         c = self.client(IGNORE_MODEL='1')
         self.new(c)
-        self.assertIn('error', c.call('session/set_model', sessionId='seat', modelId='claude-sonnet-5.5'))
-        self.assertIn('error', c.call('session/prompt', sessionId='seat', prompt=[{'type':'text','text':'inspect'}]))
+        self.assertIn('error', self.model(c, 'claude-sonnet-5.5'))
+        self.assertIn('error', self.prompt(c))
 
     def test_same_process_load_rejects_inventory_changed_during_confirmation(self):
         c = self.client(LOAD_UNSAFE_AT_CONFIRM='1')
         self.assertIn('result', self.new(c))
-        self.assertIn('error', c.call('session/load', sessionId='seat', cwd=str(self.cwd), mcpServers=[]))
-        self.assertIn('error', c.call('session/prompt', sessionId='seat', prompt=[{'type':'text','text':'inspect'}]))
+        self.assertEqual(c.call('session/load', sessionId='seat', cwd=str(self.cwd), mcpServers=[])['error']['message'],
+                         'Kiro exposed tools outside the Peer allowlist')
+        self.assertIn('error', self.prompt(c))
 
-    def test_native_mcp_and_trust_mutations_are_rejected_without_policy_changes(self):
+    def test_hidden_options_and_disabled_extensions_are_rejected(self):
         c = self.client()
+        init = c.call('initialize', protocolVersion=1, clientCapabilities={})
+        self.assertEqual(init['result']['agentCapabilities']['_meta']['kiro']['extensionMethods'],
+                         ['_kiro/session/context', '_kiro/session/compact'])
         self.new(c)
-        for family, operations in (('mcp', ('add','remove')), ('tools', ('trust-all','trust','untrust','reset'))):
-            for operation in operations:
-                with self.subTest(family=family, operation=operation):
-                    self.assertIn('error', c.call('_kiro.dev/commands/execute', sessionId='seat',
-                        command={'command':family,'args':{'command':operation,'name':'example'}}))
-            with self.subTest(family=family, operation='inspection'):
-                response = c.call('_kiro.dev/commands/execute', sessionId='seat', command={'command':family,'args':{}})
-                self.assertEqual(response['result']['policy'], {'mcpServers':[], 'trusted':[]})
+        for config_id, value in (('autopilot', 'off'), ('mode', 'vibe'), ('mode', 'epistex_peer'),
+                                 ('memoryReflection', 'on'), ('model', 'auto'), ('effortLevel', 'high')):
+            with self.subTest(config_id=config_id, value=value):
+                self.assertIn('error', c.call('session/set_config_option', sessionId='seat', configId=config_id, value=value))
+        for method in ('_kiro/workflow/new', '_kiro/mcp/resetServer', '_kiro.dev/commands/execute', '_session/steer',
+                       '_session/spawn', 'session/set_model', 'session/set_mode'):
+            with self.subTest(method=method):
+                self.assertEqual(c.call(method, sessionId='seat', modeId='vibe', modelId='claude-sonnet-5.5')['error']['code'], -32601)
+        observed = self.prompt(c)['result']['observed']
+        self.assertEqual((observed['mode'], observed['model'], observed['effort']), ('epistex_peer', 'claude-opus-5.5', 'low'))
 
     def test_native_tools_modes_overrides_and_invalid_selection_fail_closed(self):
         for flags in ({'UNSAFE_TOOLS':'1'}, {'UNSAFE_MODE':'1'}):
@@ -248,17 +305,9 @@ class KiroACPTest(unittest.TestCase):
             self.assertIn('error', self.new(c))
         c = self.client()
         self.new(c)
-        for method, params in (
-            ('session/set_mode', {'modeId':'kiro_default'}),
-            ('session/set_model', {'modelId':'auto'}),
-            ('session/set_config_option', {'configId':'epistex_effort','value':'high'}),
-            ('_kiro.dev/commands/execute', {'command':{'command':'agent','args':{'name':'kiro_default'}}}),
-            ('_session/spawn', {}),
-        ):
-            self.assertIn('error', c.call(method, sessionId='seat', **params))
         override = self.cwd / '.kiro/agents'
         override.mkdir(parents=True)
-        (override / 'epistex_peer.json').write_text('{"tools":["*"]}')
+        (override / 'epistex_peer.md').write_text('---\ntools: ["*"]\n---\n')
         self.assertIn('error', self.new(c))
 
     def test_permissions_unsupported_callbacks_and_early_exit(self):
@@ -271,29 +320,30 @@ class KiroACPTest(unittest.TestCase):
         reply = {'jsonrpc':'2.0','id':'backend-ask','result':{'outcome':{'outcome':'cancelled'}}}
         c.write(reply)
         self.assertEqual(c.response('permission')['result']['reply'], reply)
-        response = c.call('authenticate', method='unsupported/request')
-        self.assertEqual(response['result']['reply']['error']['code'], -32601)
+        for method in ('unsupported/request', '_kiro/auth/getAccessToken', '_kiro/openExternalUrl'):
+            response = c.call('authenticate', method=method)
+            self.assertEqual(response['result']['reply']['error']['code'], -32601)
         self.assertIn('error', c.call('authenticate', exit=1))
         self.assertEqual(c.process.wait(timeout=5), 7)
         c = self.client()
         self.new(c)
-        observed = c.call('session/prompt', sessionId='seat', prompt=[{'type':'text','text':'inspect'}])['result']['observed']
+        observed = self.prompt(c)['result']['observed']
         c.process.terminate()
         self.assertNotEqual(c.process.wait(timeout=5), 0)
         with self.assertRaises(ProcessLookupError):
             os.kill(observed['pid'], 0)
 
-
     def test_peer_rejects_paseo_server_and_keeps_its_allowlist(self):
         peer = json.loads((ROOT / 'setup/kiro-peer.json').read_text())
-        self.assertFalse([t for t in peer['tools'] if t.startswith('@')])
+        self.assertFalse([t for t in peer['tools'] if t.startswith('@') or t in ('subagent', '*')])
+        self.assertNotIn('allowedTools', peer)  # V3 skips profiles with allowedTools but no permissions.
         self.assertEqual((peer['name'], peer['mcpServers'], peer['includeMcpJson']), ('epistex_peer', {}, False))
         c = self.client()
         for method in ('session/new', 'session/load'):
             with self.subTest(method=method):
                 response = c.call(method, sessionId='seat', cwd=str(self.cwd), mcpServers=[PASEO])
                 self.assertEqual(response['error']['message'], 'Kiro Peer does not accept injected MCP servers')
-        for tool in ('list_agents', '@paseo/list_agents'):
+        for tool in ('list_agents', '@paseo/list_agents', 'subagent'):
             with self.subTest(tool=tool):
                 c = self.client(EXTRA_TOOLS=tool)
                 self.assertEqual(self.new(c)['error']['message'], 'Kiro exposed tools outside the Peer allowlist')
@@ -307,23 +357,32 @@ class KiroACPTest(unittest.TestCase):
         script = (ROOT / 'setup/setup-seats.sh').read_text()
         deny = json.loads(script.split("expected_deny_lead='", 1)[1].split("'", 1)[0])
         self.assertEqual((len(deny), set(deny) & set(paseo)), (50, set()))
-        self.assertEqual((lead['name'], lead['allowedTools'], lead['mcpServers'], lead['includeMcpJson']),
-                         ('epistex_lead', lead['tools'], {}, False))
+        mcp = [r for r in lead['permissions']['rules'] if r['capability'] == 'mcp']
+        self.assertEqual(mcp, [{'capability': 'mcp', 'match': ['paseo/' + t for t in LEAD_POLICY], 'effect': 'allow'}])
+        self.assertEqual([r for r in lead['permissions']['rules'] if r['capability'] != 'mcp'], peer['permissions']['rules'])
+        self.assertEqual((lead['name'], lead['mcpServers'], lead['includeMcpJson']), ('epistex_lead', {}, False))
 
     def test_lead_accepts_only_exact_paseo_server_and_primes_lead_role(self):
         for server in (PASEO, {**PASEO, 'url': 'http://[::1]:6767/mcp/agents?callerAgentId=x'},
                        {**PASEO, 'url': 'http://localhost:1/mcp/agents?callerAgentId=x'},
                        {**PASEO, 'headers': [{'name': 'Authorization', 'value': 'Bearer 0f1e'}]}):
             with self.subTest(server=server):
-                c = self.client('lead', EXTRA_TOOLS=','.join(LEAD_POLICY))
+                c = self.client('lead', EXTRA_TOOLS=LEAD_TAGS)
                 self.assertIn('result', self.new(c, [server]))
-                observed = c.call('session/prompt', sessionId='seat', prompt=[{'type':'text','text':'inspect'}])['result']['observed']
-                self.assertEqual(observed['servers'], [server])
+                observed = self.prompt(c)['result']['observed']
+                self.assertEqual((observed['servers'], observed['mode']), ([server], 'epistex_lead'))
                 self.assertEqual(observed['prompt'][0]['text'],
                                  'Role instructions for this session:\n'
                                  + (ROOT / 'agents/contract/COMMON.md').read_text().rstrip() + '\n\n'
                                  + (ROOT / 'agents/LEAD.md').read_text())
                 self.assertIn('result', c.call('session/load', sessionId='seat', cwd=str(self.cwd), mcpServers=[server]))
+
+    def test_lead_waits_for_paseo_mcp_tools_that_connect_after_the_session_response(self):
+        c = self.client('lead', EXTRA_TOOLS=LEAD_TAGS, MCP_LATE='1')
+        self.assertIn('result', self.new(c, [PASEO]))
+        self.assertIn('result', self.prompt(c))
+        c = self.client('lead', EXTRA_TOOLS=LEAD_TAGS.rsplit(',', 1)[0], MCP_LATE='1')
+        self.assertEqual(self.new(c, [PASEO])['error']['message'], 'Kiro exposed tools outside the Lead allowlist')
 
     def test_lead_rejects_every_other_mcp_server_shape(self):
         url = lambda u: {**PASEO, 'url': u}
@@ -359,7 +418,7 @@ class KiroACPTest(unittest.TestCase):
                         params = {'sessionId':'seat','cwd':str(self.cwd)}
                         if servers is not None: params['mcpServers'] = servers
                         self.assertEqual(c.call(method, **params)['error']['message'], message)
-        self.assertIn('error', c.call('session/prompt', sessionId='seat', prompt=[{'type':'text','text':'inspect'}]))
+        self.assertIn('error', self.prompt(c))
 
     def test_lead_probe_sessions_accept_empty_servers_but_refuse_prompts(self):
         refusal = 'Kiro Lead session has no injected Paseo MCP server; prompts are refused'
@@ -369,28 +428,26 @@ class KiroACPTest(unittest.TestCase):
                 params = {'cwd': str(self.cwd), 'mcpServers': []}
                 if method == 'session/load': params['sessionId'] = 'seat'
                 self.assertIn('result', c.call(method, **params))
-                self.assertEqual(self.effort(c, 'medium')['result']['configOptions'][0]['currentValue'], 'medium')
-                self.assertIn('result', c.call('session/set_model', sessionId='seat', modelId='claude-sonnet-5.5'))
-                self.assertEqual(c.call('session/prompt', sessionId='seat', prompt=[{'type':'text','text':'inspect'}])
-                                 ['error']['message'], refusal)
+                self.assertEqual(self.current(self.effort(c, 'medium'), 'effortLevel'), 'medium')
+                self.assertIn('result', self.model(c, 'claude-sonnet-5.5'))
+                self.assertEqual(self.prompt(c)['error']['message'], refusal)
 
     def test_lead_probe_load_over_injected_session_refuses_prompt(self):
-        c = self.client('lead', EXTRA_TOOLS=','.join(LEAD_POLICY))
+        c = self.client('lead', EXTRA_TOOLS=LEAD_TAGS)
         self.assertIn('result', self.new(c, [PASEO]))
         self.assertIn('result', c.call('session/load', sessionId='seat', cwd=str(self.cwd), mcpServers=[]))
-        self.assertEqual(c.call('session/prompt', sessionId='seat', prompt=[{'type':'text','text':'inspect'}])
-                         ['error']['message'],
+        self.assertEqual(self.prompt(c)['error']['message'],
                          'Kiro Lead session has no injected Paseo MCP server; prompts are refused')
 
     def test_lead_inventory_outside_policy_fails_closed(self):
-        for tool in ('kill_agent', 'speak', 'create_schedule', '@paseo/list_agents', '@other/list_agents', 'subagent',
-                     ','.join(LEAD_POLICY[:-1])):  # last case: missing one policy tool
+        for tool in ('kill_agent', '@paseo/kill_agent', '@paseo/speak', 'list_workspaces', '@other/list_agents', 'subagent',
+                     LEAD_TAGS.rsplit(',', 1)[0]):  # last case: connected Paseo server missing one policy tool
             with self.subTest(tool=tool):
                 c = self.client('lead', EXTRA_TOOLS=tool)
                 self.assertEqual(self.new(c, [PASEO])['error']['message'], 'Kiro exposed tools outside the Lead allowlist')
-                self.assertIn('error', c.call('session/prompt', sessionId='seat', prompt=[{'type':'text','text':'inspect'}]))
+                self.assertIn('error', self.prompt(c))
         c = self.client('lead')
-        self.assertIn('error', c.call('session/set_mode', sessionId='seat', modeId='kiro_default'))
+        self.assertIn('error', c.call('session/set_mode', sessionId='seat', modeId='vibe'))
         (self.cwd / '.kiro/agents').mkdir(parents=True)
         (self.cwd / '.kiro/agents/epistex_lead.json').write_text('{"tools":["*"]}')
         self.assertEqual(self.new(c, [PASEO])['error']['message'],
@@ -413,43 +470,44 @@ class KiroACPTest(unittest.TestCase):
                 self.assertEqual(r['error']['message'], 'unknown')  # forwarded to backend
 
     def test_lead_resume_clears_session_and_bad_cwd_fails(self):
-        c = self.client('lead', EXTRA_TOOLS=','.join(LEAD_POLICY))
+        c = self.client('lead', EXTRA_TOOLS=LEAD_TAGS)
         self.assertIn('result', self.new(c, [PASEO]))
         self.effort(c, 'medium')
         self.assertEqual(c.call('session/resume', sessionId='seat', cwd='/nope', mcpServers=[])
                          ['error']['message'], 'Kiro Lead requires an existing absolute CWD')
         self.assertEqual(c.call('session/resume', sessionId='seat', cwd=str(self.cwd), mcpServers=[])
                          ['error']['message'], 'unknown')
-        self.assertIn('error', c.call('session/prompt', sessionId='seat', prompt=[{'type':'text','text':'x'}]))
+        self.assertIn('error', self.prompt(c, 'x'))
 
     def test_unknown_methods_get_method_not_found(self):
         for role in ('peer', 'lead'):
             c = self.client(role)
-            self.assertEqual(c.call('session/fork', sessionId='seat', cwd=str(self.cwd), mcpServers=[])
-                             ['error']['code'], -32601)
+            for method in ('session/fork', 'session/delete', 'session/list'):
+                self.assertEqual(c.call(method, sessionId='seat', cwd=str(self.cwd), mcpServers=[])
+                                 ['error']['code'], -32601)
 
     def test_compact_follows_the_prompt_gate(self):
         c = self.client()
-        self.assertEqual(c.call('_kiro.dev/commands/execute', sessionId='seat',
-                                command={'command': 'compact', 'args': {}})
-                         ['error']['message'], 'Kiro Peer session/effort/tool policy is not confirmed')
+        self.assertEqual(c.call('_kiro/session/compact', sessionId='seat')['error']['message'],
+                         'Kiro Peer session/mode/model/effort/tool policy is not confirmed')
         self.assertIn('result', self.new(c))
-        self.assertIn('result', c.call('_kiro.dev/commands/execute', sessionId='seat',
-                                     command={'command': 'compact', 'args': {}}))
+        self.assertIn('result', c.call('_kiro/session/compact', sessionId='seat'))
 
-    def test_unsafe_inventory_mid_prompt_revokes_session(self):
-        c = self.client(MIDPROMPT_UNSAFE='1')
-        self.assertIn('result', self.new(c))
-        self.effort(c, 'medium')
-        c.send('session/prompt', {'sessionId': 'seat', 'prompt': [{'type': 'text', 'text': 'wait'}]}, 'w')
-        self.assertEqual(c.response('w')['result']['stopReason'], 'cancelled')
-        self.assertIn('error', c.call('session/prompt', sessionId='seat', prompt=[{'type':'text','text':'x'}]))
+    def test_unsafe_inventory_or_mode_change_mid_prompt_revokes_session(self):
+        for flags in ({'MIDPROMPT_UNSAFE': '1'}, {'MIDPROMPT_MODE': '1'}):
+            with self.subTest(flags=flags):
+                c = self.client(**flags)
+                self.assertIn('result', self.new(c))
+                self.effort(c, 'medium')
+                c.send('session/prompt', {'sessionId': 'seat', 'prompt': [{'type': 'text', 'text': 'wait'}]}, 'w')
+                self.assertEqual(c.response('w')['result']['stopReason'], 'cancelled')
+                self.assertIn('error', self.prompt(c, 'x'))
 
     def test_failed_load_does_not_disturb_pending_or_confirmed_state(self):
         c = self.client()
         self.assertIn('result', self.new(c))
         c.send('session/set_config_option',
-               {'sessionId': 'seat', 'configId': 'epistex_effort', 'value': 'medium'}, 'e')
+               {'sessionId': 'seat', 'configId': 'effortLevel', 'value': 'medium'}, 'e')
         self.assertEqual(c.call('session/load', sessionId='seat', cwd=str(self.cwd), mcpServers=['paseo'])
                          ['error']['message'], 'Kiro Peer does not accept injected MCP servers')
         self.assertIn('result', c.response('e'))
@@ -460,7 +518,7 @@ class KiroACPTest(unittest.TestCase):
         self.effort(c, 'medium')
         self.assertEqual(c.call('session/load', sessionId='seat', cwd=str(self.cwd), mcpServers=[])
                          ['error']['message'], 'Kiro restored an unsupported mode/model')
-        self.assertIn('error', c.call('session/prompt', sessionId='seat', prompt=[{'type':'text','text':'x'}]))
+        self.assertIn('error', self.prompt(c, 'x'))
 
     def test_pipelined_new_and_load_do_not_crash(self):
         c = self.client()
@@ -472,41 +530,38 @@ class KiroACPTest(unittest.TestCase):
 
 @unittest.skipUnless(os.getenv('EPISTEX_REAL_KIRO_PROBE') == '1', 'real metadata probe is opt-in; no model prompts')
 class RealKiroMetadataTest(unittest.TestCase):
-    def test_four_selections_and_resume_without_model_prompts(self):
+    def test_four_selections_and_load_without_model_prompts(self):
+        current = KiroACPTest.current
         c = Client(os.environ.copy(), ROOT, trace=True)
         try:
-            c.call('initialize', protocolVersion=1, clientCapabilities={})
+            init = c.call('initialize', protocolVersion=1, clientCapabilities={})
+            self.assertTrue(init['result']['agentCapabilities']['loadSession'])
             result = c.call('session/new', cwd=str(ROOT), mcpServers=[])
-            self.assertIn('result', result)
+            self.assertEqual((result['result']['modes']['currentModeId'], current(result, 'mode')),
+                             ('epistex_peer', 'epistex_peer'))
+            self.assertIn(current(result, 'effortLevel'), ('low', 'medium'))
             sid = result['result']['sessionId']
+            tags = [t['tag'] for m in c.notifications if m.get('method') == '_kiro/tools/didChange'
+                    for t in m['params']['tags']]
+            self.assertTrue(tags and not [t for t in tags if t.startswith('@') or t == 'subagent'])
             for model in ('claude-opus-5.5','claude-sonnet-5.5'):
-                self.assertIn('result', c.call('session/set_model', sessionId=sid, modelId=model))
-                actual = c.call('_kiro.dev/commands/options', sessionId=sid, command='model')
-                self.assertTrue(any(o['value']==model and '[active]' in o.get('description', '') for o in actual['result']['options']))
+                response = c.call('session/set_config_option', sessionId=sid, configId='model', value=model)
+                self.assertEqual(current(response, 'model'), model)
                 for effort in ('low','medium'):
-                    response = c.call('session/set_config_option', sessionId=sid, configId='epistex_effort', value=effort)
-                    self.assertEqual(response['result']['configOptions'][0]['currentValue'], effort)
-                    actual = c.call('_kiro.dev/commands/options', sessionId=sid, command='effort')
-                    self.assertTrue(any(o['value']==effort and '[active]' in o['label'] for o in actual['result']['options']))
-            self.assertIn('error', c.call('session/set_mode', sessionId=sid, modeId='kiro_default'))
-            self.assertIn('error', c.call('session/set_config_option', sessionId=sid, configId='epistex_effort', value='high'))
+                    response = c.call('session/set_config_option', sessionId=sid, configId='effortLevel', value=effort)
+                    self.assertEqual((current(response, 'model'), current(response, 'effortLevel')), (model, effort))
+            for config_id, value in (('mode', 'vibe'), ('effortLevel', 'high'), ('autopilot', 'off')):
+                self.assertIn('error', c.call('session/set_config_option', sessionId=sid, configId=config_id, value=value))
+            self.assertIn('error', c.call('session/set_mode', sessionId=sid, modeId='vibe'))
             loaded = c.call('session/load', sessionId=sid, cwd=str(ROOT), mcpServers=[])
-            self.assertEqual(loaded['result']['models']['currentModelId'], 'claude-sonnet-5.5')
-            self.assertEqual(loaded['result']['configOptions'][0]['currentValue'], 'medium')
-            inventory = c.call('_kiro.dev/commands/execute', sessionId=sid, command={'command':'mcp','args':{}})
-            self.assertEqual(inventory['result']['data']['servers'], [])
-            inventory = c.call('_kiro.dev/commands/execute', sessionId=sid, command={'command':'tools','args':{}})
-            self.assertNotIn('subagent', [t['name'] for t in inventory['result']['data']['tools']])
-            self.assertTrue(all(t['status']=='requires-approval' for t in inventory['result']['data']['tools']))
+            self.assertEqual((current(loaded, 'model'), current(loaded, 'effortLevel')), ('claude-sonnet-5.5', 'medium'))
         finally: c.close()
         resumed = Client(os.environ.copy(), ROOT, trace=True)
         try:
             resumed.call('initialize', protocolVersion=1, clientCapabilities={})
             response = resumed.call('session/load', sessionId=sid, cwd=str(ROOT), mcpServers=[])
-            self.assertIn('result', response)
             self.assertEqual(response['result']['modes']['currentModeId'], 'epistex_peer')
-            self.assertEqual(response['result']['models']['currentModelId'], 'claude-sonnet-5.5')
-            self.assertEqual(response['result']['configOptions'][0]['currentValue'], 'medium')
+            self.assertEqual((current(response, 'model'), current(response, 'effortLevel')), ('claude-sonnet-5.5', 'medium'))
         finally: resumed.close()
 
 

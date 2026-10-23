@@ -6,28 +6,32 @@
     "read",
     "write",
     "shell",
-    "glob",
-    "grep",
-    "code",
-    "web_fetch",
-    "web_search",
-    "knowledge",
-    "todo_list",
-    "use_aws"
+    "web"
   ],
-  "allowedTools": [
-    "read",
-    "write",
-    "shell",
-    "glob",
-    "grep",
-    "code",
-    "web_fetch",
-    "web_search",
-    "knowledge",
-    "todo_list",
-    "use_aws"
-  ],
+  "permissions": {
+    "rules": [
+      {
+        "capability": "fs_read",
+        "effect": "allow"
+      },
+      {
+        "capability": "fs_write",
+        "effect": "allow"
+      },
+      {
+        "capability": "shell",
+        "effect": "allow"
+      },
+      {
+        "capability": "web_fetch",
+        "effect": "allow"
+      },
+      {
+        "capability": "web_search",
+        "effect": "allow"
+      }
+    ]
+  },
   "includeMcpJson": false,
   "mcpServers": {},
   "resources": []

@@ -6,14 +6,7 @@
     "read",
     "write",
     "shell",
-    "glob",
-    "grep",
-    "code",
-    "web_fetch",
-    "web_search",
-    "knowledge",
-    "todo_list",
-    "use_aws",
+    "web",
     "@paseo/list_workspaces",
     "@paseo/list_providers",
     "@paseo/list_models",
@@ -26,30 +19,47 @@
     "@paseo/respond_to_permission",
     "@paseo/set_agent_mode"
   ],
-  "allowedTools": [
-    "read",
-    "write",
-    "shell",
-    "glob",
-    "grep",
-    "code",
-    "web_fetch",
-    "web_search",
-    "knowledge",
-    "todo_list",
-    "use_aws",
-    "@paseo/list_workspaces",
-    "@paseo/list_providers",
-    "@paseo/list_models",
-    "@paseo/list_profiles",
-    "@paseo/create_agent",
-    "@paseo/send_agent_prompt",
-    "@paseo/cancel_agent",
-    "@paseo/archive_agent",
-    "@paseo/list_pending_permissions",
-    "@paseo/respond_to_permission",
-    "@paseo/set_agent_mode"
-  ],
+  "permissions": {
+    "rules": [
+      {
+        "capability": "fs_read",
+        "effect": "allow"
+      },
+      {
+        "capability": "fs_write",
+        "effect": "allow"
+      },
+      {
+        "capability": "shell",
+        "effect": "allow"
+      },
+      {
+        "capability": "web_fetch",
+        "effect": "allow"
+      },
+      {
+        "capability": "web_search",
+        "effect": "allow"
+      },
+      {
+        "capability": "mcp",
+        "match": [
+          "paseo/list_workspaces",
+          "paseo/list_providers",
+          "paseo/list_models",
+          "paseo/list_profiles",
+          "paseo/create_agent",
+          "paseo/send_agent_prompt",
+          "paseo/cancel_agent",
+          "paseo/archive_agent",
+          "paseo/list_pending_permissions",
+          "paseo/respond_to_permission",
+          "paseo/set_agent_mode"
+        ],
+        "effect": "allow"
+      }
+    ]
+  },
   "includeMcpJson": false,
   "mcpServers": {},
   "resources": []

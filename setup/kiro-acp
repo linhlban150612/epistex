@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Seat-local Kiro 2.30 ACP effort bridge. Never acknowledge unconfirmed effort."""
+"""Seat-local Kiro CLI V3 ACP proxy. Never acknowledge unconfirmed mode, model, effort or tools."""
 import json
 import os
 import pathlib
@@ -24,12 +24,10 @@ MODE = "epistex_peer"
 PASEO_HOSTS = ("127.0.0.1", "localhost", "::1")
 MODELS = ("claude-opus-5.5", "claude-sonnet-5.5")
 EFFORTS = ("low", "medium")
-
-
-def config(effort):
-    return [{"id": "epistex_effort", "name": "Thinking effort", "category": "thought_level",
-             "type": "select", "currentValue": effort,
-             "options": [{"value": e, "name": e.title()} for e in EFFORTS]}]
+# Standard V3 config options this seat exposes; every other option is hidden and immutable.
+CHOICES = {"mode": (MODE,), "model": MODELS, "effortLevel": EFFORTS}
+# Advertised V3 extensions the seat relays; workflows, memory, export etc. stay disabled.
+EXTENSIONS = ("_kiro/session/context", "_kiro/session/compact")
 
 
 def mcp_error(servers):
@@ -83,17 +81,35 @@ def runtime_error(cwd):
     return None
 
 
+def selected(options):
+    """Current backend values of the options this seat controls."""
+    return {o["id"]: o.get("currentValue") for o in options or [] if o.get("id") in CHOICES}
+
+
+def visible(options):
+    """Expose only the seat's mode/model/effort choices; hide autopilot, memory and other options."""
+    shown = []
+    for option in options or []:
+        if option.get("id") in CHOICES:
+            choices = CHOICES[option["id"]]
+            shown.append({**option, "options": [o for o in option.get("options", [])
+                                                if o.get("value") in choices]})
+    return shown
+
+
 def main():
-    global ROLE, NAME, MODE
+    global ROLE, NAME, MODE, CHOICES
     if sys.argv[1:] not in (["peer"], ["lead"], ["supervisor"]):
         raise SystemExit("usage: kiro-acp <peer|lead|supervisor>")
     ROLE = sys.argv[1]
     NAME, MODE = "Kiro " + ROLE.title(), "epistex_" + ROLE
+    CHOICES = {**CHOICES, "mode": (MODE,)}
     instructions = load_prompt(ROLE)
     failure = runtime_error(str(pathlib.Path.cwd()))
     if failure:
         raise SystemExit(failure)
-    child = subprocess.Popen(["kiro-cli", "acp", "--agent-engine=v2", "--agent", MODE],
+    # V3 rejects --agent/--model/--effort/--trust-*: mode goes in session/new, the rest via config options.
+    child = subprocess.Popen(["kiro-cli", "acp", "--agent-engine=v3", "--auth-method=cli"],
                              stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     def stop(signum, _frame):
         if child.poll() is None:
@@ -119,14 +135,14 @@ def main():
     pending = {}
     forwarded = {}
     sessions = {}
-    tools = {}
-    commands = {}
+    tags = {}
+    mcp = {}
+    stale = set()  # Sessions whose tag list predates their latest MCP snapshot.
     client_caps = {}
     agent_caps = {}
-    # Kiro advertises MCP tools with bare names; only the agent file uses @paseo/ prefixes.
+    # V3 advertises visible tools as tags: builtin categories plus "@paseo/<tool>" for MCP tools.
     declared = json.loads((ROOT / f"setup/kiro-{ROLE}.json").read_text())["tools"]
-    allowed = {t[len("@paseo/"):] if t.startswith("@paseo/") else t for t in declared}
-    required = {t[len("@paseo/"):] for t in declared if t.startswith("@paseo/")}
+    required = {t for t in declared if t.startswith("@paseo/")}
     prefix = "epistex-" + uuid.uuid4().hex + "-"
     serial = 0
 
@@ -153,33 +169,91 @@ def main():
         pending[ident] = state
         send({"jsonrpc": "2.0", "id": ident, "method": method, "params": params})
 
-    def confirm(state):
-        state["stage"] = "confirm_model"
-        internal("_kiro.dev/commands/options",
-                 {"sessionId": state["sid"], "command": "model"}, state)
+    def set_option(state, config_id, value):
+        state["stage"], state["option"], state["value"] = "option", config_id, value
+        internal("session/set_config_option",
+                 {"sessionId": state["sid"], "configId": config_id, "value": value}, state)
 
-    def safe_tools(sid):
-        advertised = tools.get(sid)
-        session = sessions.get(sid)
-        return (advertised is not None and set(advertised) <= allowed and
-                (not session or not session.get("paseo") or required <= set(advertised)) and
-                "/effort" in commands.get(sid, []))
+    def valid(sid):
+        current = sessions[sid]["current"]
+        return all(current.get(key) in choices for key, choices in CHOICES.items())
+
+    def inventory(sid):
+        """"ok", "bad", or "wait" while Paseo's MCP server is still connecting."""
+        advertised = tags.get(sid)
+        if advertised is None:
+            return "wait"
+        if not set(advertised) <= set(declared):
+            return "bad"
+        if sessions.get(sid, {}).get("paseo") and not required <= set(advertised):
+            status = [s.get("status") for s in mcp.get(sid, []) if s.get("name") == "paseo"]
+            # Kiro reports "connected" before the didChange that carries the new @paseo/ tags.
+            return "wait" if status in ([], ["connecting"]) or sid in stale else "bad"
+        return "ok"
+
+    def busy(sid):
+        return any(s.get("sid") == sid for s in pending.values())
+
+    def finish(state):
+        """Answer a session/selection request only after mode/model/effort/tools are confirmed."""
+        sid, request = state["sid"], state["request"]
+        verdict = inventory(sid)
+        if verdict == "wait":
+            state["stage"] = "tools"
+            state.setdefault("deadline", time.monotonic() + 30)
+            pending[prefix + "tools-" + sid] = state
+            return
+        if verdict == "bad":
+            error(request, f"Kiro exposed tools outside the {ROLE.title()} allowlist", -32603)
+            return
+        if not valid(sid):
+            error(request, f"Kiro did not confirm the selected {NAME} mode/model/effort", -32603)
+            return
+        sessions[sid]["ready"] = True
+        result = state["response"]
+        result["configOptions"] = visible(sessions[sid]["options"])
+        if "modes" in result:
+            result["modes"]["availableModes"] = [
+                m for m in result["modes"].get("availableModes", []) if m.get("id") == MODE]
+        emit({"jsonrpc": "2.0", "id": request["id"], "result": result})
+
+    def settle(state):
+        """Validate a new/loaded session's model, then pin effort if it is outside the seat's choices."""
+        sid = state["sid"]
+        current = sessions[sid]["current"]
+        if "model" not in current or "effortLevel" not in current:
+            # Kiro can answer before its model catalog loads; the options arrive in config_option_update.
+            state["stage"] = "options"
+            pending[prefix + "options-" + sid] = state
+        elif current["model"] not in MODELS:
+            error(state["request"], "Kiro restored an unsupported mode/model", -32603)
+        elif current["effortLevel"] not in EFFORTS:  # V3 defaults to "high"; pin the cheapest seat effort.
+            set_option(state, "effortLevel", EFFORTS[0])
+        else:
+            finish(state)
+
+    def revoke(sid):
+        if sid in sessions and not busy(sid):
+            del sessions[sid]
+            send({"jsonrpc": "2.0", "method": "session/cancel", "params": {"sessionId": sid}})
 
     def drop_sid(sid):
         sessions.pop(sid, None)
-        tools.pop(sid, None)
-        commands.pop(sid, None)
+        tags.pop(sid, None)
+        mcp.pop(sid, None)
+        stale.discard(sid)
         for ident, state in list(pending.items()):
             if (state.get("sid") == sid
                     or state["request"].get("params", {}).get("sessionId") == sid):
                 del pending[ident]
 
-    def prompt_gate(message, sid):
+    def prompt_gate(sid):
         session = sessions.get(sid)
         if session and ROLE == "lead" and not session.get("paseo"):
             return "Kiro Lead session has no injected Paseo MCP server; prompts are refused"
-        if not session or not session.get("effort") or not safe_tools(sid):
-            return f"{NAME} session/effort/tool policy is not confirmed"
+        if (not session or not session.get("ready") or busy(sid) or not valid(sid)
+                or inventory(sid) != "ok"):
+            return f"{NAME} session/mode/model/effort/tool policy is not confirmed"
         return None
 
     try:
@@ -187,7 +261,7 @@ def main():
             for ident, state in list(pending.items()):
                 if time.monotonic() > state["deadline"]:
                     del pending[ident]
-                    error(state["request"], "Kiro selection confirmation timed out", -32603)
+                    error(state["request"], "Kiro confirmation timed out", -32603)
             try:
                 source, line = events.get(timeout=1)
             except queue.Empty:
@@ -230,62 +304,51 @@ def main():
                     else:
                         if method == "session/load":
                             drop_sid(sid)
+                        else:  # The seat agent is selected per session in V3, not by launch flag.
+                            meta = params.setdefault("_meta", {}).setdefault("kiro", {})
+                            meta["modeId"] = MODE
                         internal(method, params, {"request": message, "stage": "session",
                                                   "paseo": bool(params.get("mcpServers"))})
                 elif method == "session/set_config_option":
-                    value = params.get("value")
-                    if sid not in sessions or params.get("configId") != "epistex_effort" or value not in EFFORTS:
-                        error(message, f"Unsupported {NAME} effort selection")
-                    elif any(s.get("sid") == sid for s in pending.values()):
+                    config_id, value = params.get("configId"), params.get("value")
+                    if sid not in sessions or config_id not in ("model", "effortLevel") or value not in CHOICES[config_id]:
+                        error(message, f"Unsupported {NAME} selection")
+                    elif busy(sid):
                         error(message, "Kiro selection already in progress")
                     else:
-                        sessions[sid]["effort"] = None
-                        internal("_kiro.dev/commands/execute", {
-                            "sessionId": sid, "command": {"command": "effort", "args": {"level": value}}},
-                            {"request": message, "stage": "effort", "sid": sid, "value": value,
-                             "model": sessions[sid]["model"]})
-                elif method == "session/set_model":
-                    if sid not in sessions or params.get("modelId") not in MODELS:
-                        error(message, f"Unsupported {NAME} model selection")
-                    elif not sessions[sid].get("effort"):
-                        error(message, "Confirm effort before switching models")
-                    elif any(s.get("sid") == sid for s in pending.values()):
-                        error(message, "Kiro selection already in progress")
-                    else:
-                        value = sessions[sid]["effort"]
-                        sessions[sid]["effort"] = None
-                        internal(method, params, {"request": message, "stage": "model", "sid": sid,
-                                                  "value": value, "model": params["modelId"]})
-                elif method == "session/set_mode":
-                    error(message, f"{NAME} has a fixed mode; do not send modeId")
-                elif method == "_kiro.dev/commands/execute":
-                    command = params.get("command", {})
-                    if not isinstance(command, dict) or command.get("command") not in (
-                            "context", "compact", "usage", "mcp", "tools", "prompts", "feedback"):
-                        error(message, "Use standard ACP selection; native lifecycle commands are disabled")
-                    elif command["command"] in ("mcp", "tools") and command.get("args") != {}:
-                        error(message, f"{NAME} permits only argument-free MCP/tool inspection")
-                    elif command["command"] == "compact" and prompt_gate(message, sid):
-                        error(message, prompt_gate(message, sid))
+                        sessions[sid]["ready"] = False
+                        state = {"request": message, "sid": sid, "response": {},
+                                 "effort": sessions[sid]["current"].get("effortLevel")}
+                        set_option(state, config_id, value)
+                elif method in ("session/set_mode", "session/set_model"):
+                    # V3 has no session/set_model; Paseo falls back to the advertised "model" option.
+                    error(message, f"{NAME} has a fixed mode; select model/effort with session/set_config_option", -32601)
+                elif method in EXTENSIONS:
+                    if method not in agent_caps.get("_meta", {}).get("kiro", {}).get("extensionMethods", []):
+                        error(message, f"Backend did not advertise {method}", -32601)
+                    elif method == "_kiro/session/compact" and prompt_gate(sid):
+                        error(message, prompt_gate(sid))
                     else:
                         send(message)
-                elif method and (method.startswith("_session/") or method.startswith("_kiro.dev/subagent/")
-                                 or method in ("_kiro.dev/settings/set", "_kiro.dev/session/terminate")):
-                    error(message, "Paseo owns lifecycle and topology")
                 elif method == "session/prompt":
                     session = sessions.get(sid)
                     if not isinstance(params.get("prompt"), list):
                         error(message, "session/prompt requires a prompt list")
-                    elif prompt_gate(message, sid):
-                        error(message, prompt_gate(message, sid))
+                    elif prompt_gate(sid):
+                        error(message, prompt_gate(sid))
                     else:
                         if not session.get("primed"):
                             params["prompt"].insert(0, {"type": "text", "text":
                                 "Role instructions for this session:\n" + instructions})
                             session["primed"] = True
                         send(message)
+                elif method == "session/close":
+                    drop_sid(sid)
+                    send(message)
                 elif method in ("session/cancel", "authenticate"):
                     send(message)
+                elif method and (method.startswith("_session/") or method.startswith("_kiro")):
+                    error(message, "Paseo owns lifecycle and topology; Kiro extension disabled", -32601)
                 elif method is not None:
                     error(message, f"Unsupported {NAME} request: {method}", -32601)
                 else:
@@ -305,25 +368,39 @@ def main():
                     else:
                         send({"jsonrpc": "2.0", "id": message["id"], "error": {
                             "code": -32601, "message": "Unsupported agent-to-client request"}})
-                elif method == "_kiro.dev/commands/available":
-                    sid = params["sessionId"]
-                    tools[sid] = [t if isinstance(t, str) else t["name"] for t in params["tools"]]
-                    commands[sid] = [c["name"] for c in params["commands"]]
-                    # Retain raw tools and metadata for independent observation.
+                elif method in ("_kiro/tools/didChange", "_kiro/mcp/status"):
+                    sid = params.get("sessionId")
+                    if method == "_kiro/mcp/status":
+                        mcp[sid] = params.get("servers", [])  # Full snapshot, not an event.
+                        stale.add(sid)
+                    else:
+                        tags[sid] = [t.get("tag") for t in params.get("tags", [])]
+                        stale.discard(sid)
                     emit(message)
                     for ident, state in list(pending.items()):
-                        if state.get("stage") == "tools" and state["sid"] == sid:
+                        if state.get("stage") == "tools" and state["sid"] == sid and inventory(sid) != "wait":
                             del pending[ident]
-                            if safe_tools(sid):
-                                confirm(state)
-                            else:
-                                error(state["request"], f"Kiro exposed tools outside the {ROLE.title()} allowlist", -32603)
+                            finish(state)
                     # An unsafe inventory update after confirmation revokes the session.
-                    if (sid in sessions and not safe_tools(sid)
-                            and not any(s.get("sid") == sid for s in pending.values())):
-                        del sessions[sid]
-                        send({"jsonrpc": "2.0", "method": "session/cancel",
-                              "params": {"sessionId": sid}})
+                    if sid in sessions and sessions[sid].get("ready") and inventory(sid) == "bad":
+                        revoke(sid)
+                elif method == "session/update" and params.get("update", {}).get("sessionUpdate") in (
+                        "config_option_update", "current_mode_update"):
+                    sid, update = params.get("sessionId"), params["update"]
+                    if sid in sessions:
+                        if "configOptions" in update:
+                            sessions[sid]["options"] = update["configOptions"]
+                            sessions[sid]["current"].update(selected(update["configOptions"]))
+                        if "currentModeId" in update:
+                            sessions[sid]["current"]["mode"] = update["currentModeId"]
+                        if sessions[sid].get("ready") and not valid(sid):
+                            revoke(sid)
+                    if "configOptions" in update:
+                        update["configOptions"] = visible(update["configOptions"])
+                    emit(message)
+                    waiting = pending.pop(prefix + "options-" + sid, None)
+                    if waiting and sid in sessions:
+                        settle(waiting)
                 elif message.get("id") in pending:
                     ident = message["id"]
                     state = pending.pop(ident)
@@ -337,65 +414,41 @@ def main():
                         result = message["result"]
                         sid = result.get("sessionId", request["params"].get("sessionId"))
                         sessions.pop(sid, None)
-                        if (result.get("modes", {}).get("currentModeId") != MODE or
-                                result.get("models", {}).get("currentModelId") not in MODELS):
+                        current = selected(result.get("configOptions"))
+                        if result.get("modes", {}).get("currentModeId") != MODE or current.get("mode", MODE) != MODE:
                             error(request, "Kiro restored an unsupported mode/model", -32603)
                             continue
-                        result["modes"]["availableModes"] = [m for m in result["modes"]["availableModes"] if m["id"] == MODE]
-                        result["models"]["availableModels"] = [m for m in result["models"]["availableModels"] if m["modelId"] in MODELS]
-                        sessions[sid] = {"effort": None, "paseo": state["paseo"]}
-                        state.update(sid=sid, response=result, model=result["models"]["currentModelId"])
-                        if sid in tools:
-                            if safe_tools(sid):
-                                confirm(state)
-                            else:
-                                error(request, f"Kiro exposed tools outside the {ROLE.title()} allowlist", -32603)
+                        current["mode"] = MODE
+                        sessions[sid] = {"paseo": state["paseo"], "options": result.get("configOptions", []),
+                                         "current": current}
+                        state.update(sid=sid, response=result)
+                        settle(state)
+                    elif state["stage"] == "option":
+                        sid = state["sid"]
+                        options = message["result"].get("configOptions")
+                        if options is not None:
+                            sessions[sid]["options"] = options
+                            sessions[sid]["current"].update(selected(options))
+                        current = sessions[sid]["current"]
+                        if not state["response"]:
+                            state["response"] = message["result"]
+                        # V3 answers success while ignoring unknown values: confirm currentValue.
+                        if current.get(state["option"]) != state["value"]:
+                            error(request, f"Kiro did not confirm selected {state['option']}", -32603)
+                        elif (state["option"] == "model" and state["effort"] in EFFORTS
+                                and current.get("effortLevel") != state["effort"]):
+                            set_option(state, "effortLevel", state["effort"])  # Keep effort across model changes.
                         else:
-                            state["stage"] = "tools"
-                            pending[ident] = state
-                    elif state["stage"] == "effort":
-                        if message["result"].get("success") is not True:
-                            error(request, "Kiro rejected effort: " + str(message["result"]), -32603)
-                        else:
-                            confirm(state)
-                    elif state["stage"] == "confirm_model":
-                        active = [o["value"] for o in message["result"].get("options", [])
-                                  if o.get("description", "").endswith(" [active]")]
-                        if active != [state["model"]]:
-                            error(request, "Kiro did not confirm selected model", -32603)
-                        else:
-                            state["stage"] = "confirm"
-                            internal("_kiro.dev/commands/options",
-                                     {"sessionId": state["sid"], "command": "effort"}, state)
-                    elif state["stage"] == "confirm":
-                        options = message["result"].get("options", [])
-                        active = [o["value"] for o in options
-                                  if o.get("label", "").endswith("  [active]")]
-                        if not safe_tools(state["sid"]):
-                            error(request, f"{NAME} inventory changed during confirmation", -32603)
-                        elif "value" not in state and not active and set(EFFORTS) <= {o["value"] for o in options}:
-                            # Some models (Sonnet 5.5) report no default effort; pin the lowest, then confirm again.
-                            state.update(value=EFFORTS[0], stage="effort")
-                            internal("_kiro.dev/commands/execute", {"sessionId": state["sid"],
-                                "command": {"command": "effort", "args": {"level": EFFORTS[0]}}}, state)
-                        elif not set(EFFORTS) <= {o["value"] for o in options} or len(active) != 1 or active[0] not in EFFORTS or (
-                                "value" in state and active[0] != state["value"]):
-                            error(request, "Kiro did not confirm selected effort", -32603)
-                        else:
-                            sessions[state["sid"]]["model"] = state["model"]
-                            sessions[state["sid"]]["effort"] = active[0]
-                            result = state.get("response", {})
-                            result["configOptions"] = config(active[0])
-                            emit({"jsonrpc": "2.0", "id": request["id"], "result": result})
-                    else:  # Kiro resets effort on model changes; Paseo may skip an unchanged effort.
-                        state["response"] = message["result"]
-                        state["stage"] = "effort"
-                        internal("_kiro.dev/commands/execute", {"sessionId": state["sid"],
-                            "command": {"command": "effort", "args": {"level": state["value"]}}}, state)
+                            finish(state)
                 else:
                     request = forwarded.pop(message.get("id"), None)
-                    if request and request.get("method") == "initialize":
-                        agent_caps = message.get("result", {}).get("agentCapabilities", {})
+                    if request and request.get("method") == "initialize" and "result" in message:
+                        agent_caps = message["result"].get("agentCapabilities", {})
+                        kiro = agent_caps.get("_meta", {}).get("kiro", {})
+                        if "extensionMethods" in kiro:  # Advertise only the extensions this seat relays.
+                            message = json.loads(json.dumps(message))
+                            visible_caps = message["result"]["agentCapabilities"]["_meta"]["kiro"]
+                            visible_caps["extensionMethods"] = [m for m in kiro["extensionMethods"] if m in EXTENSIONS]
                     if not str(message.get("id", "")).startswith(prefix):
                         emit(message)
     finally:

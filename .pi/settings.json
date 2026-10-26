@@ -1,7 +1,10 @@
 {
   "compaction": {
     "modelOverrides": {
-      "openrouter/deepseek/deepseek-v4.1-flash": {
+      "huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017": {
+        "reserveTokens": 948576
+      },
+      "openrouter/deepseek/deepseek-v4.1-flash-1017": {
         "reserveTokens": 948576
       },
       "openai-codex/gpt-6-luna": {

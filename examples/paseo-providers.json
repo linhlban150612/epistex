@@ -689,9 +689,21 @@
         "env": {},
         "models": [
           {
+            "id": "huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017",
+            "label": "DeepSeek V4.1 Flash 1017 (Hugging Face)",
+            "isDefault": true,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              }
+            ]
+          },
+          {
             "id": "openai-codex/gpt-6-luna",
             "label": "GPT-6 Luna",
-            "isDefault": true,
+            "isDefault": false,
             "thinkingOptions": [
               {
                 "id": "low",
@@ -706,8 +718,8 @@
             ]
           },
           {
-            "id": "openrouter/deepseek/deepseek-v4.1-flash",
-            "label": "DeepSeek V4.1 Flash",
+            "id": "openrouter/deepseek/deepseek-v4.1-flash-1017",
+            "label": "DeepSeek V4.1 Flash 1017",
             "isDefault": false,
             "thinkingOptions": [
               {
@@ -810,9 +822,21 @@
         "env": {},
         "models": [
           {
+            "id": "huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017",
+            "label": "DeepSeek V4.1 Flash 1017 (Hugging Face)",
+            "isDefault": true,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              }
+            ]
+          },
+          {
             "id": "openai-codex/gpt-6-luna",
             "label": "GPT-6 Luna",
-            "isDefault": true,
+            "isDefault": false,
             "thinkingOptions": [
               {
                 "id": "low",
@@ -827,8 +851,8 @@
             ]
           },
           {
-            "id": "openrouter/deepseek/deepseek-v4.1-flash",
-            "label": "DeepSeek V4.1 Flash",
+            "id": "openrouter/deepseek/deepseek-v4.1-flash-1017",
+            "label": "DeepSeek V4.1 Flash 1017",
             "isDefault": false,
             "thinkingOptions": [
               {
@@ -2174,10 +2198,10 @@
         "notes": "Supervisor: observe Leads, clarify intent and support the Human. Do not implement, assign Peers or review/accept candidates. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
-        "id": "pi-peer--openrouter-deepseek-deepseek-v4-1-flash--low",
-        "name": "pi-peer · openrouter/deepseek/deepseek-v4.1-flash · low",
+        "id": "pi-peer--openrouter-deepseek-deepseek-v4-1-flash-1017--low",
+        "name": "pi-peer · openrouter/deepseek/deepseek-v4.1-flash-1017 · low",
         "provider": "pi-peer",
-        "model": "openrouter/deepseek/deepseek-v4.1-flash",
+        "model": "openrouter/deepseek/deepseek-v4.1-flash-1017",
         "thinkingOptionId": "low",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
@@ -2246,10 +2270,10 @@
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
-        "id": "omp-peer--openrouter-deepseek-deepseek-v4-1-flash--low",
-        "name": "omp-peer · openrouter/deepseek/deepseek-v4.1-flash · low",
+        "id": "omp-peer--openrouter-deepseek-deepseek-v4-1-flash-1017--low",
+        "name": "omp-peer · openrouter/deepseek/deepseek-v4.1-flash-1017 · low",
         "provider": "omp-peer",
-        "model": "openrouter/deepseek/deepseek-v4.1-flash",
+        "model": "openrouter/deepseek/deepseek-v4.1-flash-1017",
         "thinkingOptionId": "low",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
@@ -2692,6 +2716,22 @@
         "provider": "cursor-peer",
         "model": "grok-4.7-medium",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
+      },
+      {
+        "id": "pi-peer--huggingface-deepseek-ai-deepseek-v4-1-flash-1017--low",
+        "name": "pi-peer · huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017 · low",
+        "provider": "pi-peer",
+        "model": "huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017",
+        "thinkingOptionId": "low",
+        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
+      },
+      {
+        "id": "omp-peer--huggingface-deepseek-ai-deepseek-v4-1-flash-1017--low",
+        "name": "omp-peer · huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017 · low",
+        "provider": "omp-peer",
+        "model": "huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017",
+        "thinkingOptionId": "low",
+        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       }
     ]
   }

@@ -22,13 +22,14 @@ with the Lead.
 
 ## Model windows
 
-Source: local `~/.pi/agent/models-store.json`, exact IDs under `openrouter.models` or
-`github-copilot.models`. The generated Pi catalog has no exact Haiku 5.5 entry either.
+Source: local `~/.pi/agent/models-store.json`, exact IDs under the provider model catalogs,
+including `huggingface.models` and `openrouter.models`. The generated Pi catalog has no exact Haiku 5.5 entry either.
 No sourced Pi window is ≤100k; a future such pin must be skipped rather than get a negative reserve.
 
 | Pi pin | Context window | reserveTokens |
 |---|---:|---:|
-| `openrouter/deepseek/deepseek-v4.1-flash` | 1,048,576 | 948,576 |
+| `huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017` | 1,048,576 | 948,576 |
+| `openrouter/deepseek/deepseek-v4.1-flash-1017` | 1,048,576 | 948,576 |
 | `openai-codex/gpt-6-luna` | 272,000 | 172,000 |
 | `openrouter/moonshotai/kimi-k3` | 1,048,576 | 948,576 |
 | `openrouter/z-ai/glm-5.3-flash` | 1,048,575 | 948,575 |

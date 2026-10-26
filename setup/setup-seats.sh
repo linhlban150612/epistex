@@ -143,7 +143,7 @@ else
   jq -e '
     .agents.providers["omp-peer"].models |
     [ .[] | select(.id == "openai-codex/gpt-6-luna") ] == [{
-      "id": "openai-codex/gpt-6-luna", "label": "GPT-6 Luna", "isDefault": true,
+      "id": "openai-codex/gpt-6-luna", "label": "GPT-6 Luna", "isDefault": false,
       "thinkingOptions": [
         {"id": "low", "label": "Low", "isDefault": true},
         {"id": "medium", "label": "Medium", "isDefault": false}
@@ -153,11 +153,26 @@ else
   jq -e '
     ([.agents.providers["omp-peer"].models[] | select(.isDefault == true) |
       {id, effort: [.thinkingOptions[] | select(.isDefault == true) | .id]}]) ==
-      [{"id": "openai-codex/gpt-6-luna", "effort": ["low"]}] and
+      [{"id": "huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017", "effort": ["low"]}] and
     ([.agents.providers["pi-peer"].models[] | select(.isDefault == true) |
       {id, effort: [.thinkingOptions[] | select(.isDefault == true) | .id]}]) ==
-      [{"id": "openai-codex/gpt-6-luna", "effort": ["low"]}]
-  ' "$paseo_config" >/dev/null || fail 'omp-peer/pi-peer: default must be openai-codex GPT-6 Luna, low effort'
+      [{"id": "huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017", "effort": ["low"]}]
+  ' "$paseo_config" >/dev/null || fail 'omp-peer/pi-peer: default must be Hugging Face DeepSeek V4.1 Flash 1017, low effort'
+  for seat in pi-peer omp-peer; do
+    jq -e --arg seat "$seat" '
+      .agents.providers[$seat].models as $models |
+      any($models[]; .id == "openrouter/deepseek/deepseek-v4.1-flash-1017") and
+      all($models[]; .id != "openrouter/deepseek/deepseek-v4.1-flash") and
+      ([.daemon.agentProfiles[]? | select(.provider == $seat and
+        .model == "huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017" and
+        .thinkingOptionId == "low")] | length == 1) and
+      ([.daemon.agentProfiles[]? | select(.provider == $seat and
+        .model == "openrouter/deepseek/deepseek-v4.1-flash-1017" and
+        .thinkingOptionId == "low")] | length == 1) and
+      all(.daemon.agentProfiles[]?; .provider != $seat or
+        .model != "openrouter/deepseek/deepseek-v4.1-flash")
+    ' "$paseo_config" >/dev/null || fail "$seat: wrong DeepSeek 1017 models/profiles"
+  done
   for effort in low medium; do
     jq -e --arg effort "$effort" '
       [.daemon.agentProfiles[]? |

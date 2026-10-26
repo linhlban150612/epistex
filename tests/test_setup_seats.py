@@ -169,12 +169,12 @@ class SetupSeatsTest(unittest.TestCase):
             if provider.get("paseoTools", {}).get("enabled") is True:
                 expected = DENY_SUPERVISOR if key.endswith("-supervisor") else DENY_LEAD
                 self.assertEqual(set(provider["paseoTools"]["disabledTools"]), expected, key)
-        self.assertEqual(len(example["daemon"]["agentProfiles"]), 109)
+        self.assertEqual(len(example["daemon"]["agentProfiles"]), 111)
         counts = Counter(p["provider"] for p in example["daemon"]["agentProfiles"])
         self.assertEqual(counts, Counter({"amp-peer": 1, "amp-lead": 1, "amp-supervisor": 2,
             "claude-peer": 6, "claude-supervisor": 5, "codex-lead": 2, "codex-peer": 4,
-            "codex-supervisor": 4, "copilot-peer": 10, "omp-peer": 11,
-            "pi-peer": 11, "agy-peer": 4, "agy-lead": 2, "kiro-peer": 4, "kiro-lead": 4,
+            "codex-supervisor": 4, "copilot-peer": 10, "omp-peer": 12,
+            "pi-peer": 12, "agy-peer": 4, "agy-lead": 2, "kiro-peer": 4, "kiro-lead": 4,
             "kiro-supervisor": 4, "droid-peer": 22, "droid-lead": 8, "devin-peer": 1, "claude-lead": 1, "cursor-peer": 2}))
         script = SCRIPT.read_text()
         match = re.search(r"expected_deny_lead='(\[.*?\])'", script)
@@ -187,12 +187,12 @@ class SetupSeatsTest(unittest.TestCase):
         model = "openai-codex/gpt-6-luna"
         cell = next(m for m in providers["omp-peer"]["models"] if m["id"] == model)
         pi_cell = next(m for m in providers["pi-peer"]["models"] if m["id"] == model)
-        self.assertTrue(pi_cell["isDefault"])
+        self.assertFalse(pi_cell["isDefault"])
         self.assertEqual(pi_cell["thinkingOptions"], [
             {"id": "low", "label": "Low", "isDefault": True},
             {"id": "medium", "label": "Medium", "isDefault": False}])
         self.assertEqual(len([m for m in providers["pi-peer"]["models"] if m["isDefault"]]), 1)
-        self.assertTrue(cell["isDefault"])
+        self.assertFalse(cell["isDefault"])
         self.assertEqual(cell["thinkingOptions"], [
             {"id": "low", "label": "Low", "isDefault": True},
             {"id": "medium", "label": "Medium", "isDefault": False}])
@@ -211,8 +211,8 @@ class SetupSeatsTest(unittest.TestCase):
                     "kiro-supervisor": ("claude-sonnet-5.5", "low"),
                     "kiro-peer": ("claude-sonnet-5.5", "low"),
                     "kiro-lead": ("claude-opus-5.5", "low"),
-                    "omp-peer": ("openai-codex/gpt-6-luna", "low"),
-                    "pi-peer": ("openai-codex/gpt-6-luna", "low")}
+                    "omp-peer": ("huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017", "low"),
+                    "pi-peer": ("huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017", "low")}
         for seat, (model, effort) in expected.items():
             defaults = [m for m in providers[seat]["models"] if m["isDefault"]]
             self.assertEqual([m["id"] for m in defaults], [model], seat)
@@ -232,13 +232,26 @@ class SetupSeatsTest(unittest.TestCase):
                 self.assertIn(message, result.stderr)
                 for m, flag in zip(models, before):
                     m["isDefault"] = flag
-        luna = next(m for m in providers["omp-peer"]["models"] if m["id"] == "openai-codex/gpt-6-luna")
-        for option in luna["thinkingOptions"]:
-            option["isDefault"] = option["id"] == "medium"
+        model = next(m for m in providers["omp-peer"]["models"] if m["isDefault"])
+        model["thinkingOptions"][0]["isDefault"] = False
         self.save()
         result = self.run_check("--check")
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("omp-peer/pi-peer: default must be openai-codex GPT-6 Luna, low effort", result.stderr)
+        self.assertIn("omp-peer/pi-peer: default must be Hugging Face DeepSeek V4.1 Flash 1017, low effort", result.stderr)
+
+    def test_deepseek_1017_profiles_are_required(self):
+        for seat in ("pi-peer", "omp-peer"):
+            for model in ("huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017",
+                          "openrouter/deepseek/deepseek-v4.1-flash-1017"):
+                with self.subTest(seat=seat, model=model):
+                    profiles = self.data["daemon"]["agentProfiles"]
+                    profile = next(p for p in profiles if p["provider"] == seat and p["model"] == model)
+                    profiles.remove(profile)
+                    self.save()
+                    result = self.run_check("--check")
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(f"{seat}: wrong DeepSeek 1017 models/profiles", result.stderr)
+                    profiles.append(profile)
 
     def test_omp_luna_profiles_required(self):
         for effort in ("low", "medium"):

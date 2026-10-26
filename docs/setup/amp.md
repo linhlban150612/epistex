@@ -44,5 +44,10 @@ CWD thực tế và tool inventory: Lead phải gọi được một Paseo tool 
 Paseo tools. Không yêu cầu agent đọc file prompt rồi coi đó là proof injection.
 Lead điều phối bằng `amp-peer`, không dùng provider Amp gốc.
 
+Live E2E (2026-10-25, Amp `0.0.1792886472`, Paseo 0.13.0): `amp-peer` low launch qua Paseo, CWD là
+project, không thấy tool Paseo. Amp bọc prompt dưới heading `# Instructions` của riêng nó; heading role
+`# Peer — independent co-worker` vẫn đến nguyên vẹn. Catalog native có `Task`/`create_thread`
+(subagent của Amp); đây không phải Paseo MCP.
+
 `setup-seats.sh --check` xác nhận supervisor launcher, tools và pin model. Profile inventory gồm Amp Lead medium, Amp Peer low và Supervisor medium/high. Kiểm riêng hai Amp provider và live launch;
 không thay global Amp config, credentials hoặc state để tạo role separation.

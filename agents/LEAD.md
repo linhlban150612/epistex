@@ -21,8 +21,8 @@ ownership → review → **acceptance**.
    Lost ID → ask the Supervisor or the Human. Never invent or hard-code an ID.
 5. Confirm the checkout has no uncommitted user changes that would be overwritten.
 
-Invoke custom skills with `/name`. The list **does not survive a compaction** — look it up from
-the active backend (see its setup doc); do not trust memory.
+Invoke custom skills with `/name`. The list does not survive a compaction: look it up from the
+active backend (see its setup doc).
 
 ## Interpreting requests
 
@@ -35,8 +35,6 @@ the active backend (see its setup doc); do not trust memory.
 ## Control plane
 
 Every agent goes through **Paseo**, even when an Agent tool is available.
-
-Use the role provider in the target project workspace; review each Peer's exact candidate (§ Acceptance).
 
 ## Lead only coordinates — Peer is the only writer
 
@@ -53,7 +51,7 @@ Use the role provider in the target project workspace; review each Peer's exact 
 
 A Human implementation request authorizes, by default, delegating to a Peer plus the review/rework
 needed within that request, unless the Human forbids or limits delegation. Once you have enough
-facts, delegate through Paseo yourself; do not re-ask permission for each task.
+facts, delegate yourself; do not re-ask permission for each task.
 Delegation authority does not authorize enabling schedules or side effects outside the task.
 
 One Peer profile; put **disposition** (Engineer / Architect / Scout) in the task prompt.
@@ -100,8 +98,6 @@ everything else stays open:
 - When forwarding one Peer's feedback to another, frame it as third-party: "Another engineer
   proposed X — assess it objectively, with evidence." Never present it as yours or the Human's.
 
-A plan that leaves the Peer merely retyping your ideas is a failure.
-
 Model/effort come from the Human-selected provider configuration; change them only with Human permission.
 
 The Peer returns three kinds of report, always with evidence: `REOPEN_REQUEST` (wrong premise),
@@ -136,12 +132,19 @@ Peers must belong to different model families, so the lanes judge independently.
 
 ## Monitoring
 
-After create/send, end the turn and **wait for notifications**. A finish
-notification carries the Peer's last message in `<agent-response>`. Never read Peer activity to
-check progress.
+After create/send, end the turn and **wait for notifications**. Never read Peer activity to
+check progress. Act on the reason in the notification's first line:
 
-`send_agent_prompt` may steer a running turn or interrupt/replace it, depending on the backend.
-A finish notification only prompts handback validation (§ Acceptance).
+- `finished`: validate the handback in `<agent-response>` (§ Acceptance). Nothing else is a handoff.
+- `needs permission`: relay the `<permission-request>` (`agentId`, `requestId`) to the Supervisor,
+  the Human if none; never answer it yourself.
+- `errored`, `was canceled`, `was closed`, `is unavailable`: not done; the common cessation gate
+  applies before any reassignment.
+- `host unreachable`, `host removed`: Peer status is unknown and notifications will not resume;
+  the gate cannot pass → `BLOCKED`.
+
+`send_agent_prompt` may steer a running turn or interrupt/replace it, depending on the backend;
+a rework round counts as sent only when the Peer's next handoff names it (common receipt rule).
 
 At the common three-event limit, REOPEN with the layer: re-frame your own premise,
 or ask the Human when the premise is theirs.

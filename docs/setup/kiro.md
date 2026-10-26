@@ -169,6 +169,18 @@ tool `paseo::*`, Supervisor có đúng 15, cả hai không có `speak`. Lead g�
 hỏi quyền. Live E2E chỉ phủ create/prompt/gọi MCP `list_workspaces`/archive; `session/cancel`,
 `session/resume` và `session/load` qua lifecycle Paseo chưa được live-cover. Chưa kiểm qua Paseo thì chỉ kết luận
 ACP metadata/fixture verified, không kết luận seat đã được chấp nhận.
+Live E2E (2026-10-25, CLI 2.34.0, Paseo 0.13.0): `kiro-peer` Sonnet/low nhận `# Common contract` cộng
+`# Peer — independent co-worker`, CWD là project, không thấy Paseo/MCP/subagent tool. `kiro-lead`
+Sonnet/low tạo `kiro-peer` qua `create_agent`: lần đầu lỗi vì mode không kế thừa được từ session Lead,
+lần hai thành công khi truyền `modeId: epistex_peer` tường minh. Lead nhận notification
+`event="finished"` có dòng `Server: <serverId>` và `<agent-response>`. Khi `paseo daemon restart` chạy
+giữa lúc Peer đang `sleep 150`, Lead được resume từ persistence và nhận `event="closed"` ("was closed",
+không `<agent-response>`); Peer không resume, handback mất. Lead xử lý đúng: không coi là done.
+Vòng thứ ba: Peer finish (02:59:59Z) trong khi Lead còn bận `sleep 120`, nên notification `finished`
+nằm hàng đợi; `paseo daemon restart` lúc 03:00:00Z cắt turn của Lead (`turn_failed`); Lead được resume
+03:00:08Z và vẫn nhận `event="finished"` với `<agent-response>` nguyên vẹn, rồi thêm một `event="closed"`
+cho chính Peer đã finish đó. Notification `finished` trong hàng đợi sống qua restart; `was closed`
+đến sau một `finished` không phủ nhận handback đã nhận.
 
 Nguồn authoritative (running capabilities thắng ví dụ tài liệu):
 [ACP](https://kiro.dev/docs/acp/), [V3 ACP migration](https://kiro.dev/docs/cli/v3/acp-migration/),

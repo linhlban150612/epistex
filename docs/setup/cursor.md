@@ -55,3 +55,7 @@ Nguồn: [ACP](https://cursor.com/docs/cli/acp),
 [khả năng CLI](https://cursor.com/docs/cli/using),
 [Grok 4.7](https://cursor.com/docs/models/grok-4-7).
 Capability chọn tham số và các giá trị phản hồi đã được kiểm tra trực tiếp trên phiên bản nêu trên.
+
+Live E2E (2026-10-25, CLI `2026.10.22-27dcf5f`, Paseo 0.13.0): `cursor-peer` `grok-4.7-low` launch qua
+Paseo, nhận `# Common contract` cộng `# Peer — independent co-worker`, CWD là project, không thấy tool
+Paseo. Catalog native có `Task` (subagent của Cursor) và MCP `semble`; đây không phải Paseo MCP.

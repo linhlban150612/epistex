@@ -52,7 +52,7 @@ Supervisor opens a Lead in the project workspace and does not create a Peer.
 | Discovery | Supervisor uses Paseo `list_workspaces`, `list_agents`, `list_providers`, `list_models` |
 | Assignment | Supervisor opens a Human-authorized Lead with `create_agent(workspaceId=...)`; passes the Supervisor agentId in `initialPrompt` |
 | Implementation | Lead defines scope and creates a Peer through Paseo; Peer is the sole writer |
-| Handoff | Peer returns all six items in its session; the handoff is its last message. Lead reads only that message from the Paseo finish notification (`<agent-response>`; if truncated, `paseo agent logs <id> --filter assistant_message --tail 1`) for done / not done and candidate identification details, not the Peer timeline |
+| Handoff | Peer returns all six items in its session; the handoff is its last message. Lead reads only that message from a `finished` Paseo notification (`<agent-response>`, cut at 4000 characters; if truncated, `paseo agent logs <id> --filter assistant_message --tail 1`) for done / not done and candidate identification details, not the Peer timeline. Other reasons (`needs permission`, `errored`, `was canceled`, `host unreachable`, ...) are not a handoff; see [Lead monitoring](agents/LEAD.md#monitoring) |
 | Review | Lead reads the exact candidate and evidence. Complex/review tasks use the [Dual-Lane review skill](.agents/skills/dual-lane-review/SKILL.md) (two Peers from different model families, one property checklist). Existing Human review and agent-creation gates apply |
 | Rework | Only after validated Peer handback, Lead sends exactly one next-round `send_agent_prompt` specifying task, round, feedback, baseline and rejected candidate identities (commit or frozen snapshot/diff); preserves both. Diff comments are review input, not write authority; do not queue repair requests into an active turn. See [Peer handoff](agents/PEER.md#handoff--always-return) and [Lead acceptance](agents/LEAD.md#acceptance) |
 | Intervention | Only on an event (notification, Lead question, Human request), Supervisor may use `list_pending_permissions`, `respond_to_permission`, `cancel_agent`, `set_agent_mode`, then tells the owning Lead |
@@ -106,7 +106,13 @@ actual CWD, or live recovery checks.
   not workspace-scoped. See [context compaction](docs/setup/context-compaction.md).
 
 - Paseo is the sole agent control plane and owns lifecycle and topology. Inspect live state before
-  operating.
+  operating. Paseo >= 0.13.0 is required: earlier daemons could lose finish notifications across a
+  restart, which the no-polling rule cannot recover from. Verified live on 0.13.0: a `finished`
+  notification queued before a daemon restart is still delivered to the Lead afterwards; a Peer cut
+  mid-turn by the restart yields `was closed`, not `finished`, and its round must be reassigned. A
+  `send_agent_prompt` receipt only proves the prompt was queued.
+- Connected hosts (`paseo host add`) are opt-in per repository in `WORKSPACE_PROTOCOL.md` § Routing;
+  the kit has not been verified live with a remote Peer.
 - `setup/codex-room` preserves private runtime data and canonical config, disables native
   multi-agent features, and rejects ambiguous or symlinked runtimes. These contracts are covered by
   `tests/test_codex_room_runtime.py` and `tests/test_codex_room.py`; see the [runtime guide](docs/setup/codex-runtime.md).

@@ -53,6 +53,8 @@ permissions stay role-specific; this contract grants none. AGENTS.md owns projec
 
 - Event-driven through Paseo within role permissions. No patrol, timers, schedules,
   heartbeats or periodic checks, even for stuck agents. Idle/silence proves no failure or acceptance.
+- A send receipt means queued in the daemon, not delivered or read; a queued prompt can be lost
+  with the daemon. Treat it as delivered only when the recipient's next event names it.
 - Count events (handoff, notification, tool failure, Peer report), not time. Same symptom
   (command/error/finding): two failures → stop retries, check prerequisites/quota/auth;
   three → stop, reopen with evidence via role escalation. No fourth variant.

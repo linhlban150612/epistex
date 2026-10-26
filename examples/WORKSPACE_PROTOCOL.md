@@ -78,6 +78,11 @@ Refer to Authority in `AGENTS.md`; record only additional coordination decisions
 - Dual-Lane Peer pair: `<Human-selected pair from two different model families>`.
 - Context reset or exhausted rework cap: follow `.agents/skills/context-reset/SKILL.md` and
   `.agents/skills/rework-escalation/SKILL.md`; Human confirmation stays required.
+- Connected hosts (Paseo `paseo host add`, 0.13.0+): `disabled` by default. Only when the Human
+  sets `enabled` here may the Lead create a Peer on another host. Then the Peer must deliver the
+  candidate where the Lead can read it (pushed ref the Lead may fetch, or snapshot with checksum),
+  the handoff and the brief record the Paseo `serverId`, and a `host unreachable` /
+  `host removed` notification is `BLOCKED`, never done.
 
 ## Verification
 

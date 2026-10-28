@@ -140,6 +140,9 @@ else
         .thinkingOptionId == $effort and .modeId == "auto-review")
     ' "$paseo_config" >/dev/null || fail "codex-peer: missing or wrong gpt-6-luna $effort profile (modeId must be auto-review)"
   done
+  # acceptEdits and default stop a non-interactive Claude Peer on its first Bash permission request.
+  jq -e 'all(.daemon.agentProfiles[]? | select(.provider == "claude-peer"); .modeId == "bypassPermissions")
+  ' "$paseo_config" >/dev/null || fail "claude-peer: every profile needs modeId bypassPermissions"
   jq -e '
     .agents.providers["omp-peer"].models |
     [ .[] | select(.id == "openai-codex/gpt-6-luna") ] == [{

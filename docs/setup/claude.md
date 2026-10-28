@@ -30,9 +30,9 @@ Profile pins:
 `claude-supervisor` chạy `role-agent supervisor claude`, Paseo tools bật.
 
 Claude Lead dùng deny-list tại [SETUP.md §3](../../SETUP.md); không áp dụng cho Peer.
-Profile `claude-lead` dùng `modeId: "bypassPermissions"`. Profile `claude-peer` không pin `modeId`;
-eval với Peer non-interactive cho thấy `acceptEdits` dừng ở permission request khi Peer chạy shell
-ghi file, còn `bypassPermissions` thì không. Chọn mode cho Peer theo `WORKSPACE_PROTOCOL.md`.
+Profile `claude-lead` và mọi profile `claude-peer` dùng `modeId: "bypassPermissions"`; `--check` từ chối
+profile `claude-peer` thiếu mode này. Live (Paseo 0.13.2): với `acceptEdits`, Peer non-interactive dừng ở
+permission request Bash khi chạy `python3`/`git commit`; với `bypassPermissions` thì không.
 
 Đặt label/description theo role và thay `<KIT>` bằng đường dẫn tuyệt đối. `role-agent` và
 `claude-sdk` phải executable. `role-agent <role> claude` chuyển sang launcher riêng

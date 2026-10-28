@@ -629,6 +629,25 @@ class SetupSeatsTest(unittest.TestCase):
                     self.assertIn(f"codex-peer: missing or wrong gpt-6-luna {effort} profile", result.stderr)
                     profile["modeId"] = original
 
+    def test_claude_peer_requires_bypass_profiles(self):
+        # acceptEdits leaves a non-interactive Claude Peer waiting on its first Bash permission request.
+        self.save()
+        result = self.run_check("--check")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        profile = next(p for p in self.data["daemon"]["agentProfiles"]
+                       if p["id"] == "claude-peer--claude-opus-5-5--medium")
+        self.assertEqual(profile["modeId"], "bypassPermissions")
+        for mode in ("acceptEdits", "default", None):
+            with self.subTest(mode=mode):
+                original = profile.pop("modeId")
+                if mode:
+                    profile["modeId"] = mode
+                self.save()
+                result = self.run_check("--check")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("claude-peer: every profile needs modeId bypassPermissions", result.stderr)
+                profile["modeId"] = original
+
     def test_amp_claude_codex_supervisor_seat_checks(self):
         self.save()
         self.assertEqual(self.run_check("--check").returncode, 0)

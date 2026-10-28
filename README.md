@@ -33,13 +33,11 @@ does not absolutely prevent an agent from invoking the CLI. The kit does not imp
 full gate, incident, merge, or permissions engine. Successful configuration checks do not prove
 that every backend can launch.
 
-## Install the Codex seats and Supervisor
+## Install
 
-Requires a configured Paseo CLI/daemon, Python **3.11+**, Bash, Git, `jq`, Codex, and
-credentials for the selected backend. Preserve the existing Paseo/Codex configuration and
+Follow [SETUP.md](SETUP.md) for prerequisites, installation and live verification; it links each
+backend guide in [docs/setup/](docs/setup/). Preserve the existing Paseo/Codex configuration and
 runtime state.
-Follow [SETUP.md](SETUP.md) for installation and live verification; backend-specific instructions
-are in [docs/setup/](docs/setup/), including [Antigravity](docs/setup/antigravity.md) and [Factory Droid](docs/setup/droid.md).
 
 ## Paseo-only workflow
 
@@ -68,8 +66,25 @@ registry, ledger, patrol, timer, recurring schedule, or heartbeat.
 
 ## Codex runtime and resume
 
-Detailed workflow ownership, runtime layout, resume selection, environment variables,
-Seatworks compatibility, and Codex isolation checks: [runtime and workflow guide](docs/setup/codex-runtime.md).
+Runtime layout, resume selection, environment variables and Seatworks compatibility:
+[Codex runtime guide](docs/setup/codex-runtime.md).
+
+## Key files
+
+| Path | Role |
+|---|---|
+| `agents/*.md` | Supervisor, Lead, and Peer prompts |
+| `agents/contract/COMMON.md`, `setup/role_prompt.py` | Shared role invariants and combined prompt loader/size check |
+| `setup/role-agent` | Native Claude/Pi launcher and ACP instruction proxy |
+| `setup/{amp,devin,copilot,cursor,kiro}-acp`, `setup/claude-sdk`, `setup/kiro-*.json` | Per-backend launchers and Kiro agent configs |
+| `setup/codex-room` | Select runtime/resume and generate Codex config |
+| `setup/setup-seats.sh`, `setup/normalize-profiles.jq`, `examples/paseo-providers.json` | Seat checker, profile normalizer and provider catalog |
+| `setup/check-handoff`, `setup/fail-on-base` | Mechanical gates for handoffs and reproducible-bug fixes |
+| `.agents/skills/*/SKILL.md` | Lead skills: Dual-Lane review, context reset, rework escalation, handling reopen/dependency requests; installed per project by `setup-seats.sh --project` |
+| `.pi/settings.json`, `.omp/config.yml` | Checkout-scoped Pi/OMP compaction settings |
+| `examples/AGENTS_MD_SNIPPET.md`, `examples/WORKSPACE_PROTOCOL.md`, `examples/LEAD_INITIAL_PROMPT.md`, `examples/target-repo/` | Contract, policy, Lead startup and verify templates for target repos |
+| `eval/` | Peer behavior scenarios run against real agents; results stay outside Git |
+| `tests/` | Runtime, launcher, seat-checker, gate and eval-harness regression tests |
 
 ## Policy and verification
 
@@ -78,15 +93,9 @@ Role prompts maintain stable behavior; the product repo's `AGENTS.md` holds shar
 specific constraints to the Peer. Keep logs and receipts outside Git. Use templates in `examples/`
 according to the target repo's hygiene; do not commit process documents into every repo.
 
-```bash
-PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests
-python3 -c 'compile(open("setup/codex-room").read(), "setup/codex-room", "exec")'
-bash -n setup/setup-seats.sh
-git diff --check
-```
-
-Tests use fixtures and temporary config/state; they do not replace auth, model, backend launch,
-actual CWD, or live recovery checks.
+Kit verification commands: [AGENTS.md § Verification](AGENTS.md#verification). Tests use fixtures
+and temporary config/state; they do not replace auth, model, backend launch, actual CWD, or live
+recovery checks.
 
 ### Cautions and known limitations
 

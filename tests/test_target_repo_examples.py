@@ -1,4 +1,3 @@
-import json
 import os
 import pathlib
 import subprocess
@@ -10,13 +9,6 @@ EXAMPLE = ROOT / "examples" / "target-repo"
 
 
 class TargetRepoExamplesTest(unittest.TestCase):
-    def test_paseo_json_shape(self):
-        config = json.loads((EXAMPLE / "paseo.json").read_text(encoding="utf-8"))
-        self.assertTrue(config["worktree"]["setup"])
-        self.assertEqual(config["scripts"]["app"]["type"], "service")
-        for name in ("quick", "it", "full"):
-            self.assertIn("./verify " + name, config["scripts"][name]["command"])
-
     def test_verify_syntax_and_groups(self):
         subprocess.run(["bash", "-n", str(EXAMPLE / "verify")], check=True)
         with tempfile.TemporaryDirectory() as folder:

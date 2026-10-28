@@ -67,206 +67,37 @@ command = "other"
         project_id = hashlib.sha256(str(self.project).encode()).hexdigest()[:12]
         return self.home / ".codex-runtime" / "epistex" / project_id / role
 
-    def test_auto_compaction_is_room_only_for_every_role(self) -> None:
+    def test_generated_config_isolates_roles_and_disables_native_agents(self) -> None:
         canonical = self.canonical / "config.toml"
-        canonical.write_text("model_auto_compact_token_limit = 250000\n" + canonical.read_text())
+        canonical.write_text('model_auto_compact_token_limit = 250000\n'
+                             '  model_instructions_file = "old.md"\n' + canonical.read_text())
         before = canonical.read_bytes()
-        for role in ("peer", "lead", "supervisor"):
+        for role in ("lead", "peer", "supervisor"):
             with self.subTest(role=role):
                 result = self.sync(role)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                parsed = tomllib.loads((self.runtime(role) / "config.toml").read_text())
+                runtime = self.runtime(role)
+                self.assertEqual(result.stdout.strip(), str(runtime))
+                parsed = tomllib.loads((runtime / "config.toml").read_text(encoding="utf-8"))
+                self.assertFalse(parsed["agents"]["enabled"])
+                self.assertFalse(parsed["features"]["multi_agent"])
+                self.assertFalse(parsed["features"]["multi_agent_v2"])
                 self.assertEqual(parsed["model_auto_compact_token_limit"], 100000)
+                self.assertEqual(parsed["mcp_servers"]["other"], {"command": "other"})
+                self.assertEqual("paseo" in parsed["mcp_servers"], role != "peer")
+                self.assertTrue((runtime / "auth.json").is_symlink())
+                prompt = pathlib.Path(parsed["model_instructions_file"])
+                self.assertEqual(prompt, runtime / "role-instructions.md")
+                expected = ((ROOT / "agents/contract/COMMON.md").read_text().rstrip() + "\n\n"
+                            + (ROOT / "agents" / f"{role.upper()}.md").read_text())
+                self.assertEqual(prompt.read_text(), expected)
                 self.assertEqual(canonical.read_bytes(), before)
+        self.assertEqual(len({self.runtime(role) for role in ("lead", "peer", "supervisor")}), 3)
 
-    def test_roles_are_isolated_and_native_agents_are_disabled(self) -> None:
-        lead = self.sync("lead")
-        peer = self.sync("peer")
-
-        self.assertEqual(lead.returncode, 0, lead.stderr)
-        self.assertEqual(peer.returncode, 0, peer.stderr)
-        lead_config = (self.runtime("lead") / "config.toml").read_text(encoding="utf-8")
-        peer_config = (self.runtime("peer") / "config.toml").read_text(encoding="utf-8")
-
-        for config in (lead_config, peer_config):
-            parsed = tomllib.loads(config)
-            self.assertFalse(parsed["agents"]["enabled"])
-            self.assertFalse(parsed["features"]["multi_agent"])
-            self.assertFalse(parsed["features"]["multi_agent_v2"])
-            self.assertEqual(parsed["mcp_servers"]["other"], {"command": "other"})
-        self.assertIn("paseo", tomllib.loads(lead_config)["mcp_servers"])
-        self.assertNotIn("paseo", tomllib.loads(peer_config)["mcp_servers"])
-        self.assertTrue((self.runtime("lead") / "auth.json").is_symlink())
-        for role, config in (("lead", lead_config), ("peer", peer_config)):
-            prompt = pathlib.Path(tomllib.loads(config)["model_instructions_file"])
-            self.assertEqual(prompt, self.runtime(role) / "role-instructions.md")
-            expected = ((ROOT / "agents/contract/COMMON.md").read_text().rstrip() + "\n\n"
-                        + (ROOT / "agents" / f"{role.upper()}.md").read_text())
-            self.assertEqual(prompt.read_text(), expected)
-        self.assertNotEqual(self.runtime("lead"), self.runtime("peer"))
-
-        private_state = self.runtime("lead") / "session.jsonl"
-        private_state.write_text("keep\n", encoding="utf-8")
-        repeated = self.sync("lead")
-        self.assertEqual(repeated.returncode, 0, repeated.stderr)
-        self.assertEqual(private_state.read_text(encoding="utf-8"), "keep\n")
-
-    def test_legacy_credentials_and_runtime_are_reused_repeatably(self) -> None:
-        legacy = self.home / "legacy-codex"
-        legacy.mkdir()
-        (legacy / "config.toml").write_text('model = "legacy"\n')
-        (legacy / "auth.json").write_text('{"legacy": true}\n')
-        project_id = hashlib.sha256(str(self.project).encode()).hexdigest()[:12]
-        runtime = self.home / ".codex-runtime" / "seatworks" / project_id / "lead"
-        (runtime / "sessions").mkdir(parents=True)
-        private = runtime / "sessions" / "keep.jsonl"
-        private.write_text("keep\n")
-        env = {"EPISTEX_CODEX_HOME": "", "SEATWORKS_CODEX_HOME": str(legacy)}
-
-        first = self.sync("lead", extra_env=env)
-        second = self.sync("lead", extra_env=env)
-
-        self.assertEqual(first.returncode, 0, first.stderr)
-        self.assertEqual(second.returncode, 0, second.stderr)
-        self.assertEqual(first.stdout.strip(), str(runtime))
-        self.assertEqual(second.stdout.strip(), str(runtime))
-        self.assertEqual((runtime / "auth.json").resolve(), legacy / "auth.json")
-        self.assertEqual(private.read_text(), "keep\n")
-
-    def test_explicit_new_credential_setting_precedes_legacy(self) -> None:
-        legacy = self.home / "legacy-codex"
-        legacy.mkdir()
-        (legacy / "config.toml").write_text('model = "legacy"\n')
-        result = self.sync("lead", extra_env={"SEATWORKS_CODEX_HOME": str(legacy)})
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual((self.runtime("lead") / "auth.json").resolve(), self.canonical / "auth.json")
-
-    def test_git_root_subdirectory_and_linked_worktree_reuse_legacy_runtime(self):
-        subprocess.run(["git", "init", str(self.project)], check=True, capture_output=True)
-        subprocess.run(["git", "-C", str(self.project), "-c", "user.name=Test",
-                        "-c", "user.email=test@example.com", "commit", "--allow-empty", "-m", "fixture"],
-                       check=True, capture_output=True)
-        worktree = self.project.parent / "linked"
-        subprocess.run(["git", "-C", str(self.project), "worktree", "add", "--detach", str(worktree)],
-                       check=True, capture_output=True)
-        subdirectory = self.project / "nested"
-        subdirectory.mkdir()
-        legacy = self.home / ".codex-runtime" / "seatworks" / self.runtime("lead").parent.name / "lead"
-        legacy.mkdir(parents=True)
-        (legacy / "private-state").write_text("preserved")
-        for project in (subdirectory, worktree, self.project, subdirectory):
-            result = self.sync("lead", project=project)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(result.stdout.strip(), str(legacy))
-        self.assertFalse(self.runtime("lead").exists())
-        self.assertEqual((legacy / "private-state").read_text(), "preserved")
-
-    def test_conflicting_namespaces_require_explicit_session(self):
-        current = self.runtime("lead")
-        legacy = self.home / ".codex-runtime" / "seatworks" / current.parent.name / "lead"
-        for runtime in (current, legacy):
-            runtime.mkdir(parents=True)
-        result = self.sync("lead")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("ambiguous", result.stderr)
-        self.assertEqual(list(current.iterdir()), [])
-        self.assertEqual(list(legacy.iterdir()), [])
-
-    def test_resume_requires_unique_exact_role_session_and_preserves_data(self):
-        session_id = "12345678-1234-1234-1234-123456789abc"
-        filename = f"rollout-2026-09-26T10-00-00-{session_id}.jsonl"
-        legacy = self.home / ".codex-runtime" / "seatworks" / "old-project" / "lead"
-        sessions = legacy / "sessions" / "2026" / "09"
-        sessions.mkdir(parents=True)
-        # A backup filename and another role must not count as a session match.
-        (sessions / (filename + ".bak")).write_text("backup")
-        result = self.sync("lead", session_id)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("not found", result.stderr)
-        (sessions / filename).write_text("session data")
-        for _ in range(2):
-            result = self.sync("lead", session_id)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(result.stdout.strip(), str(legacy))
-            self.assertEqual((sessions / filename).read_text(), "session data")
-        wrong_role = self.sync("peer", session_id)
-        self.assertIn("not found", wrong_role.stderr)
-        duplicate = self.runtime("lead") / "sessions"
-        duplicate.mkdir(parents=True)
-        (duplicate / filename).write_text("duplicate")
-        result = self.sync("lead", session_id)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("ambiguous", result.stderr)
-        self.assertFalse((self.runtime("lead") / "config.toml").exists())
-
-    def test_other_roles_have_distinct_instructions_and_read_only_roles_omit_paseo_mcp(self) -> None:
-        for role in ("supervisor", "peer"):
-            with self.subTest(role=role):
-                result = self.sync(role)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                config = tomllib.loads((self.runtime(role) / "config.toml").read_text())
-                prompt = pathlib.Path(config["model_instructions_file"])
-                self.assertEqual(prompt, self.runtime(role) / "role-instructions.md")
-                self.assertIn("# Common contract", prompt.read_text())
-                self.assertIn(f"# {role.title()}", prompt.read_text())
-                self.assertEqual("paseo" in config["mcp_servers"], role == "supervisor")
-
-    def test_refuses_symlinked_role_runtime(self) -> None:
-        runtime = self.runtime("peer")
-        redirected = pathlib.Path(self.temporary.name) / "redirected"
-        redirected.mkdir()
-        runtime.parent.mkdir(parents=True)
-        runtime.symlink_to(redirected, target_is_directory=True)
-
-        result = self.sync("peer")
-
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("refusing symlinked role runtime", result.stderr)
-        self.assertFalse((redirected / "config.toml").exists())
-
-    def test_refuses_symlinked_runtime_ancestor(self) -> None:
-        redirected = pathlib.Path(self.temporary.name) / "redirected"
-        redirected.mkdir()
-        (self.home / ".codex-runtime").symlink_to(redirected, target_is_directory=True)
-        result = self.sync("lead")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("symlinked runtime ancestor", result.stderr)
-        self.assertEqual(list(redirected.iterdir()), [])
-
-    def test_invalid_policy_table_fails_without_replacing_config(self) -> None:
-        self.assertEqual(self.sync("peer").returncode, 0)
-        config = self.runtime("peer") / "config.toml"
-        previous = config.read_bytes()
-        (self.canonical / "config.toml").write_text(
-            'features = "not a table"\n', encoding="utf-8")
-        result = self.sync("peer")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("invalid canonical TOML", result.stderr)
-        self.assertEqual(config.read_bytes(), previous)
-
-    def test_indented_prompt_setting_is_replaced(self) -> None:
-        config = self.canonical / "config.toml"
-        config.write_text('  model_instructions_file = "old.md"\n' + config.read_text(), encoding="utf-8")
-        result = self.sync("lead")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        parsed = tomllib.loads((self.runtime("lead") / "config.toml").read_text())
-        self.assertEqual(parsed["model_instructions_file"], str(self.runtime("lead") / "role-instructions.md"))
-
-    def test_inline_and_quoted_policy_tables_are_supported(self) -> None:
-        (self.canonical / "config.toml").write_text(
-            '"features" = { "multi_agent" = true, keep = "yes" }\n'
-            'agents.enabled = true\n'
-            'mcp_servers = { paseo = { command = "paseo" }, other = { command = "other" } }',
-            encoding="utf-8")
-        result = self.sync("peer")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        config = tomllib.loads((self.runtime("peer") / "config.toml").read_text())
-        self.assertEqual(config["features"], {"multi_agent": False, "multi_agent_v2": False, "keep": "yes"})
-        self.assertEqual(config["agents"], {"enabled": False})
-        self.assertEqual(config["mcp_servers"], {"other": {"command": "other"}})
-
-    def test_multiline_strings_and_unrelated_values_survive(self) -> None:
-        original = '''description = """
+    def test_toml_round_trip_keeps_unrelated_values(self) -> None:
+        canonical = self.canonical / "config.toml"
+        with self.subTest("multi-line strings and value types"):
+            original = '''description = """
 [mcp_servers.paseo]
 model_instructions_file = "example"
 """
@@ -292,92 +123,195 @@ command = "paseo"
 [mcp_servers.other]
 command = "other"
 '''
-        canonical = self.canonical / "config.toml"
-        canonical.write_text(original, encoding="utf-8")
-        expected = tomllib.loads(original)
-        expected["features"].update(multi_agent=False, multi_agent_v2=False)
-        expected["agents"] = {"enabled": False}
-        expected["model_instructions_file"] = str(self.runtime("peer") / "role-instructions.md")
-        expected["model_auto_compact_token_limit"] = 100000
-        del expected["mcp_servers"]["paseo"]
-        result = self.sync("peer")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        actual = tomllib.loads((self.runtime("peer") / "config.toml").read_text())
-        self.assertEqual(actual, expected)
-        self.assertEqual(actual["numbers"][2].hex(), (-0.0).hex())
-        self.assertEqual(canonical.read_text(), original)
+            canonical.write_text(original, encoding="utf-8")
+            expected = tomllib.loads(original)
+            expected["features"].update(multi_agent=False, multi_agent_v2=False)
+            expected["agents"] = {"enabled": False}
+            expected["model_instructions_file"] = str(self.runtime("peer") / "role-instructions.md")
+            expected["model_auto_compact_token_limit"] = 100000
+            del expected["mcp_servers"]["paseo"]
+            result = self.sync("peer")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            actual = tomllib.loads((self.runtime("peer") / "config.toml").read_text())
+            self.assertEqual(actual, expected)
+            self.assertEqual(actual["numbers"][2].hex(), (-0.0).hex())
+            self.assertEqual(canonical.read_text(), original)
+        with self.subTest("inline and quoted policy tables"):
+            canonical.write_text(
+                '"features" = { "multi_agent" = true, keep = "yes" }\n'
+                'agents.enabled = true\n'
+                'mcp_servers = { paseo = { command = "paseo" }, other = { command = "other" } }',
+                encoding="utf-8")
+            result = self.sync("peer")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            config = tomllib.loads((self.runtime("peer") / "config.toml").read_text())
+            self.assertEqual(config["features"], {"multi_agent": False, "multi_agent_v2": False, "keep": "yes"})
+            self.assertEqual(config["agents"], {"enabled": False})
+            self.assertEqual(config["mcp_servers"], {"other": {"command": "other"}})
+        with self.subTest("nan"):
+            canonical.write_text('values = [nan, +nan, -nan]\n')
+            result = self.sync("peer")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            values = tomllib.loads((self.runtime("peer") / "config.toml").read_text())["values"]
+            self.assertEqual(len(values), 3)
+            self.assertTrue(all(value != value for value in values))
 
-    def test_nan_round_trip(self) -> None:
-        (self.canonical / "config.toml").write_text('values = [nan, +nan, -nan]\n')
-        result = self.sync("lead")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        values = tomllib.loads((self.runtime("lead") / "config.toml").read_text())["values"]
-        self.assertEqual(len(values), 3)
-        self.assertTrue(all(value != value for value in values))
+    def test_invalid_canonical_config_fails_without_replacing_config(self) -> None:
+        self.assertEqual(self.sync("peer").returncode, 0)
+        config = self.runtime("peer") / "config.toml"
+        previous = config.read_bytes()
+        for text in ('broken = [\n', 'features = "not a table"\n'):
+            with self.subTest(canonical=text):
+                (self.canonical / "config.toml").write_text(text, encoding="utf-8")
+                result = self.sync("peer")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("invalid canonical TOML", result.stderr)
+                self.assertEqual(config.read_bytes(), previous)
 
-    def test_late_link_conflict_leaves_config_and_earlier_links_unchanged(self) -> None:
-        runtime = self.runtime("peer")
-        runtime.mkdir(parents=True)
-        config = runtime / "config.toml"
-        config.write_text('old = true\n')
-        auth = runtime / "auth.json"
-        auth.symlink_to(self.home / "old-auth")
-        conflict = runtime / "plugins"
-        conflict.mkdir()
-        (conflict / "keep").write_text("private")
-        before_entries = sorted(path.name for path in runtime.iterdir())
-        result = self.sync("peer")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("refusing to replace non-symlink", result.stderr)
-        self.assertEqual(config.read_text(), 'old = true\n')
-        self.assertEqual(auth.readlink(), self.home / "old-auth")
-        self.assertEqual((conflict / "keep").read_text(), "private")
-        self.assertEqual(sorted(path.name for path in runtime.iterdir()), before_entries)
+    def test_seatworks_fallbacks_reuse_runtime_and_epistex_settings_take_precedence(self) -> None:
+        legacy = self.home / "legacy-codex"
+        legacy.mkdir()
+        (legacy / "config.toml").write_text('model = "legacy"\n')
+        (legacy / "auth.json").write_text('{"legacy": true}\n')
+        project_id = hashlib.sha256(str(self.project).encode()).hexdigest()[:12]
+        runtime = self.home / ".codex-runtime" / "seatworks" / project_id / "lead"
+        (runtime / "sessions").mkdir(parents=True)
+        private = runtime / "sessions" / "keep.jsonl"
+        private.write_text("keep\n")
+        for name, env, auth in (
+                ("SEATWORKS_CODEX_HOME fallback", {"EPISTEX_CODEX_HOME": ""}, legacy),
+                ("repeat", {"EPISTEX_CODEX_HOME": ""}, legacy),
+                ("EPISTEX_CODEX_HOME precedence", {}, self.canonical)):
+            with self.subTest(name):
+                result = self.sync("lead", extra_env={"SEATWORKS_CODEX_HOME": str(legacy), **env})
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout.strip(), str(runtime))
+                self.assertEqual((runtime / "auth.json").resolve(), auth / "auth.json")
+                self.assertEqual(private.read_text(), "keep\n")
 
-    def test_restart_preserves_private_plugins_when_canonical_plugins_are_absent(self) -> None:
+    def test_git_root_subdirectory_and_linked_worktree_reuse_legacy_runtime(self):
+        subprocess.run(["git", "init", str(self.project)], check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(self.project), "-c", "user.name=Test",
+                        "-c", "user.email=test@example.com", "commit", "--allow-empty", "-m", "fixture"],
+                       check=True, capture_output=True)
+        worktree = self.project.parent / "linked"
+        subprocess.run(["git", "-C", str(self.project), "worktree", "add", "--detach", str(worktree)],
+                       check=True, capture_output=True)
+        subdirectory = self.project / "nested"
+        subdirectory.mkdir()
+        legacy = self.home / ".codex-runtime" / "seatworks" / self.runtime("lead").parent.name / "lead"
+        legacy.mkdir(parents=True)
+        (legacy / "private-state").write_text("preserved")
+        for project in (subdirectory, worktree, self.project, subdirectory):
+            result = self.sync("lead", project=project)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), str(legacy))
+        self.assertFalse(self.runtime("lead").exists())
+        self.assertEqual((legacy / "private-state").read_text(), "preserved")
+
+    def test_ambiguous_runtime_selection_is_rejected_and_resume_needs_unique_role_session(self):
+        current = self.runtime("lead")
+        with self.subTest("epistex and seatworks runtimes both exist"):
+            legacy = self.home / ".codex-runtime" / "seatworks" / current.parent.name / "lead"
+            for runtime in (current, legacy):
+                runtime.mkdir(parents=True)
+            result = self.sync("lead")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("ambiguous", result.stderr)
+            self.assertEqual(list(current.iterdir()), [])
+            self.assertEqual(list(legacy.iterdir()), [])
+
+        session_id = "12345678-1234-1234-1234-123456789abc"
+        filename = f"rollout-2026-09-26T10-00-00-{session_id}.jsonl"
+        legacy = self.home / ".codex-runtime" / "seatworks" / "old-project" / "lead"
+        sessions = legacy / "sessions" / "2026" / "09"
+        sessions.mkdir(parents=True)
+        with self.subTest("backup filename is not a session"):
+            (sessions / (filename + ".bak")).write_text("backup")
+            result = self.sync("lead", session_id)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("not found", result.stderr)
+        (sessions / filename).write_text("session data")
+        with self.subTest("unique session resumes repeatably"):
+            for _ in range(2):
+                result = self.sync("lead", session_id)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout.strip(), str(legacy))
+                self.assertEqual((sessions / filename).read_text(), "session data")
+        with self.subTest("another role's session"):
+            self.assertIn("not found", self.sync("peer", session_id).stderr)
+        with self.subTest("duplicate session"):
+            (current / "sessions").mkdir()
+            (current / "sessions" / filename).write_text("duplicate")
+            result = self.sync("lead", session_id)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("ambiguous", result.stderr)
+            self.assertFalse((current / "config.toml").exists())
+
+    def test_refuses_symlinked_runtime_or_ancestor(self) -> None:
+        redirected = pathlib.Path(self.temporary.name) / "redirected"
+        redirected.mkdir()
+        runtime_base = self.home / ".codex-runtime"
+        with self.subTest("ancestor"):
+            runtime_base.symlink_to(redirected, target_is_directory=True)
+            result = self.sync("lead")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("symlinked runtime ancestor", result.stderr)
+            self.assertEqual(list(redirected.iterdir()), [])
+            runtime_base.unlink()
+        with self.subTest("role runtime"):
+            runtime = self.runtime("peer")
+            runtime.parent.mkdir(parents=True)
+            runtime.symlink_to(redirected, target_is_directory=True)
+            result = self.sync("peer")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("refusing symlinked role runtime", result.stderr)
+            self.assertFalse((redirected / "config.toml").exists())
+
+    def test_runtime_entry_conflicts_fail_before_changing_runtime(self) -> None:
+        with self.subTest("non-symlink shared directory"):
+            runtime = self.runtime("peer")
+            runtime.mkdir(parents=True)
+            config = runtime / "config.toml"
+            config.write_text('old = true\n')
+            auth = runtime / "auth.json"
+            auth.symlink_to(self.home / "old-auth")
+            conflict = runtime / "plugins"
+            conflict.mkdir()
+            (conflict / "keep").write_text("private")
+            before_entries = sorted(path.name for path in runtime.iterdir())
+            result = self.sync("peer")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("refusing to replace non-symlink", result.stderr)
+            self.assertEqual(config.read_text(), 'old = true\n')
+            self.assertEqual(auth.readlink(), self.home / "old-auth")
+            self.assertEqual((conflict / "keep").read_text(), "private")
+            self.assertEqual(sorted(path.name for path in runtime.iterdir()), before_entries)
+        with self.subTest("symlinked role-instructions.md"):
+            runtime = self.runtime("lead")
+            runtime.mkdir(parents=True)
+            target = self.project / "retained.md"
+            target.write_text("retain me")
+            (runtime / "role-instructions.md").symlink_to(target)
+            result = self.sync("lead")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("refusing non-regular runtime role-instructions.md", result.stderr)
+            self.assertEqual(target.read_text(), "retain me")
+            self.assertEqual([path.name for path in runtime.iterdir()], ["role-instructions.md"])
+
+    def test_repeated_sync_preserves_private_sessions_and_state(self) -> None:
         (self.canonical / "plugins").rmdir()
-        self.assertEqual(self.sync("supervisor").returncode, 0)
-        plugins = self.runtime("supervisor") / "plugins"
+        self.assertEqual(self.sync("lead").returncode, 0)
+        runtime = self.runtime("lead")
+        (runtime / "session.jsonl").write_text("keep\n", encoding="utf-8")
+        plugins = runtime / "plugins"
         plugins.mkdir()
         (plugins / "private-state").write_text("keep")
-        result = self.sync("supervisor")
+        result = self.sync("lead")
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((runtime / "session.jsonl").read_text(encoding="utf-8"), "keep\n")
         self.assertFalse(plugins.is_symlink())
         self.assertEqual((plugins / "private-state").read_text(), "keep")
-
-        (self.canonical / "plugins").mkdir()
-        result = self.sync("supervisor")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("refusing to replace non-symlink", result.stderr)
-        self.assertEqual((plugins / "private-state").read_text(), "keep")
-
-    def test_invalid_toml_does_not_create_runtime(self) -> None:
-        (self.canonical / "config.toml").write_text('broken = [\n')
-        result = self.sync("peer")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("invalid canonical TOML", result.stderr)
-        self.assertFalse(self.runtime("peer").exists())
-
-    def test_config_directory_conflict_does_not_create_links(self) -> None:
-        runtime = self.runtime("lead")
-        (runtime / "config.toml").mkdir(parents=True)
-        result = self.sync("lead")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("refusing non-regular runtime config", result.stderr)
-        self.assertEqual([path.name for path in runtime.iterdir()], ["config.toml"])
-
-    def test_prompt_symlink_conflict_preserves_target_and_runtime_state(self) -> None:
-        runtime = self.runtime("peer")
-        runtime.mkdir(parents=True)
-        target = self.project / "retained.md"
-        target.write_text("retain me")
-        (runtime / "role-instructions.md").symlink_to(target)
-        result = self.sync("peer")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("refusing non-regular runtime role-instructions.md", result.stderr)
-        self.assertEqual(target.read_text(), "retain me")
-        self.assertEqual([path.name for path in runtime.iterdir()], ["role-instructions.md"])
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -3,15 +3,14 @@
 Common entry point: steps 1–8 install the two Codex seats (Lead/Peer) and check a real launch. Each
 other backend reuses these common steps, then follows its own file:
 
-For project/runtime selection and prerequisites, see the [Codex runtime guide](docs/setup/codex-runtime.md)
-(steps 1–2).
+For Codex runtime selection and resume, see the [Codex runtime guide](docs/setup/codex-runtime.md).
 
 | Backend | Guide |
 |---|---|
 | Claude Lead/Peer | [docs/setup/claude.md](docs/setup/claude.md) |
 | Amp Supervisor/Lead/Peer through ACP | [docs/setup/amp.md](docs/setup/amp.md) |
-| Kiro Supervisor/Lead/Peer through ACP (CLI V3 engine, confirmed model/effort config options, Lead accepts only the Paseo MCP loopback, no native subagents) | [docs/setup/kiro.md](docs/setup/kiro.md) |
-| Antigravity Lead/Peer through ACP (modeId auto_edit/yolo) | [docs/setup/antigravity.md](docs/setup/antigravity.md) |
+| Kiro Supervisor/Lead/Peer through ACP | [docs/setup/kiro.md](docs/setup/kiro.md) |
+| Antigravity Lead/Peer through ACP | [docs/setup/antigravity.md](docs/setup/antigravity.md) |
 | Factory Droid Lead/Peer through ACP | [docs/setup/droid.md](docs/setup/droid.md) |
 | Pi Peer, OMP Peer | [docs/setup/pi-omp.md](docs/setup/pi-omp.md) |
 | Devin Peer through ACP | [docs/setup/devin.md](docs/setup/devin.md) |
@@ -22,13 +21,29 @@ Context compaction and limits for each backend: [context-compaction.md](docs/set
 
 ## 1. Put the kit and project at stable paths
 
-Put the kit and the project at absolute, stable paths. The Paseo daemon must run as the same user. For
-project root and runtime details, see [Codex runtime](docs/setup/codex-runtime.md#project-paths-and-runtime-prerequisites).
+`<KIT>` is the absolute path to the `epistex` directory; `<PROJECT>` is the repository the seats
+work in. The Paseo daemon must run as the user who owns the Codex home and the project. Providers
+use the Paseo workspace's working directory by default; set `EPISTEX_PROJECT_ROOT` only to pin a
+provider to one project, and never keep a stale repository path there. Project identity and resume
+rules: [Codex runtime and resume](docs/setup/codex-runtime.md#codex-runtime-and-resume).
 
 ## 2. Check prerequisites
 
-Confirm Bash, Python 3.11+, `jq`, Codex and the Paseo daemon. Check credentials and backends with
-[prerequisite and compatibility details](docs/setup/codex-runtime.md#project-paths-and-runtime-prerequisites).
+```bash
+bash --version
+python3 --version # 3.11+ for TOML checks
+jq --version
+codex --version
+paseo daemon status --json
+```
+
+The canonical Codex home is `~/.codex`; if the real credentials/config live elsewhere, set
+`EPISTEX_CODEX_HOME` in the `env` of the Codex providers
+([environment variables](docs/setup/codex-runtime.md#environment-variables-and-seatworks-compatibility)).
+Check credentials and model discovery for each other backend in its own guide.
+
+Linux Desktop: if `paseo` is a symlink to `/opt/Paseo/Paseo` and `paseo run` opens the GUI, use the
+bundled `/opt/Paseo/resources/bin/paseo` for CLI commands; no symlink change or daemon restart is needed.
 
 ## 3. Enable Paseo tools injection
 
@@ -48,7 +63,7 @@ Lead uses `paseoTools.disabledTools` to block the catalog and keeps exactly 11 t
 `cancel_agent`, `archive_agent`,
 `list_pending_permissions`, `respond_to_permission`, `set_agent_mode`. Supervisor also keeps `create_workspace`, `get_agent_activity`, `get_agent_status` and `list_agents` (15 tools kept; 46 blocked), while Lead keeps 11 tools (50 blocked). Lead does not have `get_agent_activity`, `get_agent_status` and `list_agents`, so Lead waits for notifications instead of polling or reading the Peer timeline. Kiro Supervisor/Lead and Droid Lead use the same policy.
 Lead runs without approval waits: Lead profiles use a bypass mode (`claude-lead` `bypassPermissions`, `agy-lead` `yolo`, `droid-lead` `auto-high`, `codex-lead` `full-access`: approval `never`, sandbox `danger-full-access`); `kiro-lead` auto-approves through agent `permissions.rules` (V3). `amp-lead` uses `local`: amp-acp has no bypass mode.
-Codex Peer profiles use `modeId: auto-review` (writable workspace sandbox, no approval waits). The provider default `auto` leaves a non-interactive Peer in a read-only sandbox: file writes and `./verify` fail with `Read-only file system`. `setup-seats.sh --check` rejects `codex-peer` profiles without `auto-review`. Claude Peer profiles use `modeId: bypassPermissions`: `acceptEdits` stops a non-interactive Peer on its first Bash permission request; `--check` rejects other modes.
+Codex Peer profiles use `modeId: auto-review` ([why](docs/setup/codex-runtime.md#peer-sandbox-and-worktrees)); `setup-seats.sh --check` rejects `codex-peer` profiles without it. Claude Peer profiles use `modeId: bypassPermissions`: `acceptEdits` stops a non-interactive Peer on its first Bash permission request; `--check` rejects other modes.
 Groups blocked for Lead: 11 schedule/heartbeat, 22 browser, 5 terminal, 12 workspace/agent/provider;
 for Supervisor the workspace/agent/provider group is down to 8 (see the list in the
 [provider example](examples/paseo-providers.json)). Paseo >= 0.13.0 is required (reason: [known limitations](README.md#cautions-and-known-limitations)); the daemon and CLI must be the same version.

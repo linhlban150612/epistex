@@ -56,19 +56,39 @@ class CheckHandoffTest(unittest.TestCase):
         return subprocess.run([sys.executable, str(SCRIPT), str(folder / "brief.json"),
                                str(folder / "handoff.txt"), *extra], text=True, capture_output=True, env=ENV)
 
-    def test_ready_for_review(self):
+    def test_ready_for_review_tolerates_handoff_formatting(self):
         result = self.run_check(self.handoff(), None, "--rerun")
         self.assertEqual(result.stdout.strip(), "READY_FOR_REVIEW", result.stdout + result.stderr)
         self.assertEqual(result.returncode, 0)
         self.assertNotIn("ACCEPTED", result.stdout)
+        bold = self.handoff().replace("Outcome ", "**Outcome** ", 1).replace("Candidate ", "**Candidate**: ", 1)
+        bold = bold.replace("Verification ", "*Verification* ", 1)
+        bold = "\n".join(re.sub(r"^(\*\*Outcome\*\*)\s+", r"\1 ", line) for line in bold.splitlines())
+        bullets = self.handoff(changed="\n- `src/a.py` (new file)\n- `src/b.py` (file mới).",
+                               verification="baseline run: `true` exit 1\ncandidate: `true` exit 0")
+        cases = {
+            "hex-like tokens": self.handoff(candidate=(
+                f"base `{self.base}` candidate `{self.candidate}` branch main (task eval/task--20261022-161431) "
+                f"worktree {self.repo} diff sha256 0a184d9dc3b8fa90d6a48f5cc8ce41074537be65a5e848a714844125a55aeb01")),
+            "backticks and commas": self.handoff(changed="`src/a.py`, `src/b.py`."),
+            "parentheses and semicolons": self.handoff(changed="(src/a.py), src/b.py;"),
+            "bold cell names": bold,
+            "bullets, notes and header tail": bullets.replace("| Round: 1", "| Round: 1 (assigned by the brief)", 1),
+            "baseline run after candidate": self.handoff(
+                verification="`true` on the candidate: exit 0\nRegression check on base: `true` exit 1"),
+        }
+        for name, handoff in cases.items():
+            with self.subTest(name):
+                result = self.run_check(handoff)
+                self.assertEqual(result.returncode, 0, result.stdout)
 
-    def test_missing_cell_and_wrong_round(self):
+    def test_header_and_candidate_failures(self):
         result = self.run_check(self.handoff(round_="2", drop=("Ownership",)))
         self.assertEqual(result.returncode, 1)
         self.assertIn("round '2' != brief 1", result.stdout)
         self.assertIn("missing cells: Ownership", result.stdout)
-
-    def test_base_not_ancestor(self):
+        result = self.run_check(self.handoff(candidate="base 20261022 candidate 161431 branch main"))
+        self.assertIn("resolve to commits", result.stdout)
         git(self.repo, "checkout", "-q", "-b", "other", self.base)
         (self.repo / "src/c.py").write_text("c\n")
         git(self.repo, "add", "."), git(self.repo, "commit", "-q", "-m", "other")
@@ -78,12 +98,10 @@ class CheckHandoffTest(unittest.TestCase):
         self.assertIn("not an ancestor", result.stdout)
         self.assertIn("!= brief base_sha", result.stdout)
 
-    def test_undeclared_and_overdeclared_changes(self):
+    def test_changed_files_must_match_declaration_and_scope(self):
         result = self.run_check(self.handoff(changed="src/a.py src/zzz.py"))
         self.assertIn("changed but not declared in Scope/Changed: src/b.py", result.stdout)
         self.assertIn("declared in Scope/Changed but not in diff: src/zzz.py", result.stdout)
-
-    def test_rename_delete_and_scope_violation(self):
         git(self.repo, "mv", "src/b.py", "src/renamed.py")
         git(self.repo, "rm", "-q", "db.sql")
         (self.repo / "other.txt").write_text("x\n")
@@ -95,63 +113,34 @@ class CheckHandoffTest(unittest.TestCase):
         self.assertNotIn("not declared", result.stdout)
 
     def test_required_check_missing_or_failing(self):
-        self.assertIn("required check not reported: true",
-                      self.run_check(self.handoff(verification="ran nothing")).stdout)
-        self.assertIn("required check without exit status: true",
-                      self.run_check(self.handoff(verification="`true` ran fine")).stdout)
-        self.assertIn("required check reported non-zero exit: true",
-                      self.run_check(self.handoff(verification="`true` exit 1")).stdout)
+        cases = {
+            "ran nothing": "required check not reported: true",
+            "`true` ran fine": "required check without exit status: true",
+            "`true` exit 1": "required check reported non-zero exit: true",
+            "`true` exit 0\nrerun: `true` exit 1": "required check reported non-zero exit: true",
+            "regression check: `true` exit 1": "required check reported non-zero exit: true",
+        }
+        for verification, message in cases.items():
+            with self.subTest(verification=verification):
+                self.assertIn(message, self.run_check(self.handoff(verification=verification)).stdout)
         brief = {**self.brief, "required_checks": ["false"]}
         result = self.run_check(self.handoff(verification="`false` exit 0"), brief, "--rerun")
         self.assertIn("rerun exit 1: false", result.stdout)
 
-    def test_hex_like_tokens_are_ignored(self):
-        candidate = (f"base `{self.base}` candidate `{self.candidate}` branch main (task eval/task--20261022-161431) "
-                     f"worktree {self.repo} diff sha256 0a184d9dc3b8fa90d6a48f5cc8ce41074537be65a5e848a714844125a55aeb01")
-        result = self.run_check(self.handoff(candidate=candidate))
-        self.assertEqual(result.returncode, 0, result.stdout)
-        no_commit = f"base {self.base}; uncommitted candidate on branch eval/task--20261022-161431; worktree {self.repo}"
-        result = self.run_check(self.handoff(candidate=no_commit))
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("snapshot candidate: UNSUPPORTED", result.stdout)
-        result = self.run_check(self.handoff(candidate="base 20261022 candidate 161431 branch main"))
-        self.assertIn("resolve to commits", result.stdout)
-
-    def test_scope_paths_tolerate_markdown_punctuation(self):
-        result = self.run_check(self.handoff(changed="`src/a.py`, `src/b.py`."))
-        self.assertEqual(result.returncode, 0, result.stdout)
-        result = self.run_check(self.handoff(changed="(src/a.py), src/b.py;"))
-        self.assertEqual(result.returncode, 0, result.stdout)
-
-    def test_markdown_bold_cell_names(self):
-        handoff = self.handoff().replace("Outcome ", "**Outcome** ", 1).replace("Candidate ", "**Candidate**: ", 1)
-        handoff = handoff.replace("Verification ", "*Verification* ", 1)
-        handoff = "\n".join(re.sub(r"^(\*\*Outcome\*\*)\s+", r"\1 ", line) for line in handoff.splitlines())
-        result = self.run_check(handoff)
-        self.assertEqual(result.returncode, 0, result.stdout)
-
-    def test_bullets_notes_and_header_tail_are_tolerated(self):
-        handoff = self.handoff(changed="\n- `src/a.py` (new file)\n- `src/b.py` (file mới).",
-                               verification="baseline run: `true` exit 1\ncandidate: `true` exit 0")
-        handoff = handoff.replace("| Round: 1", "| Round: 1 (assigned by the brief)", 1)
-        result = self.run_check(handoff)
-        self.assertEqual(result.returncode, 0, result.stdout)
-        result = self.run_check(self.handoff(verification="`true` exit 0\nrerun: `true` exit 1"))
-        self.assertIn("non-zero exit", result.stdout)
-        # Baseline run reported after the candidate run (order must not matter).
-        result = self.run_check(self.handoff(
-            verification="`true` on the candidate: exit 0\nRegression check on base: `true` exit 1"))
-        self.assertEqual(result.returncode, 0, result.stdout)
-        result = self.run_check(self.handoff(verification="regression check: `true` exit 1"))
-        self.assertIn("non-zero exit", result.stdout)
-
     def test_snapshot_mode_unsupported(self):
-        result = self.run_check(self.handoff(), {**self.brief, "commit_allowed": False})
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("UNSUPPORTED", result.stdout)
-        result = self.run_check(self.handoff(candidate="baseline snapshot sha256 … path /tmp/x; candidate snapshot …"))
-        self.assertIn("UNSUPPORTED", result.stdout)
-
+        cases = {
+            "commit not allowed": (self.handoff(), {**self.brief, "commit_allowed": False}),
+            "snapshot candidate": (self.handoff(
+                candidate="baseline snapshot sha256 … path /tmp/x; candidate snapshot …"), None),
+            "uncommitted candidate": (self.handoff(
+                candidate=f"base {self.base}; uncommitted candidate on branch eval/task--20261022-161431; "
+                          f"worktree {self.repo}"), None),
+        }
+        for name, (handoff, brief) in cases.items():
+            with self.subTest(name):
+                result = self.run_check(handoff, brief)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("UNSUPPORTED", result.stdout)
 
 if __name__ == "__main__":
     unittest.main()

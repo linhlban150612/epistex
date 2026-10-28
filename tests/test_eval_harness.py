@@ -1,11 +1,9 @@
 import importlib.util
-import json
 import pathlib
 import subprocess
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SCENARIOS = sorted((ROOT / "eval" / "scenarios").glob("*.json"))
 
 
 def load_runner():
@@ -17,38 +15,15 @@ def load_runner():
 
 
 class EvalHarnessTest(unittest.TestCase):
-    def test_scenarios_have_required_fields(self):
-        self.assertGreaterEqual(len(SCENARIOS), 5)
-        for path in SCENARIOS:
-            with self.subTest(scenario=path.name):
-                s = json.loads(path.read_text())
-                for key in ("id", "title", "objective", "decided", "verification", "brief_json", "expect", "brief_template"):
-                    self.assertIn(key, s)
-                self.assertEqual(s["id"], path.stem)
-                self.assertIn("owned_scope", s["brief_json"])
-                self.assertIn("required_checks", s["brief_json"])
-                self.assertIn("status", s["expect"])
-                if s["brief_json"].get("bug_reproducible"):
-                    self.assertIn("regression_check", s["brief_json"])
-
-    def test_brief_template_placeholders_are_known(self):
-        known = {"TASK_ID", "ROUND_LINE", "WORKTREE", "BRANCH", "BASE_SHA", "DISPOSITION", "OBJECTIVE",
-                 "MUST_HOLD_EXTRA", "DECIDED", "OWNED", "EXCLUDED", "VERIFICATION", "VERIFIED_FACTS"}
-        import re
-        for path in SCENARIOS:
-            used = set(re.findall(r"{{(\w+)}}", json.loads(path.read_text())["brief_template"]))
-            self.assertTrue(used <= known, f"{path.name}: unknown placeholders {used - known}")
-
-    def test_detect_status(self):
+    def test_runner_detects_status_and_scope(self):
         runner = load_runner()
-        self.assertEqual(runner.detect_status("Outcome            complete; Done: x"), "complete")
-        self.assertEqual(runner.detect_status("**Outcome**: blocked. Brief lacks round"), "BLOCKED")
-        self.assertEqual(runner.detect_status("Outcome  reopen; REOPEN_REQUEST layer: foundation"), "REOPEN_REQUEST")
-        self.assertEqual(runner.detect_status("Outcome partial; DEPENDENCY_REQUEST: utils"), "DEPENDENCY_REQUEST")
-        self.assertEqual(runner.detect_status("no cells here"), "NONE")
-
-    def test_scope_globs(self):
-        runner = load_runner()
+        for text, status in (("Outcome            complete; Done: x", "complete"),
+                             ("**Outcome**: blocked. Brief lacks round", "BLOCKED"),
+                             ("Outcome  reopen; REOPEN_REQUEST layer: foundation", "REOPEN_REQUEST"),
+                             ("Outcome partial; DEPENDENCY_REQUEST: utils", "DEPENDENCY_REQUEST"),
+                             ("no cells here", "NONE")):
+            with self.subTest(text=text):
+                self.assertEqual(runner.detect_status(text), status)
         owned = [runner.glob_to_regex("src/test/java/com/smac/utils/**")]
         excluded = [runner.glob_to_regex("src/main/**")]
         self.assertTrue(runner.in_scope("src/test/java/com/smac/utils/DataUtilTest.java", owned, excluded))

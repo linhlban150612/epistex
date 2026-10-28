@@ -67,9 +67,8 @@ tag native của Peer (`read`, `write`, `shell`, `web`) cộng đúng 11 tool Le
 (allow `fs_read`, `fs_write`, `shell`, `web_fetch`, `web_search`; Lead thêm `mcp` match đúng 11
 `paseo/<tool>`), nên Lead tự duyệt mọi tool (bypass) và Peer không bị hỏi quyền mỗi lần gọi. Policy
 built-in của Kiro (vd chặn ghi settings của chính Kiro) và deny ở scope khác vẫn thắng; tool khác vẫn
-hỏi qua ACP permission request. `use_aws`/`todo_list` của v2 không còn là built-in V3 nên đã bỏ.
-`knowledge` cũng đã bỏ (2026-10-23, CLI 2.33.1): V3 hiện không cung cấp tool này (không quảng bá thành
-tag) và nó vẫn là experimental. Chỉ enable lại khi V3 thực sự quảng bá `knowledge`; khi đó thêm lại vào
+hỏi qua ACP permission request. Không có `knowledge`: V3 (CLI 2.33.1) không quảng bá tool này thành
+tag và nó vẫn là experimental. Chỉ enable lại khi V3 thực sự quảng bá `knowledge`; khi đó thêm lại vào
 `tools` của cả ba file và kiểm capability/permission tương ứng, nếu không Lead có thể bị hỏi quyền.
 `includeMcpJson=false`, `mcpServers={}`: không đọc MCP từ workspace hoặc global config.
 

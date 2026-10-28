@@ -49,21 +49,23 @@ class CodexRoomTest(unittest.TestCase):
         self.assertEqual(payload, {"cwd": str(project), "home": str(runtime), "args": args})
         self.assertTrue((runtime / "config.toml").is_file())
 
-    def test_roles_forward_arguments_and_exit_status(self):
+    def test_launch_forwards_arguments_exit_status_and_project(self):
         args = ["--message", "two words", "", "literal $value"]
         for role in ("lead", "peer"):
             with self.subTest(role=role):
                 self.assert_launch(self.run_room(role, *args), role, self.project, args)
+        legacy = self.root / "legacy project"
+        legacy.mkdir()
+        with self.subTest("SEATWORKS_PROJECT_ROOT fallback and default codex lookup"):
+            self.env["SEATWORKS_PROJECT_ROOT"] = str(legacy)
+            del self.env["CODEX_BIN"]
+            (self.bin / "codex").symlink_to(self.codex)
+            self.assert_launch(self.run_room("peer"), "peer", legacy, [])
+        with self.subTest("EPISTEX_PROJECT_ROOT precedence"):
+            self.env["EPISTEX_PROJECT_ROOT"] = str(self.project)
+            self.assert_launch(self.run_room("lead"), "lead", self.project, [])
 
-    def test_project_override_and_default_codex_lookup(self):
-        project = self.root / "other project"
-        project.mkdir()
-        self.env["EPISTEX_PROJECT_ROOT"] = str(project)
-        del self.env["CODEX_BIN"]
-        (self.bin / "codex").symlink_to(self.codex)
-        self.assert_launch(self.run_room("peer"), "peer", project, [])
-
-    def test_explicit_resume_finds_runtime_created_from_another_cwd(self):
+    def test_only_direct_uuid_resume_selects_runtime_from_another_cwd(self):
         session_id = "12345678-1234-1234-1234-123456789abc"
         old_project = self.root / "old launcher cwd"
         old_project.mkdir()
@@ -82,34 +84,23 @@ class CodexRoomTest(unittest.TestCase):
                 self.assertEqual(payload["cwd"], str(self.project))
                 self.assertEqual(payload["home"], str(runtime))
                 self.assertEqual(payload["args"], args)
-
-    def test_resume_does_not_interpret_prompts_or_options_as_session_ids(self):
-        session_id = "12345678-1234-1234-1234-123456789abc"
+        # Prompts and option values are not session IDs.
         for args in (["resume", "--last", session_id], ["resume", "named-session", session_id],
                      ["exec", "--model", "resume", session_id]):
             with self.subTest(args=args):
                 self.assert_launch(self.run_room("lead", *args), "lead", self.project, args)
 
-    def test_legacy_project_override_and_new_precedence(self):
-        legacy = self.root / "legacy project"
-        legacy.mkdir()
-        self.env["SEATWORKS_PROJECT_ROOT"] = str(legacy)
-        self.assert_launch(self.run_room("lead"), "lead", legacy, [])
-        self.env["EPISTEX_PROJECT_ROOT"] = str(self.project)
-        self.assert_launch(self.run_room("lead"), "lead", self.project, [])
+    def test_invalid_role_or_sync_failure_creates_no_runtime_and_does_not_launch(self):
+        def assert_refused(result):
+            self.assertNotIn(result.returncode, (0, 23))
+            self.assertEqual(result.stdout, "")
+            self.assertFalse((self.root / ".codex-runtime").exists())
 
-    def test_invalid_or_missing_role_does_not_create_runtime(self):
         for args in ((), ("root",)):
             with self.subTest(args=args):
-                result = self.run_room(*args)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertEqual(result.stdout, "")
-                self.assertFalse((self.root / ".codex-runtime").exists())
-
-    def test_sync_failure_does_not_launch_codex(self):
-        (self.canonical / "config.toml").write_text("invalid = [")
-        result = self.run_room("lead")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertNotEqual(result.returncode, 23)
-        self.assertEqual(result.stdout, "")
-        self.assertFalse((self.root / ".codex-runtime").exists())
+                assert_refused(self.run_room(*args))
+        with self.subTest("invalid canonical TOML"):
+            (self.canonical / "config.toml").write_text("invalid = [")
+            result = self.run_room("lead")
+            assert_refused(result)
+            self.assertIn("invalid canonical TOML", result.stderr)

@@ -16,11 +16,12 @@ claude_sdk = importlib.machinery.SourceFileLoader("claude_sdk", str(ROOT / "setu
 
 
 class ProfilesTest(unittest.TestCase):
-    def test_devin_copilot_acp_launchers_forward_args_and_inject_role(self):
+    def test_acp_launchers_forward_args_and_inject_role_once(self):
         with tempfile.TemporaryDirectory() as folder:
-            for backend, binary, acp_arg, role in (
-                ("devin", "devin", "acp", "peer"),
-                ("copilot", "copilot", "--acp", "peer"),
+            for backend, binary, acp_args, role, launchers in (
+                ("devin", "devin", ["acp"], "peer", (["role-agent", "peer", "devin"], ["devin-acp", "peer"])),
+                ("copilot", "copilot", ["--acp"], "peer", (["role-agent", "peer", "copilot"], ["copilot-acp", "peer"])),
+                ("droid", "droid", ["exec", "--output-format", "acp"], "peer", (["role-agent", "peer", "droid"],)),
             ):
                 executable = pathlib.Path(folder) / binary
                 executable.write_text(f"#!{sys.executable}\nimport json, sys\n"
@@ -33,14 +34,14 @@ class ProfilesTest(unittest.TestCase):
                     prompt = {"jsonrpc": "2.0", "id": 9, "method": "session/prompt",
                               "params": {"sessionId": "seat", "prompt": [{"type": "text", "text": "task"}]}}
                     raw = json.dumps(prompt) + "\n"
-                    for launcher in (["role-agent", role, backend], [f"{backend}-acp", role]):
+                    for launcher in launchers:
                         result = subprocess.run(
                             [sys.executable, str(ROOT / "setup" / launcher[0]), *launcher[1:], "--extra"],
                             input=raw * 2, text=True, capture_output=True,
                             env={**os.environ, "PATH": folder}, timeout=10)
                         self.assertEqual(result.returncode, 7, result.stderr)
                         args, first, second = map(json.loads, result.stdout.splitlines())
-                        self.assertEqual(args, [acp_arg, "--extra"])
+                        self.assertEqual(args, [*acp_args, "--extra"])
                         expected = json.loads(raw)
                         instructions = ((ROOT / "agents/contract/COMMON.md").read_text().rstrip() + "\n\n"
                                         + (ROOT / "agents" / f"{role.upper()}.md").read_text())
@@ -49,7 +50,7 @@ class ProfilesTest(unittest.TestCase):
                         self.assertEqual(first, expected)
                         self.assertEqual(second, prompt)
 
-    def test_cursor_confirms_effort_and_fast_off_before_prompt_without_changing_user_config(self):
+    def test_cursor_blocks_prompts_until_parameters_confirmed_and_reblocks_on_drift(self):
         with tempfile.TemporaryDirectory() as folder:
             home = pathlib.Path(folder)
             config = home / ".cursor"
@@ -118,10 +119,11 @@ for line in sys.stdin:
                         self.assertEqual(replies[4]["result"]["prompt"], [{"type": "text", "text": "task"}])
                     for i in (5, 6):
                         self.assertIn("error", replies[i])
-
-    def test_cursor_native_drift_invalidates_until_explicit_reselection(self):
-        for drift in ("model", "fast", "reasoning_effort", "context"):
-            with self.subTest(drift=drift), tempfile.TemporaryDirectory() as folder:
+        # Native drift, either after a prompt or right after the final confirmation, blocks the
+        # next prompt until an explicit reselection confirms every parameter again.
+        for at, drift in (("prompt", "model"), ("prompt", "fast"), ("prompt", "reasoning_effort"),
+                          ("prompt", "context"), ("confirm", "fast")):
+            with self.subTest(at=at, drift=drift), tempfile.TemporaryDirectory() as folder:
                 home = pathlib.Path(folder)
                 config = home / ".cursor"
                 config.mkdir()
@@ -129,90 +131,7 @@ for line in sys.stdin:
                 executable.write_text(f"#!{sys.executable}\n" + '''
 import json, os, sys
 state = {"model":"grok-4.7", "fast":"false", "context":"256k", "reasoning_effort":"low"}
-drift = os.environ["DRIFT"]
-for line in sys.stdin:
-    r = json.loads(line); p = r.get("params", {}); method = r.get("method")
-    after_reply = None
-    if method in ("session/new", "session/load"):
-        result = {"sessionId":"seat"}
-    elif method == "session/set_config_option":
-        state[p["configId"]] = p["value"]
-        result = {"configOptions":[{"id":k,"currentValue":v} for k,v in state.items()]}
-        if p["configId"] == "context":
-            # A selection-time update must not defeat the complete later confirmation.
-            print(json.dumps({"jsonrpc":"2.0", "method":"session/update", "params":{"sessionId":"seat",
-                "update":{"sessionUpdate":"config_option_update", "configOptions":[{"id":"fast","currentValue":"true"}]}}}), flush=True)
-    elif method == "session/prompt":
-        result = {"accepted":True}
-        if any(item.get("text") == "first" for item in p["prompt"]):
-            if drift == "model":
-                after_reply = {"sessionUpdate":"current_model_update", "currentModelId":"composer-2.5"}
-            else:
-                value = {"fast":"true", "reasoning_effort":"high", "context":"500k"}[drift]
-                after_reply = {"sessionUpdate":"config_option_update", "configOptions":[{"id":drift,"currentValue":value}]}
-    else:
-        result = {}
-    if "id" in r:
-        print(json.dumps({"jsonrpc":"2.0", "id":r["id"], "result":result}), flush=True)
-    if after_reply:
-        print(json.dumps({"jsonrpc":"2.0", "method":"session/update", "params":{"sessionId":"seat", "update":after_reply}}), flush=True)
-        print(json.dumps({"jsonrpc":"2.0", "method":"session/update", "params":{"sessionId":"seat",
-            "update":{"sessionUpdate":"agent_message_chunk", "content":"drift processed"}}}), flush=True)
-''')
-                executable.chmod(0o755)
-                proc = subprocess.Popen(
-                    [sys.executable, str(ROOT / "setup/role-agent"), "peer", "cursor"],
-                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                    text=True, env={**os.environ, "PATH": folder + os.pathsep + os.defpath, "HOME": folder,
-                                    "CURSOR_CONFIG_DIR": str(config), "DRIFT": drift})
-                output = queue.Queue()
-                threading.Thread(target=lambda: [output.put(line) for line in proc.stdout], daemon=True).start()
-                def send(ident, method, params):
-                    proc.stdin.write(json.dumps({"jsonrpc":"2.0", "id":ident,
-                                                 "method":method, "params":params}) + "\n")
-                    proc.stdin.flush()
-                def read():
-                    try:
-                        return json.loads(output.get(timeout=5))
-                    except queue.Empty:
-                        self.fail("Cursor proxy timed out")
-                def response(ident):
-                    while True:
-                        message = read()
-                        if message.get("id") == ident:
-                            return message
-                send(1, "initialize", {})
-                self.assertEqual(read()["id"], 1)
-                send(2, "session/new", {})
-                self.assertIn("result", response(2))
-                # Selection-time event is reconciled by the later complete confirmation.
-                send(3, "session/prompt", {"sessionId":"seat", "prompt":[{"type":"text", "text":"first"}]})
-                self.assertEqual(read()["id"], 3)
-                event = read()
-                self.assertEqual(event["method"], "session/update")
-                self.assertEqual(event["params"]["update"]["content"], "drift processed")
-                send(4, "session/prompt", {"sessionId":"seat", "prompt":[{"type":"text", "text":"blocked"}]})
-                self.assertIn("error", read())
-                send(5, "session/set_model", {"sessionId":"seat", "modelId":"grok-4.7-medium"})
-                self.assertIn("result", response(5))
-                # Reselection emits the same harmless in-flight update, then confirms all parameters.
-                send(6, "session/prompt", {"sessionId":"seat", "prompt":[{"type":"text", "text":"after reselection"}]})
-                self.assertEqual(read()["id"], 6)
-                proc.stdin.close()
-                proc.wait(timeout=10)
-                self.assertEqual(proc.returncode, 0, proc.stderr.read())
-                proc.stdout.close()
-                proc.stderr.close()
-
-    def test_cursor_final_confirmation_then_native_drift_blocks_first_prompt(self):
-        with tempfile.TemporaryDirectory() as folder:
-            home = pathlib.Path(folder)
-            config = home / ".cursor"
-            config.mkdir()
-            executable = home / "cursor-agent"
-            executable.write_text(f"#!{sys.executable}\n" + '''
-import json, sys
-state = {"model":"grok-4.7", "fast":"false", "context":"256k", "reasoning_effort":"low"}
+drift, at = os.environ["DRIFT"], os.environ["DRIFT_AT"]
 drift_sent = False
 for line in sys.stdin:
     r = json.loads(line); p = r.get("params", {}); method = r.get("method")
@@ -221,66 +140,76 @@ for line in sys.stdin:
     elif method == "session/set_config_option":
         state[p["configId"]] = p["value"]
         result = {"configOptions":[{"id":k,"currentValue":v} for k,v in state.items()]}
+        if at == "prompt" and p["configId"] == "context":
+            # A selection-time update must not defeat the complete later confirmation.
+            print(json.dumps({"jsonrpc":"2.0", "method":"session/update", "params":{"sessionId":"seat",
+                "update":{"sessionUpdate":"config_option_update", "configOptions":[{"id":"fast","currentValue":"true"}]}}}), flush=True)
     else:
         result = {"accepted":True}
     if "id" in r:
         print(json.dumps({"jsonrpc":"2.0", "id":r["id"], "result":result}), flush=True)
-    if method == "session/set_config_option" and p["configId"] == "reasoning_effort" and not drift_sent:
-        drift_sent = True
-        # Adjacent stdout lines: contradiction follows the complete final confirmation.
-        print(json.dumps({"jsonrpc":"2.0", "method":"session/update", "params":{"sessionId":"seat",
-            "update":{"sessionUpdate":"config_option_update", "configOptions":[
-                {"id":"fast", "currentValue":"true"}]}}}), flush=True)
-        print(json.dumps({"jsonrpc":"2.0", "method":"session/update", "params":{"sessionId":"seat",
-            "update":{"sessionUpdate":"agent_message_chunk", "content":"drift processed"}}}), flush=True)
+    if drift_sent:
+        continue
+    if at == "prompt" and method == "session/prompt" and any(item.get("text") == "first" for item in p["prompt"]):
+        pass
+    elif at == "confirm" and method == "session/set_config_option" and p["configId"] == "reasoning_effort":
+        pass  # Adjacent stdout lines: contradiction follows the complete final confirmation.
+    else:
+        continue
+    drift_sent = True
+    if drift == "model":
+        update = {"sessionUpdate":"current_model_update", "currentModelId":"composer-2.5"}
+    else:
+        value = {"fast":"true", "reasoning_effort":"high", "context":"500k"}[drift]
+        update = {"sessionUpdate":"config_option_update", "configOptions":[{"id":drift,"currentValue":value}]}
+    print(json.dumps({"jsonrpc":"2.0", "method":"session/update", "params":{"sessionId":"seat", "update":update}}), flush=True)
+    print(json.dumps({"jsonrpc":"2.0", "method":"session/update", "params":{"sessionId":"seat",
+        "update":{"sessionUpdate":"agent_message_chunk", "content":"drift processed"}}}), flush=True)
 ''')
-            executable.chmod(0o755)
-            proc = subprocess.Popen(
-                [sys.executable, str(ROOT / "setup/role-agent"), "peer", "cursor"],
-                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                env={**os.environ, "PATH": folder + os.pathsep + os.defpath, "HOME": folder,
-                     "CURSOR_CONFIG_DIR": str(config)})
-            output = queue.Queue()
-            threading.Thread(target=lambda: [output.put(line) for line in proc.stdout], daemon=True).start()
-            def send(ident, method, params):
-                proc.stdin.write(json.dumps({"jsonrpc":"2.0", "id":ident, "method":method, "params":params}) + "\n")
-                proc.stdin.flush()
-            def read():
-                try:
-                    return json.loads(output.get(timeout=5))
-                except queue.Empty:
-                    self.fail("Cursor proxy timed out")
-            def response(ident):
-                while True:
-                    message = read()
-                    if message.get("id") == ident:
-                        return message
-            send(1, "initialize", {})
-            self.assertEqual(read()["id"], 1)
-            send(2, "session/new", {})
-            created = None
-            barrier_seen = False
-            while created is None or not barrier_seen:
-                message = read()
-                if message.get("id") == 2:
-                    created = message
-                elif message.get("params", {}).get("update", {}).get("content") == "drift processed":
-                    barrier_seen = True
-            self.assertIn("result", created)
-            send(3, "session/prompt", {"sessionId":"seat", "prompt":[{"type":"text", "text":"first"}]})
-            blocked = response(3)
-            self.assertIn("error", blocked)
-            send(4, "session/set_model", {"sessionId":"seat", "modelId":"grok-4.7-medium"})
-            self.assertIn("result", response(4))
-            send(5, "session/prompt", {"sessionId":"seat", "prompt":[{"type":"text", "text":"reselected"}]})
-            self.assertEqual(response(5)["result"]["accepted"], True)
-            proc.stdin.close()
-            proc.wait(timeout=10)
-            self.assertEqual(proc.returncode, 0, proc.stderr.read())
-            proc.stdout.close()
-            proc.stderr.close()
+                executable.chmod(0o755)
+                proc = subprocess.Popen(
+                    [sys.executable, str(ROOT / "setup/role-agent"), "peer", "cursor"],
+                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    text=True, env={**os.environ, "PATH": folder + os.pathsep + os.defpath, "HOME": folder,
+                                    "CURSOR_CONFIG_DIR": str(config), "DRIFT": drift, "DRIFT_AT": at})
+                output = queue.Queue()
+                threading.Thread(target=lambda: [output.put(line) for line in proc.stdout], daemon=True).start()
+                seen = []
+                def send(ident, method, params):
+                    proc.stdin.write(json.dumps({"jsonrpc":"2.0", "id":ident,
+                                                 "method":method, "params":params}) + "\n")
+                    proc.stdin.flush()
+                def until(match):
+                    while not any(map(match, seen)):
+                        try:
+                            seen.append(json.loads(output.get(timeout=5)))
+                        except queue.Empty:
+                            self.fail("Cursor proxy timed out")
+                    return next(filter(match, seen))
+                def response(ident):
+                    return until(lambda message: message.get("id") == ident)
+                send(1, "initialize", {})
+                response(1)
+                send(2, "session/new", {})
+                self.assertIn("result", response(2))
+                if at == "prompt":
+                    send(3, "session/prompt", {"sessionId":"seat", "prompt":[{"type":"text", "text":"first"}]})
+                    self.assertIn("result", response(3))
+                until(lambda message: message.get("params", {}).get("update", {}).get("content") == "drift processed")
+                send(4, "session/prompt", {"sessionId":"seat", "prompt":[{"type":"text", "text":"blocked"}]})
+                self.assertIn("error", response(4))
+                send(5, "session/set_model", {"sessionId":"seat", "modelId":"grok-4.7-medium"})
+                self.assertIn("result", response(5))
+                # Reselection may emit the same harmless in-flight update, then confirms all parameters.
+                send(6, "session/prompt", {"sessionId":"seat", "prompt":[{"type":"text", "text":"after reselection"}]})
+                self.assertEqual(response(6)["result"]["accepted"], True)
+                proc.stdin.close()
+                proc.wait(timeout=10)
+                self.assertEqual(proc.returncode, 0, proc.stderr.read())
+                proc.stdout.close()
+                proc.stderr.close()
 
-    def test_devin_and_copilot_launchers_reject_non_peer_roles(self):
+    def test_launchers_reject_unsupported_roles_and_flags(self):
         with tempfile.TemporaryDirectory() as folder:
             for backend in ("devin", "copilot"):
                 for role in ("lead", "supervisor"):
@@ -292,29 +221,6 @@ for line in sys.stdin:
                                 env={**os.environ, "PATH": folder}, timeout=10)
                             self.assertNotEqual(result.returncode, 0)
                             self.assertIn(f"usage: {backend}-acp peer", result.stderr)
-
-    def test_droid_acp_launcher_uses_installed_binary_and_injects_peer_role(self):
-        with tempfile.TemporaryDirectory() as folder:
-            executable = pathlib.Path(folder) / "droid"
-            executable.write_text(f"#!{sys.executable}\nimport json, sys\n"
-                                  "print(json.dumps(sys.argv[1:]), flush=True)\n"
-                                  "for line in sys.stdin:\n"
-                                  "    print(line, end='', flush=True)\n")
-            executable.chmod(0o755)
-            prompt = {"jsonrpc": "2.0", "id": 3, "method": "session/prompt",
-                      "params": {"sessionId": "droid", "prompt": [{"type": "text", "text": "task"}]}}
-            result = subprocess.run(
-                [sys.executable, str(ROOT / "setup" / "role-agent"), "peer", "droid"],
-                input=json.dumps(prompt) + "\n", text=True, capture_output=True,
-                env={**os.environ, "PATH": folder}, timeout=10)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            args, first = map(json.loads, result.stdout.splitlines())
-            self.assertEqual(args, ["exec", "--output-format", "acp"])
-            self.assertTrue(first["params"]["prompt"][0]["text"].startswith("Role instructions for this session:\n"))
-            self.assertEqual(first["params"]["prompt"][1:], prompt["params"]["prompt"])
-
-    def test_kiro_launcher_accepts_only_scoped_lead_and_peer_without_flags(self):
-        with tempfile.TemporaryDirectory() as folder:
             for args in (("lead", "kiro", "--extra"), ("peer", "kiro", "--extra")):
                 with self.subTest(args=args):
                     result = subprocess.run(
@@ -324,7 +230,7 @@ for line in sys.stdin:
                     self.assertNotEqual(result.returncode, 0)
                     self.assertIn("Kiro supports only the scoped Supervisor, Lead and Peer seats", result.stderr)
 
-    def test_pi_and_omp_native_launchers_append_peer_prompt_and_preserve_rpc(self):
+    def test_pi_and_omp_launchers_append_role_prompt_and_preserve_rpc(self):
         with tempfile.TemporaryDirectory() as folder:
             for agent in ("pi", "omp"):
                 executable = pathlib.Path(folder) / agent
@@ -347,8 +253,7 @@ for line in sys.stdin:
                     self.assertIn("# Peer — independent co-worker", parsed_args[1])
                     self.assertEqual(parsed_args[2:], ["--mode", "rpc", "--model", "provider/model"])
                     self.assertEqual(message, '{"type":"prompt","message":"unchanged"}')
-
-    def test_omp_combines_last_wins_append_text_and_file_sources(self):
+        # omp keeps caller append text and file sources.
         with tempfile.TemporaryDirectory() as folder:
             home = pathlib.Path(folder)
             append_file = home / "caller-system.md"
@@ -383,7 +288,7 @@ print(json.dumps({"effective":append, "args":args}))
             self.assertIn("CALLER INLINE TEXT", effective)
             self.assertIn("CALLER FILE CONTENT", effective)
 
-    def test_claude_initialize_appends_role_without_replacing_sdk_context(self):
+    def test_claude_appends_role_without_replacing_sdk_context_and_forwards_messages(self):
         for existing in (None, "", "Paseo session guidance"):
             with self.subTest(existing=existing):
                 message = {"type": "control_request", "request_id": "initialize-7",
@@ -398,8 +303,7 @@ print(json.dumps({"effective":append, "args":args}))
         for raw in (b'not json\n', b'[]\n', b'{"type":"user","message":{"content":"task"}}\n',
                     b'{"type":"control_request","request":{"subtype":"interrupt"}}\n'):
             self.assertEqual(claude_sdk.prime_claude(raw, "role"), raw)
-
-    def test_claude_stream_launcher_injects_both_roles_and_forwards_messages(self):
+        # Stream launcher injects every role and forwards SDK messages.
         with tempfile.TemporaryDirectory() as folder:
             executable = pathlib.Path(folder) / "claude"
             executable.write_text(f"#!{sys.executable}\nimport json, sys\n"
@@ -471,7 +375,7 @@ print(json.dumps({"effective":append, "args":args}))
                 self.assertIn("COMMON.md", result.stderr)
                 self.assertEqual(result.stdout, "")
 
-    def test_acp_primes_each_session_once_and_preserves_other_messages(self):
+    def test_acp_primes_each_session_once_pins_cwd_and_preserves_other_messages(self):
         seen = set()
         prompt = {"jsonrpc": "2.0", "id": 7, "method": "session/prompt",
                   "params": {"sessionId": "a", "prompt": [{"type": "image", "data": "opaque"},
@@ -484,8 +388,7 @@ print(json.dumps({"effective":append, "args":args}))
         prompt["params"]["sessionId"] = "b"
         self.assertIn("# Peer", json.loads(proxy.prime((json.dumps(prompt) + "\n").encode(), "peer", seen))["params"]["prompt"][0]["text"])
         self.assertEqual(proxy.prime(b'{"method":"session/update"}\n', "peer", seen), b'{"method":"session/update"}\n')
-
-    def test_acp_pins_session_cwd_when_requested(self):
+        # ACP pins the session cwd when requested.
         new = {"jsonrpc": "2.0", "id": 1, "method": "session/new", "params": {"cwd": "/work/project", "mcpServers": []}}
         self.assertEqual(proxy.session_cwd((json.dumps(new) + "\n").encode()), "/work/project")
         self.assertIsNone(proxy.session_cwd(b'{"method":"session/prompt","params":{"cwd":"/x"}}\n'))

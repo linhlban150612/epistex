@@ -1,7 +1,7 @@
 # Codex runtime, resume, and environment
 
-This guide documents Codex runtime selection, resume behavior, environment compatibility, and
-project prerequisites. Backend-specific seat setup remains in the linked
+This guide documents Codex runtime selection, resume behavior, environment compatibility and the
+Codex Supervisor pin. Common prerequisites are in [SETUP.md](../../SETUP.md). Backend-specific seat setup remains in the linked
 [backend guides](.).
 
 ## Codex runtime and resume
@@ -47,11 +47,9 @@ routing does not prove that an old Supervisor in Paseo can resume.
 
 Codex custom skills live in `$CODEX_HOME/skills/`; in a role runtime that directory links to the
 canonical Codex home (see the tree above). The skill list does not survive a context compaction,
-so a Codex Lead re-reads `$CODEX_HOME/skills/` instead of relying on memory. The kit's Lead skills live in
-`.agents/skills/`: `dual-lane-review`, `context-reset`, `rework-escalation`, `handling-reopen`. `LEAD.md` keeps the trigger and
-the core rules; each skill holds the detailed steps. They are not in `$CODEX_HOME/skills/`: install them into
-the project with `setup/setup-seats.sh --project <PROJECT>` (SETUP.md step 6), otherwise the Lead only reaches
-them by the path named in `WORKSPACE_PROTOCOL.md` and finds nothing.
+so a Codex Lead re-reads `$CODEX_HOME/skills/` instead of relying on memory. The kit's Lead skills are
+not in `$CODEX_HOME/skills/`; they are installed into the project's `.agents/skills/`
+([SETUP.md step 6](../../SETUP.md#6-set-the-contract-and-protocol-in-the-target-project)).
 
 ### Environment variables and Seatworks compatibility
 
@@ -69,7 +67,6 @@ them by the path named in `WORKSPACE_PROTOCOL.md` and finds nothing.
 and new runtimes exist, ordinary launch reports ambiguity. There is no bulk migration; do not
 delete/copy data to fix resume.
 
-
 ### Peer sandbox and worktrees
 
 Paseo mode `auto-review` gives the Codex Peer a workspace-write sandbox without approval waits; the provider default
@@ -79,60 +76,10 @@ Writable roots are the session cwd only, and the sandbox keeps `.git` read-only,
 can only hand off an uncommitted snapshot, which `setup/check-handoff` reports as UNSUPPORTED. A committed
 candidate needs `full-access` (no sandbox); the Human decides this per project in `WORKSPACE_PROTOCOL.md`.
 
-## Project paths and runtime prerequisites
-
-### 1. Đặt kit và project ở đường dẫn ổn định
-
-`<KIT>` là đường dẫn tuyệt đối tới thư mục `epistex`; `<PROJECT>` là repository mà các seat làm
-việc. Paseo daemon phải chạy dưới đúng user sở hữu Codex home và project. Mặc định provider dùng
-working directory của workspace Paseo; chỉ đặt `EPISTEX_PROJECT_ROOT` để cố định provider vào một
-project, không giữ đường dẫn repo cũ. Codex chạy tại launcher/worktree CWD; thư mục con và linked
-worktree của cùng repo Git dùng chung runtime, còn ngoài Git mỗi CWD tuyệt đối là một project riêng.
-
-Session tạo từ thư mục con/worktree/project khác chỉ resume được bằng UUID tường minh
-(`codex resume <UUID>`, `codex exec resume <UUID>`, alias `e resume <UUID>`; options đặt sau UUID).
-Picker, tên session, `--last` và app-server chỉ thấy runtime của project hiện tại. Quy tắc chọn
-runtime theo UUID: [Codex runtime and resume](#codex-runtime-and-resume).
-
-### 2. Kiểm tiền đề
-
-```bash
-bash --version
-python3 --version # cần 3.11+ để kiểm TOML
-jq --version
-codex --version
-paseo daemon status --json
-```
-
-Codex home chuẩn mặc định là `~/.codex`; nếu credential/config thật nằm nơi khác, khai
-`EPISTEX_CODEX_HOME` trong `env` của các Codex provider. Biến và runtime cũ `SEATWORKS_*`:
-[Environment variables and Seatworks compatibility](#environment-variables-and-seatworks-compatibility).
-
-Linux Desktop: nếu `paseo` là symlink tới `/opt/Paseo/Paseo` và `paseo run` mở GUI, dùng launcher
-đi kèm `/opt/Paseo/resources/bin/paseo` cho các lệnh CLI; không cần đổi symlink hay restart daemon.
-
-### Supervisor pin
+## Supervisor pin
 
 | Seat | Launcher args | Model | Thinking/profile pins |
 |---|---|---|---|
 | `codex-supervisor` | `codex-room supervisor` | `gpt-6-astra` | low, medium |
 
-Không pin CWD của Supervisor bằng env: workspace `~/work/SUPERVISOR` để trống và prompt tự xác nhận CWD.
-
-### Key files
-
-| Path | Role |
-|---|---|
-| `agents/*.md` | Supervisor, Lead, and Peer prompts |
-| `agents/contract/COMMON.md`, `setup/role_prompt.py` | Shared role invariants and combined prompt loader/size check |
-| `setup/role-agent` | Native Claude/Pi launcher and ACP instruction proxy |
-| `setup/{amp,devin,copilot,cursor,kiro}-acp`, `setup/claude-sdk`, `setup/kiro-*.json` | Per-backend launchers and Kiro agent configs |
-| `setup/codex-room` | Select runtime/resume and generate Codex config |
-| `setup/setup-seats.sh`, `setup/normalize-profiles.jq`, `examples/paseo-providers.json` | Seat checker, profile normalizer and provider catalog |
-| `setup/check-handoff`, `setup/fail-on-base` | Mechanical gates for handoffs and reproducible-bug fixes |
-| `.agents/skills/*/SKILL.md` | Lead skills: Dual-Lane review, context reset, rework escalation, handling reopen/dependency requests; installed per project by `setup-seats.sh --project` |
-| `SETUP.md` | Setup entry point: common steps, Codex seats, live verification |
-| `docs/setup/*.md` | Backend-specific seats and context compaction |
-| `examples/AGENTS_MD_SNIPPET.md`, `examples/WORKSPACE_PROTOCOL.md`, `examples/target-repo/` | Contract/policy and verify templates for target repos |
-| `eval/` | Peer behavior scenarios run against real agents; results stay outside Git |
-| `tests/` | Runtime, launcher, seat-checker, gate and eval-harness regression tests |
+Do not pin the Supervisor CWD through env: its workspace `~/work/SUPERVISOR` stays empty and the prompt confirms the CWD itself.

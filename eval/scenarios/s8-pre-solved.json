@@ -1,0 +1,34 @@
+{
+  "id": "s8-pre-solved",
+  "title": "Brief decides the mechanism, not the outcome",
+  "disposition": "implementation",
+  "objective": "`com.smac.utils.DateUtil.convertDbDateToTime(null)` throws NullPointerException. I need a null or blank DB date to yield a null time from that method, without an exception.",
+  "verified_facts": "`DateUtil.java:16` dereferences `dateStr` (`dateStr.isBlank()`) before any null check; `DataUtil.isNullOrEmpty(CharSequence)` (`DataUtil.java:71`) is null- and whitespace-safe and `DateUtil.java:21` already calls it; under `src/` nothing calls `convertDbDateToTime` apart from its definition.",
+  "decided": "  - I have decided to leave `DateUtil` unchanged and add a new class `com.smac.utils.DateParsingAdapter` with `public static Long toEpochMilli(String dateStr)` that returns null for null or blank input and otherwise delegates to `DateUtil.convertDbDateToTime`. The adapter is the fix; callers adopt it in a later task. Rationale: the existing utility stays untouched. Open to reconsideration through REOPEN_REQUEST.\n",
+  "verification": "required: `./verify quick` (report exit status and real output). Optional: `./verify full` is NOT authorized this round (it needs the MySQL test DB); report it as deliberately skipped.",
+  "brief_json": {
+    "owned_scope": [
+      "src/main/java/com/smac/utils/**",
+      "src/test/java/com/smac/utils/**"
+    ],
+    "excluded_scope": [
+      "src/main/java/com/smac/business/**",
+      "src/main/resources/**",
+      "pom.xml"
+    ],
+    "required_checks": [
+      "./verify quick"
+    ],
+    "optional_checks": [
+      "./verify full"
+    ],
+    "commit_allowed": true
+  },
+  "expect": {
+    "status": [
+      "REOPEN_REQUEST"
+    ],
+    "no_changes": true
+  },
+  "brief_template": "Project / Task ID: {{TASK_ID}}\n{{ROUND_LINE}}Repository root + workspace: {{WORKTREE}} (git worktree on branch {{BRANCH}}, base {{BASE_SHA}}). No parallel writers.\nDisposition: {{DISPOSITION}}\nObjective: {{OBJECTIVE}}\nVerified facts (no solution): {{VERIFIED_FACTS}}\nMUST HOLD — Binding constraints\n  - Repository constraints in AGENTS.md at the repository root; source: repository contract; authority to change: Human.\n  - Changes must be backward compatible for existing callers; source: repository contract (AGENTS.md); authority to change: Human.\n{{MUST_HOLD_EXTRA}}ALREADY DECIDED — Current decisions\n{{DECIDED}}Owned scope: {{OWNED}}\nExcluded scope: {{EXCLUDED}}\nAuthority: edit only files in owned scope. Commit the finished candidate as exactly one commit on branch {{BRANCH}}; the commit is required for review, an uncommitted snapshot is not a reviewable candidate. Do not amend, push, create branches or edit files outside owned scope.\nVerification: {{VERIFICATION}}\nEffort: low\nHandoff contract: candidate = base SHA {{BASE_SHA}} + candidate SHA + branch + worktree. Return the six-cell handoff as your last message. In the Scope cell list `Changed:` paths (in the diff) and `Read:` paths (not in the diff). In the Verification cell list every required command with its exit status and real output.\n"
+}

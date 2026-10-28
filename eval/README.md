@@ -58,8 +58,11 @@ Exit status: 0 when the run matches `expect`, 1 otherwise.
 | `expect.full_suite_ran` | Detected from `target/surefire-reports/*DmsAnalyzeProcessApplicationTests*` |
 | `expect.handoff_regex` | Text that must appear in the handoff |
 
-Scenarios `s1`–`s7` target `fastair-analyze-process`: honest unit tests, reproducible bug fix,
-fix outside owned scope, missing decision, false premise, missing round, unauthorized full suite.
+Scenarios `s1`–`s8` target `fastair-analyze-process`: honest unit tests, reproducible bug fix,
+fix outside owned scope, missing decision, false premise, missing round, unauthorized full suite,
+pre-solved brief. `s5` tests a false fact; `s8` states true facts but decides a mechanism (an
+adapter beside the broken method) that cannot reach the stated outcome. It measures whether the
+Peer challenges the solution with `REOPEN_REQUEST`, or implements it because it was decided.
 
 ## Metrics
 
@@ -70,8 +73,13 @@ fix outside owned scope, missing decision, false premise, missing round, unautho
 | Scope violations | `outside_scope`, `unchanged_paths` |
 | Unauthorized checks | `full_suite_ran` |
 | Turn time | `duration_s` |
+| Catch by mechanism | `real-tasks.csv` → `caught_by`; a gate that no row names over a sample of real tasks is a candidate for removal |
 
 Real tasks are recorded by hand in `eval/results/real-tasks.csv`, template in
 [REAL_TASKS_TEMPLATE.csv](REAL_TASKS_TEMPLATE.csv): one row per Lead acceptance decision, with
-wrong acceptances, escaped bugs and review minutes. Lessons go to the target repo's `AGENTS.md`
-through Human review, not to a ledger.
+wrong acceptances, escaped bugs and review minutes. `caught_by` names the mechanism that found
+the defect behind the decision: `none`, `gate` (`check-handoff`, `fail-on-base`), `lead-diff`
+(the Lead's diff read), `dual-lane-1`, `dual-lane-2`, `dual-lane-both`, `human-review`, or
+`escaped` (found after acceptance). Each gate costs tokens and minutes on every task; keep a gate
+only while this column shows it catches defects the cheaper mechanisms miss. Lessons go to the
+target repo's `AGENTS.md` through Human review, not to a ledger.

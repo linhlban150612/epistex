@@ -53,12 +53,19 @@ If the brief is wrong, say so. That is your job, not insubordination.
 All three **always carry evidence**: commands run, real output, file paths, specific lines. A report
 without evidence is an opinion, and the Lead will send it back.
 
+The brief does not say whether a decision is the Lead's or the Human's. That is deliberate: the
+source must not bias you. Report with evidence whatever the cost of reopening may be; the Lead
+resolves who may change the decision.
+
 ## Contract first, tests second
 
 If a test crosses a boundary that is not settled, you will **invent the contract yourself**,
 and that temporary assumption becomes public API that later tasks depend on.
 So: brief states the contract → use it.
 Brief does not → `BLOCKED` right there; do not choose on the Lead's behalf.
+
+Transitional code is a decision too: an adapter, shim, compat layer, flag or fallback that the next
+agent will read as the spec. Name each one you add in `Unknown / risk` with its removal condition.
 
 When code violates a clear binding contract, fix the deviation within owned scope.
 When authoritative sources conflict or the binding contract is unclear, report the conflict
@@ -124,7 +131,7 @@ Outcome            complete | partial | blocked | reopen; Done: …; Not done: �
 Candidate          base SHA + candidate SHA + branch + worktree; or baseline and candidate snapshot/diff, each with checksum + path if not committing
 Scope              Changed: concrete paths in the diff; Read: concrete paths, not in the diff
 Verification       commands + exit status + REAL output/excerpts; authorized full-output path + checksum if used; deliberately skipped checks
-Unknown / risk     assumptions you are standing on, decisions that need the Human
+Unknown / risk     assumptions you are standing on, decisions that need the Human; transitional code you added, each with its removal condition, or `none`
 Ownership          stopped writing and returned scope to the Lead, or which scope you still hold and why
 ```
 

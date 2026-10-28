@@ -35,16 +35,18 @@ Each lane checks every property below. A property is one thing the candidate mus
 | `P3-artifacts` | No agent artifacts | It leaves reasoning comments, TODOs from the agent, temp files, debug output or stray logs |
 | `P4-tests` | Tests are not weakened | It deletes or loosens assertions, skips or marks tests expected-to-fail, or mocks the behavior under test |
 | `P5-complete` | Does the whole task | A requirement in the brief is not done, or the evidence does not prove it |
+| `P6-transitional` | Transitional code is declared | It adds an adapter, shim, compat layer, flag or fallback that the handoff's `Unknown / risk` cell does not name with a removal condition |
 
-The brief may add task-specific properties (`P6-…`). Keep each new property to one check.
-Do not remove `P1`–`P5`. A finding that fits no property uses `P0-other`.
+The brief may add task-specific properties (`P7-…`). Keep each new property to one check.
+Do not remove `P1`–`P6`. A finding that fits no property uses `P0-other`.
 
 When the reviewed candidate has no Peer writer (a review-only request on an existing commit,
 snapshot or decision), the gate in step 0 still applies: the Lead confirms the required checks
 from checks the brief or the Human authorized the Lead to run, or from the Human's evidence,
 instead of a handoff. `P2-scope` and
-`P3-artifacts` are `not-checked (no writer)`; `P1`, `P4` and `P5` still apply, `P5` against the
-requirements the review brief states.
+`P3-artifacts` are `not-checked (no writer)`; `P1`, `P4`, `P5` and `P6` still apply, `P5` against
+the requirements the review brief states and `P6` against the transitional code the review brief
+declares.
 
 Judge evidence by the common proof rule (`COMMON.md` §Evidence): if the behavior disappeared
 and the proof would still pass, it is not evidence. Exit 0 and "tests pass" are signals, not

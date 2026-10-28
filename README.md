@@ -92,6 +92,12 @@ actual CWD, or live recovery checks.
 
 - Context compaction is backend-dependent; some seats remain unconfigured and Devin is user-wide,
   not workspace-scoped. See [context compaction](docs/setup/context-compaction.md).
+- Peers do not see decision provenance. `ALREADY DECIDED` carries reasons and evidence, never who
+  decided, so authority cannot bias the Peer. The cost: a Peer cannot tell whether a
+  `REOPEN_REQUEST` is cheap (Lead-owned) or needs a Human decision; the Lead resolves that with
+  [handling-reopen](.agents/skills/handling-reopen/SKILL.md), and the Human sees provenance through
+  the Review gate and the acceptance summary. Adding `Who may reopen` to the brief would reveal
+  the source: that is a trade-off change for the Human to decide, not a fix.
 
 - Paseo is the sole agent control plane and owns lifecycle and topology. Inspect live state before
   operating. Paseo >= 0.13.0 is required: earlier daemons could lose finish notifications across a

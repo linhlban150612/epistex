@@ -27,14 +27,12 @@ Profile pins:
 | `claude-supervisor` | `claude-opus-5-5` | `low`, `medium` |
 | `claude-supervisor` | `claude-fable-5-1` | `medium` (unverified: provider credits) |
 
-Supervisor pin:
-
-| Seat | Launcher args | Model | Thinking/profile pins |
-|---|---|---|---|
-| `claude-supervisor` | `role-agent supervisor claude` | `claude-sonnet-5-5` (default; Opus 5.5 and Fable 5.1 stay selectable) | low (default); Fable 5.1 medium only (unverified: provider credits) |
+`claude-supervisor` chạy `role-agent supervisor claude`, Paseo tools bật.
 
 Claude Lead dùng deny-list tại [SETUP.md §3](../../SETUP.md); không áp dụng cho Peer.
-Profile `claude-lead` dùng `modeId: "bypassPermissions"`.
+Profile `claude-lead` dùng `modeId: "bypassPermissions"`. Profile `claude-peer` không pin `modeId`;
+eval với Peer non-interactive cho thấy `acceptEdits` dừng ở permission request khi Peer chạy shell
+ghi file, còn `bypassPermissions` thì không. Chọn mode cho Peer theo `WORKSPACE_PROTOCOL.md`.
 
 Đặt label/description theo role và thay `<KIT>` bằng đường dẫn tuyệt đối. `role-agent` và
 `claude-sdk` phải executable. `role-agent <role> claude` chuyển sang launcher riêng
@@ -57,5 +55,5 @@ thấy Paseo tools và gọi được một tool read-only; Peer phải có head
 `# Peer — independent co-worker` và không thấy Paseo tools kể cả qua deferred tool discovery.
 Lead điều phối Peer Claude bằng `claude-peer`, không dùng provider Claude gốc.
 
-`setup-seats.sh --check` kiểm các supervisor seat. Claude Peer profiles pin `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5` ở low/medium; Supervisor mặc định `claude-sonnet-5-5` ở low để giảm chi phí; Opus 5.5 (low/medium) và Fable 5.1 (medium, unverified: provider credits) vẫn chọn tay được qua profile. Kiểm field provider và chạy launch thật cho các role.
+`setup-seats.sh --check` kiểm các supervisor seat. Kiểm field provider và chạy launch thật cho các role.
 Đây là role/MCP separation, không phải OS sandbox hay hai credential home cô lập.

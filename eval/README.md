@@ -75,19 +75,3 @@ Real tasks are recorded by hand in `eval/results/real-tasks.csv`, template in
 [REAL_TASKS_TEMPLATE.csv](REAL_TASKS_TEMPLATE.csv): one row per Lead acceptance decision, with
 wrong acceptances, escaped bugs and review minutes. Lessons go to the target repo's `AGENTS.md`
 through Human review, not to a ledger.
-
-## Findings so far (2026-10-22, Codex gpt-6-luna and Claude Sonnet 5.5 on fastair-analyze-process)
-
-- Peers report baseline runs in either order. The gate tolerates a non-zero exit only on a line that names a baseline run, and still requires one exit 0 for the command (Claude s2, rerun 17:07).
-
-- Peers commit only when the brief says the commit is required; "allowed" yields snapshots the gate cannot verify.
-- A false premise in the brief produced a silent behavior change with `READY_FOR_REVIEW` in 2 of 4 runs: the gate
-  checks identity, scope and checks, not truth. The Lead's diff read stays mandatory.
-- Codex Peer says `blocked` plus prose where the contract expects `DEPENDENCY_REQUEST`.
-- Codex Peer needs `full-access` to commit; `auto-review` keeps `.git` read-only. Claude Peer needs
-  `bypassPermissions` for shell writes; `acceptEdits` stalls on a permission request.
-- Three gate bugs surfaced only with real handoffs (hex-looking timestamps, Markdown cell names, the word
-  "expected"); the eval is how the gates get hardened.
-- Claude Sonnet Peer wrote and committed a test file although no Round was assigned (1 of 1 run); Codex did
-  the same once in 4 runs. The `no_changes` expectation catches this; the gate alone would only say FAIL.
-- Claude Sonnet detected the false premise (REOPEN_REQUEST) and used DEPENDENCY_REQUEST correctly; Codex did not.

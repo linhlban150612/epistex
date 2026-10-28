@@ -55,10 +55,6 @@ class EvalHarnessTest(unittest.TestCase):
         self.assertFalse(runner.in_scope("src/main/java/com/smac/utils/DataUtil.java", owned, excluded))
         self.assertFalse(runner.in_scope("pom.xml", owned, excluded))
 
-    def test_scripts_compile(self):
-        for name in ("run-scenario", "report"):
-            compile((ROOT / "eval" / name).read_text(), f"eval/{name}", "exec")
-
     def test_report_without_results(self):
         result = subprocess.run([str(ROOT / "eval" / "report"), str(ROOT / "eval" / "nonexistent")],
                                 text=True, capture_output=True)

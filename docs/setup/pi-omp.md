@@ -1,7 +1,7 @@
 # SETUP — Pi Peer và OMP Peer riêng
 
 Dùng các bước backup, merge, protocol, reload và live verification trong
-[SETUP.md](../../SETUP.md). Không cần cài 21 standalone profile. Kiểm executable `pi`, `omp`,
+[SETUP.md](../../SETUP.md). Kiểm executable `pi`, `omp`,
 auth của backend và discovery bằng `paseo provider models pi --json`,
 `paseo provider models omp --json` trước khi cấu hình.
 Không in credential để kiểm auth.
@@ -32,8 +32,9 @@ CWD và auth home hiện có; không dùng ACP proxy cho hai backend này.
 Kiểm phiên thực tế: heading từ active instructions phải là `# Peer — independent co-worker`,
 `pwd` đúng workspace, model/effort đúng và không có Paseo tools trong inventory kể cả deferred
 discovery nếu có. Không đọc file role để thay bằng chứng injection. Diagnostic không thay thế
-live launch. Pi Peer và OMP Peer có 12 profile mỗi seat: DeepSeek Flash 1017 qua Hugging Face low và OpenRouter low, GPT-6 Luna low/medium, Kimi K3 low, GLM-5.3 Flash low, GLM-5.3 low/high, Claude Haiku 5.5 low/medium, Grok 4.7 low/medium qua xAI OAuth. DeepSeek Flash 1017 qua Hugging Face là default của cả hai seat, effort low.
-Profile model pins (profile effort options are `low` except where indicated):
+live launch.
+
+Mỗi seat có 12 profile. Profile model pins (profile effort options are `low` except where indicated):
 
 | Seat | Model IDs | Effort pins |
 |---|---|---|
@@ -43,4 +44,4 @@ Profile model pins (profile effort options are `low` except where indicated):
 Chỉ dùng `pi-peer`/`omp-peer` để điều phối khi Human cho phép delegation. Không xóa session
 hay thay credentials; role/MCP separation không phải OS sandbox.
 
-Both seats default to `huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017` (low). GPT-6 Luna remains optional (low/medium). Do not use `github-copilot/gpt-6-luna` (Copilot quota 429). Grok 4.7 uses xAI OAuth (`xai` in Pi, `xai-oauth` in OMP), not OpenRouter. OMP compaction still uses the fixed `thresholdTokens` in `.omp/config.yml`.
+Do not use `github-copilot/gpt-6-luna` (Copilot quota 429). Grok 4.7 uses xAI OAuth (`xai` in Pi, `xai-oauth` in OMP), not OpenRouter. OMP compaction still uses the fixed `thresholdTokens` in `.omp/config.yml`.

@@ -51,7 +51,7 @@ Lead runs without approval waits: Lead profiles use a bypass mode (`claude-lead`
 Codex Peer profiles use `modeId: auto-review` (writable workspace sandbox, no approval waits). The provider default `auto` leaves a non-interactive Peer in a read-only sandbox: file writes and `./verify` fail with `Read-only file system`. `setup-seats.sh --check` rejects `codex-peer` profiles without `auto-review`.
 Groups blocked for Lead: 11 schedule/heartbeat, 22 browser, 5 terminal, 12 workspace/agent/provider;
 for Supervisor the workspace/agent/provider group is down to 8 (see the list in the
-[provider example](examples/paseo-providers.json)). Paseo >= 0.13.0 is required (verified live: a queued `finished` notification is delivered after a daemon restart, and a Peer cut by the restart yields `was closed`; archived agents stay out of `list_agents`); the daemon and CLI must be the same version.
+[provider example](examples/paseo-providers.json)). Paseo >= 0.13.0 is required (reason: [known limitations](README.md#cautions-and-known-limitations)); the daemon and CLI must be the same version.
 `speak` cannot be blocked and is outside the catalog. A test pins the 61-name catalog to force a review
 when Paseo is upgraded. The `--check` script confirms the exact deny-list on every enabled provider.
 

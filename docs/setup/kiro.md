@@ -38,7 +38,10 @@ Default model của `kiro-peer` và `kiro-supervisor` là `claude-sonnet-5.5` (e
 `setup/kiro-supervisor.json` đặt `model` là `claude-sonnet-5.5`, `setup/kiro-lead.json` đặt `claude-opus-5.5`: adapter yêu cầu model ban đầu của session nằm trong `MODELS`, nên bỏ trường này làm launch lỗi "Kiro restored an unsupported mode/model". Paseo vẫn đổi model qua profile: V3 không có `session/set_model`, adapter trả `-32601` để Paseo dùng `session/set_config_option` `configId=model`. `kiro-lead` giữ default `claude-opus-5.5` ở seat config. Opus vẫn chọn tay qua profile.
 
 Orchestrator copy `provider`, `model`, `thinkingOptionId` vào `create_agent`, dùng project
-workspace. **Không gửi `modeId`**: seat cố định `epistex_peer`, mọi mode switch bị từ chối.
+workspace. Truyền `modeId` tường minh bằng mode cố định của seat (`epistex_peer`, `epistex_lead`,
+`epistex_supervisor`); mọi mode switch khác bị từ chối. Live (CLI 2.34.0, Paseo 0.13.0): `kiro-lead`
+tạo `kiro-peer` không có `modeId` thì lỗi vì mode không kế thừa được từ session Lead; có
+`modeId: epistex_peer` thì thành công.
 Sau merge, chạy `setup/setup-seats.sh`, checker theo [SETUP.md](../../SETUP.md), rồi
 `paseo reload` và tạo phiên mới. Static checker không chứng minh live launch.
 
@@ -94,6 +97,8 @@ chỉ thấy `tool_load`/`tool_call`, và catalog của `tool_load` chỉ gồm 
 `speak` (live 2026-10-23, Paseo 0.12.0): server chỉ đăng ký `speak` khi bật voice tools, và khi đó
 `disabledTools` không chặn được nó; launch thường không có `speak` trong catalog Lead/Supervisor. Nếu
 `@paseo/speak` xuất hiện thành tag, seat fail closed; đổi allowlist cần Human quyết định.
+
+Seat `kiro-supervisor`: `role-agent supervisor kiro`, `setup/kiro-supervisor.json`, installed agent `~/.kiro/agents/epistex_supervisor.json`, Supervisor Paseo tool policy (15 tool, [SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)).
 
 ## Model/effort qua standard config options
 
@@ -162,29 +167,17 @@ raw `config_option_update`, `_kiro/tools/didChange` và `_kiro/mcp/status` hoặ
 candidate. Trong live task prompt, yêu cầu agent mô tả heading role **đã nhận trong session**,
 liệt kê tools thực sự thấy và in `pwd`; không coi đọc lại file prompt là proof injection.
 Peer phải nhận `# Peer — independent co-worker`, project CWD, không Paseo/subagent tools.
-Live E2E V3 (2026-10-23, CLI 2.33.1, Paseo 0.12.0, sau `paseo reload`): bốn profile `kiro-peer` và
-`kiro-lead`/`kiro-supervisor` Sonnet/low đều launch được với đúng mode/model/effort, nhận
-`# Common contract` cộng heading role, CWD là project. Peer chỉ có native tools. Catalog Lead có đúng 11
-tool `paseo::*`, Supervisor có đúng 15, cả hai không có `speak`. Lead gọi `list_workspaces` mà không bị
-hỏi quyền. Live E2E chỉ phủ create/prompt/gọi MCP `list_workspaces`/archive; `session/cancel`,
-`session/resume` và `session/load` qua lifecycle Paseo chưa được live-cover. Chưa kiểm qua Paseo thì chỉ kết luận
-ACP metadata/fixture verified, không kết luận seat đã được chấp nhận.
-Live E2E (2026-10-25, CLI 2.34.0, Paseo 0.13.0): `kiro-peer` Sonnet/low nhận `# Common contract` cộng
-`# Peer — independent co-worker`, CWD là project, không thấy Paseo/MCP/subagent tool. `kiro-lead`
-Sonnet/low tạo `kiro-peer` qua `create_agent`: lần đầu lỗi vì mode không kế thừa được từ session Lead,
-lần hai thành công khi truyền `modeId: epistex_peer` tường minh. Lead nhận notification
-`event="finished"` có dòng `Server: <serverId>` và `<agent-response>`. Khi `paseo daemon restart` chạy
-giữa lúc Peer đang `sleep 150`, Lead được resume từ persistence và nhận `event="closed"` ("was closed",
-không `<agent-response>`); Peer không resume, handback mất. Lead xử lý đúng: không coi là done.
-Vòng thứ ba: Peer finish (02:59:59Z) trong khi Lead còn bận `sleep 120`, nên notification `finished`
-nằm hàng đợi; `paseo daemon restart` lúc 03:00:00Z cắt turn của Lead (`turn_failed`); Lead được resume
-03:00:08Z và vẫn nhận `event="finished"` với `<agent-response>` nguyên vẹn, rồi thêm một `event="closed"`
-cho chính Peer đã finish đó. Notification `finished` trong hàng đợi sống qua restart; `was closed`
-đến sau một `finished` không phủ nhận handback đã nhận.
+Trạng thái live: trên CLI 2.33.1, Paseo 0.12.0, bốn profile `kiro-peer` và `kiro-lead`/`kiro-supervisor`
+Sonnet/low launch với đúng mode/model/effort, nhận `# Common contract` cộng heading role, CWD là project;
+Peer chỉ có native tools; catalog Lead có đúng 11 tool `paseo::*`, Supervisor có đúng 15, không có `speak`;
+Lead gọi `list_workspaces` không bị hỏi quyền. Trên CLI 2.34.0, Paseo 0.13.0, `kiro-peer` launch lại đúng
+role/CWD/tools, và `kiro-lead` tạo `kiro-peer` qua `create_agent` rồi nhận notification `finished` có
+`<agent-response>`. Hành vi notification khi daemon restart: [README](../../README.md#cautions-and-known-limitations).
+Chưa live-cover `session/cancel`, `session/resume` và `session/load` qua lifecycle Paseo. Chưa kiểm qua
+Paseo thì chỉ kết luận ACP metadata/fixture verified, không kết luận seat đã được chấp nhận.
 
 Nguồn authoritative (running capabilities thắng ví dụ tài liệu):
 [ACP](https://kiro.dev/docs/acp/), [V3 ACP migration](https://kiro.dev/docs/cli/v3/acp-migration/),
 [V3 agent config](https://kiro.dev/docs/cli/v3/agent-config/),
 [V3 permissions](https://kiro.dev/docs/cli/v3/permissions/), [built-in tools](https://kiro.dev/docs/tools/),
 [custom agents](https://kiro.dev/docs/custom-agents/).
-A `kiro-supervisor` seat also exists: `role-agent supervisor kiro`, `setup/kiro-supervisor.json`, installed agent `~/.kiro/agents/epistex_supervisor.json`, Supervisor Paseo tool set (keeps `create_workspace`).

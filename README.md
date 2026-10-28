@@ -52,31 +52,19 @@ Supervisor opens a Lead in the project workspace and does not create a Peer.
 | Discovery | Supervisor uses Paseo `list_workspaces`, `list_agents`, `list_providers`, `list_models` |
 | Assignment | Supervisor opens a Human-authorized Lead with `create_agent(workspaceId=...)`; passes the Supervisor agentId in `initialPrompt` |
 | Implementation | Lead defines scope and creates a Peer through Paseo; Peer is the sole writer |
-| Handoff | Peer returns all six items in its session; the handoff is its last message. Lead reads only that message from a `finished` Paseo notification (`<agent-response>`, cut at 4000 characters; if truncated, `paseo agent logs <id> --filter assistant_message --tail 1`) for done / not done and candidate identification details, not the Peer timeline. Other reasons (`needs permission`, `errored`, `was canceled`, `host unreachable`, ...) are not a handoff; see [Lead monitoring](agents/LEAD.md#monitoring) |
-| Review | Lead reads the exact candidate and evidence. Complex/review tasks use the [Dual-Lane review skill](.agents/skills/dual-lane-review/SKILL.md) (two Peers from different model families, one property checklist). Existing Human review and agent-creation gates apply |
-| Rework | Only after validated Peer handback, Lead sends exactly one next-round `send_agent_prompt` specifying task, round, feedback, baseline and rejected candidate identities (commit or frozen snapshot/diff); preserves both. Diff comments are review input, not write authority; do not queue repair requests into an active turn. See [Peer handoff](agents/PEER.md#handoff--always-return) and [Lead acceptance](agents/LEAD.md#acceptance) |
-| Intervention | Only on an event (notification, Lead question, Human request), Supervisor may use `list_pending_permissions`, `respond_to_permission`, `cancel_agent`, `set_agent_mode`, then tells the owning Lead |
-| Loops / reset | Loops are counted in events, never time. Lead proposes reset from the same baseline and last frozen candidate identities (baseline if none), preserving frozen artifacts and authority. Human confirmation through Supervisor (directly if none) is required before stopping/archiving the old agent; confirm it can no longer write before replacement. Procedure: [context-reset skill](.agents/skills/context-reset/SKILL.md); rework cap: [rework-escalation skill](.agents/skills/rework-escalation/SKILL.md). See [Lead monitoring](agents/LEAD.md#monitoring) and [Supervisor reset](agents/SUPERVISOR.md#escalation-and-context-reset) |
+| Handoff | Peer ends its turn with the six-cell [handoff](agents/PEER.md#handoff--always-return); Lead reads it from the `finished` notification ([Lead monitoring](agents/LEAD.md#monitoring)) |
+| Review | Lead reads the exact candidate and evidence; complex/review tasks use the [Dual-Lane review skill](.agents/skills/dual-lane-review/SKILL.md) |
+| Rework | Same Peer, one next-round assignment after a validated handback ([Lead acceptance](agents/LEAD.md#acceptance)) |
+| Intervention | Supervisor acts only on an event and tells the owning Lead ([Supervisor](agents/SUPERVISOR.md#intervening-on-events)) |
+| Loops / reset | Counted in events, never time; reset needs Human confirmation ([context-reset](.agents/skills/context-reset/SKILL.md), [rework-escalation](.agents/skills/rework-escalation/SKILL.md)) |
 | Acceptance | Lead decides; Supervisor does not decide in their place |
 | Archiving | Supervisor archives the Lead when the Human confirms the project is closed |
 
-These are summaries of the role contracts, not a second policy source; only the Human changes
-these contracts. [Ownership](agents/LEAD.md#ownership) identifies commits by base/candidate SHA,
-branch and worktree; without commit permission, Git or a base commit, use deterministic
-baseline/candidate snapshots/diffs, each with checksum and path. Agree the baseline before writing,
-keep it across rework/reset, and preserve prior frozen candidates; SHA checks apply only to commits.
-The project's `WORKSPACE_PROTOCOL.md` owns Human-authorized provider/profile selection, family
-evidence and fallback (see the [Routing template](examples/WORKSPACE_PROTOCOL.md#routing)). Unknown
-family or no valid authorized pair means `BLOCKED`, never a one-lane downgrade or self-authorized
-model/effort change.
-
-There is no coordination desk, registry, ledger, patrol, timer, recurring schedule, or heartbeat.
-Lead reads Peer responses from the Paseo finish notification, or from `paseo agent logs` when it is truncated;
-idle/notification status does not prove that work is complete.
-Messages can steer a running turn; sending one does not prove the Peer stopped. Cancellation/reset
-requires lifecycle/tool evidence that the old turn and its write-capable commands/children can no
-longer write before opening a new writer. If that cannot be established, keep replacement blocked;
-do not add polling or heartbeat. See the [Lead cessation gate](agents/LEAD.md#monitoring).
+This table summarizes the role contracts; the [common contract](agents/contract/COMMON.md) and the
+role prompts own the rules (candidate identity, cessation gate, event-driven work). The project's
+`WORKSPACE_PROTOCOL.md` owns Human-authorized provider/profile selection
+(see the [Routing template](examples/WORKSPACE_PROTOCOL.md#routing)). There is no coordination desk,
+registry, ledger, patrol, timer, recurring schedule, or heartbeat.
 
 ## Codex runtime and resume
 
@@ -109,8 +97,9 @@ actual CWD, or live recovery checks.
   operating. Paseo >= 0.13.0 is required: earlier daemons could lose finish notifications across a
   restart, which the no-polling rule cannot recover from. Verified live on 0.13.0: a `finished`
   notification queued before a daemon restart is still delivered to the Lead afterwards; a Peer cut
-  mid-turn by the restart yields `was closed`, not `finished`, and its round must be reassigned. A
-  `send_agent_prompt` receipt only proves the prompt was queued.
+  mid-turn by the restart yields `was closed`, not `finished`, and its round must be reassigned;
+  archived agents stay out of `list_agents`. A `send_agent_prompt` receipt only proves the prompt
+  was queued.
 - Connected hosts (`paseo host add`) are opt-in per repository in `WORKSPACE_PROTOCOL.md` § Routing;
   the kit has not been verified live with a remote Peer.
 - `setup/codex-room` preserves private runtime data and canonical config, disables native

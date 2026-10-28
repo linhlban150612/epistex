@@ -17,7 +17,7 @@ provider does not inject the common contract and the selected role prompt
 3. Droid 0.247.0 reports `auto` ("Auto Model") with reasoning `none` only, and `gpt-6-luna`
    ("GPT-6 Luna") with `none`, `low`, `medium`, `high`, `xhigh`, `max`, upstream default `medium`
    (observed on 0.241.1; `~/.factory/settings.json` `reasoningEffort` overrides it). The seat
-   keeps Paseo's `off` id for Droid's `none`.   The seat's model list contains exactly the models in the table below.
+   keeps Paseo's `off` id for Droid's `none`. The seat's model list contains exactly the models in the table below.
 
 ## Configure Paseo
 

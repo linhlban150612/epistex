@@ -54,7 +54,7 @@ Supervisor opens a Lead in the project workspace and does not create a Peer.
 | Implementation | Lead defines scope and creates a Peer through Paseo; Peer is the sole writer |
 | Handoff | Peer ends its turn with the six-cell [handoff](agents/PEER.md#handoff--always-return); Lead reads it from the `finished` notification ([Lead monitoring](agents/LEAD.md#monitoring)) |
 | Review | Lead reads the exact candidate and evidence; complex/review tasks use the [Dual-Lane review skill](.agents/skills/dual-lane-review/SKILL.md) |
-| Rework | Same Peer, one next-round assignment after a validated handback ([Lead acceptance](agents/LEAD.md#acceptance)) |
+| Rework | Same Peer, one next-round assignment after a validated handback ([Lead acceptance](agents/LEAD.md#acceptance)); `REOPEN_REQUEST`/`DEPENDENCY_REQUEST` follow [handling-reopen](.agents/skills/handling-reopen/SKILL.md) |
 | Intervention | Supervisor acts only on an event and tells the owning Lead ([Supervisor](agents/SUPERVISOR.md#intervening-on-events)) |
 | Loops / reset | Counted in events, never time; reset needs Human confirmation ([context-reset](.agents/skills/context-reset/SKILL.md), [rework-escalation](.agents/skills/rework-escalation/SKILL.md)) |
 | Acceptance | Lead decides; Supervisor does not decide in their place |

@@ -48,8 +48,10 @@ routing does not prove that an old Supervisor in Paseo can resume.
 Codex custom skills live in `$CODEX_HOME/skills/`; in a role runtime that directory links to the
 canonical Codex home (see the tree above). The skill list does not survive a context compaction,
 so a Codex Lead re-reads `$CODEX_HOME/skills/` instead of relying on memory. The kit's Lead skills live in
-`.agents/skills/`: `dual-lane-review`, `context-reset`, `rework-escalation`. `LEAD.md` keeps the trigger and
-the core rules; each skill holds the detailed steps.
+`.agents/skills/`: `dual-lane-review`, `context-reset`, `rework-escalation`, `handling-reopen`. `LEAD.md` keeps the trigger and
+the core rules; each skill holds the detailed steps. They are not in `$CODEX_HOME/skills/`: install them into
+the project with `setup/setup-seats.sh --project <PROJECT>` (SETUP.md step 6), otherwise the Lead only reaches
+them by the path named in `WORKSPACE_PROTOCOL.md` and finds nothing.
 
 ### Environment variables and Seatworks compatibility
 
@@ -128,7 +130,7 @@ Không pin CWD của Supervisor bằng env: workspace `~/work/SUPERVISOR` để 
 | `setup/codex-room` | Select runtime/resume and generate Codex config |
 | `setup/setup-seats.sh`, `setup/normalize-profiles.jq`, `examples/paseo-providers.json` | Seat checker, profile normalizer and provider catalog |
 | `setup/check-handoff`, `setup/fail-on-base` | Mechanical gates for handoffs and reproducible-bug fixes |
-| `.agents/skills/*/SKILL.md` | Lead skills: Dual-Lane review, context reset, rework escalation |
+| `.agents/skills/*/SKILL.md` | Lead skills: Dual-Lane review, context reset, rework escalation, handling reopen/dependency requests; installed per project by `setup-seats.sh --project` |
 | `SETUP.md` | Setup entry point: common steps, Codex seats, live verification |
 | `docs/setup/*.md` | Backend-specific seats and context compaction |
 | `examples/AGENTS_MD_SNIPPET.md`, `examples/WORKSPACE_PROTOCOL.md`, `examples/target-repo/` | Contract/policy and verify templates for target repos |

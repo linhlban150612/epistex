@@ -24,10 +24,10 @@ class SetupSeatsTest(unittest.TestCase):
         self.bin = pathlib.Path(self.temporary.name) / "bin"
         self.bin.mkdir()
         self.kit = pathlib.Path(self.temporary.name) / "kit"
-        for directory in ("setup", "agents", ".pi", ".omp"):
+        for directory in ("setup", "agents", "examples", ".agents", ".pi", ".omp"):
             shutil.copytree(ROOT / directory, self.kit / directory)
         self.script = self.kit / "setup" / "setup-seats.sh"
-        for name in ("bash", "jq", "dirname", "wc", "chmod", "grep"):
+        for name in ("bash", "jq", "dirname", "wc", "chmod", "grep", "sort", "diff", "cp", "mkdir", "git"):
             target = shutil.which(name)
             if target is None:
                 raise RuntimeError(f"test prerequisite missing: {name}")
@@ -662,6 +662,106 @@ class SetupSeatsTest(unittest.TestCase):
 
     def test_unknown_argument_fails(self):
         self.assertEqual(self.run_check("--unknown").returncode, 2)
+        self.assertEqual(self.run_check("--check", "--project").returncode, 2)
+
+    def test_kit_skill_references_must_exist(self):
+        self.save()
+        self.assertEqual(self.run_check("--check").returncode, 0)
+        lead = self.kit / "agents/LEAD.md"
+        lead.write_text(lead.read_text() + "\nFollow `.agents/skills/ghost/SKILL.md`.\n")
+        result = self.run_check("--check")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(".agents/skills/ghost/SKILL.md: referenced by a prompt or template but missing", result.stderr)
+
+    def test_project_installs_and_checks_every_kit_skill(self):
+        self.save()
+        kit_skills = sorted(p.parent.name for p in self.kit.glob(".agents/skills/*/SKILL.md"))
+        self.assertIn("handling-reopen", kit_skills)
+        project = pathlib.Path(self.temporary.name) / "project"
+        project.mkdir()
+        subprocess.run(["git", "init", "-q", str(project)], check=True)
+        exclude = project / ".git/info/exclude"
+        shutil.copyfile(ROOT / "examples/WORKSPACE_PROTOCOL.md", project / "WORKSPACE_PROTOCOL.md")
+
+        result = self.run_check("--check", "--project", str(project))
+        self.assertNotEqual(result.returncode, 0)
+        for name in kit_skills:
+            self.assertIn(f"{project}: missing skill {name}", result.stderr)
+        self.assertIn("WORKSPACE_PROTOCOL.md names .agents/skills/handling-reopen/SKILL.md but it is not installed",
+                      result.stderr)
+        self.assertFalse((project / ".agents").exists(), "--check must not install")
+        self.assertNotIn("/.agents/skills/", exclude.read_text() if exclude.exists() else "")
+
+        result = self.run_check("--project", str(project))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(f"{len(kit_skills)} kit skills present in {project}/.agents/skills (ignored in Git)", result.stdout)
+        installed = sorted(p.parent.name for p in project.glob(".agents/skills/*/SKILL.md"))
+        self.assertEqual(installed, kit_skills)
+        for name in kit_skills:
+            self.assertEqual((project / ".agents/skills" / name / "SKILL.md").read_bytes(),
+                             (self.kit / ".agents/skills" / name / "SKILL.md").read_bytes())
+        self.assertEqual(exclude.read_text().count("/.agents/skills/\n"), 1)
+        status = subprocess.run(["git", "-C", str(project), "status", "--porcelain"], text=True,
+                                capture_output=True, check=True).stdout
+        self.assertNotIn(".agents", status, "installed skills must not show up as untracked files")
+        result = self.run_check("--check", "--project", str(project))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.run_check("--project", str(project)).returncode, 0)
+        self.assertEqual(exclude.read_text().count("/.agents/skills/\n"), 1, "exclude line is added once")
+
+        exclude.unlink()
+        result = self.run_check("--check", "--project", str(project))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(".agents/skills is neither tracked nor ignored", result.stderr)
+        subprocess.run(["git", "-C", str(project), "add", ".agents/skills"], check=True)
+        result = self.run_check("--project", str(project))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("(tracked in Git)", result.stdout)
+        self.assertFalse(exclude.exists(), "tracked skills are not added to the exclude file")
+        subprocess.run(["git", "-C", str(project), "rm", "-rq", "--cached", ".agents/skills"], check=True)
+        self.assertEqual(self.run_check("--project", str(project)).returncode, 0)
+
+        stale = project / ".agents/skills/handling-reopen/SKILL.md"
+        stale.write_text(stale.read_text() + "\nlocal edit\n")
+        result = self.run_check("--check", "--project", str(project))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(f"{project}: skill handling-reopen differs from the kit", result.stderr)
+        self.assertEqual(self.run_check("--project", str(project)).returncode, 0)
+        self.assertNotIn("local edit", stale.read_text())
+
+        (self.kit / ".agents/skills/new-skill").mkdir()
+        (self.kit / ".agents/skills/new-skill/SKILL.md").write_text("---\nname: new-skill\n---\n")
+        result = self.run_check("--check", "--project", str(project))
+        self.assertIn(f"{project}: missing skill new-skill", result.stderr)
+        self.assertEqual(self.run_check("--project", str(project)).returncode, 0)
+        self.assertTrue((project / ".agents/skills/new-skill/SKILL.md").is_file())
+
+        protocol = project / "WORKSPACE_PROTOCOL.md"
+        protocol.write_text(protocol.read_text() + "\n- also `.agents/skills/ghost/SKILL.md`\n")
+        result = self.run_check("--check", "--project", str(project))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("WORKSPACE_PROTOCOL.md names .agents/skills/ghost/SKILL.md but it is not installed", result.stderr)
+
+        result = self.run_check("--project", str(project / "missing"))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("project directory not found", result.stderr)
+
+        plain = pathlib.Path(self.temporary.name) / "plain"
+        plain.mkdir()
+        result = self.run_check("--project", str(plain))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("(untracked in Git)", result.stdout)
+        self.assertEqual(sorted(p.parent.name for p in plain.glob(".agents/skills/*/SKILL.md")),
+                         sorted(p.parent.name for p in self.kit.glob(".agents/skills/*/SKILL.md")))
+
+    def test_project_rejects_symlinked_skill_path(self):
+        self.save()
+        project = pathlib.Path(self.temporary.name) / "project"
+        (project / ".agents").mkdir(parents=True)
+        (project / ".agents/skills").symlink_to(self.kit / ".agents/skills")
+        result = self.run_check("--project", str(project))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("refusing to use symlinked skill path", result.stderr)
 
     def test_kiro_peer_requires_all_four_profiles_and_scoped_runtime(self):
         self.save()

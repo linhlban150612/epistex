@@ -118,9 +118,17 @@ output alone does not prove model, settings or role. Existing sessions retain th
 - Copy `examples/WORKSPACE_PROTOCOL.md` to `<PROJECT>/WORKSPACE_PROTOCOL.md`, then fill in the repo's own risk,
   authority, task class and review gate. This file is for Lead; Peer receives the necessary
   constraints through the task brief.
+- Install the Lead skills: `bash <KIT>/setup/setup-seats.sh --project <PROJECT>` copies every
+  `.agents/skills/*` of the kit into `<PROJECT>/.agents/skills/` (non-kit skills there are left alone) and adds
+  `/.agents/skills/` to `<PROJECT>/.git/info/exclude` unless the repository already tracks or ignores them.
+  Backends load skills only from the project's `.agents/skills/` or a user-wide skills directory, so without
+  this step the Lead cannot follow `dual-lane-review`, `context-reset`, `rework-escalation` or
+  `handling-reopen` and reports the missing procedure instead. Repeat after updating the kit;
+  `--check --project <PROJECT>` fails on a missing or stale skill, when `WORKSPACE_PROTOCOL.md` names
+  a skill that is not installed, or when the installed skills are neither tracked nor ignored.
 
-Before you commit the two files above, follow the target repo's hygiene rules. If the repo forbids persona/process
-documents, keep `WORKSPACE_PROTOCOL.md` local and ignored (or in a location the Human manages), and let
+Before you commit the files above, follow the target repo's hygiene rules. If the repo forbids persona/process
+documents, keep `WORKSPACE_PROTOCOL.md` local and ignored (`.git/info/exclude`, or a location the Human manages), and let
 `AGENTS.md` hold only product boundaries, invariants, canonical docs and durable verification.
 Do not create an evidence folder, review packet or status ledger in Git. Do not put repo-specific
 policy into a Paseo provider or the Peer prompt.
@@ -134,9 +142,10 @@ paseo reload
 bash <KIT>/setup/setup-seats.sh --check
 ```
 
-The script does not edit the global config; a run without `--check` only sets the executable bit (chmod is needed),
-and the runtime is prepared when Paseo starts the seat. `--check` fails if the config/provider is missing or has a
-wrong model, effort or tool permission; it needs Bash, jq, Python 3.11+, dirname, wc, grep and
+The script does not edit the global config; a run without `--check` only sets the executable bit (chmod is needed)
+and, with `--project <PROJECT>`, installs the kit skills into that project (step 6); the runtime is prepared when
+Paseo starts the seat. `--check` fails if the config/provider is missing or has a
+wrong model, effort or tool permission, or if a prompt or template names a skill the kit does not have; it needs Bash, jq, Python 3.11+, Git, dirname, wc, grep, sort, diff, cp, mkdir and
 `${CODEX_BIN:-codex}`, and does not need Paseo on PATH. `PASEO_HOME`/`PASEO_CONFIG` select a config at a non-default
 location; if you use `CODEX_BIN`, set the same value for the checker and the providers. A passing result
 does not prove auth, the daemon, model availability or a successful launch: those are steps 2 and 8.

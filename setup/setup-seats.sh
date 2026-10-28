@@ -6,16 +6,20 @@ kit=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
 paseo_config=${PASEO_CONFIG:-${PASEO_HOME:-$HOME/.paseo}/config.json}
 dry=0
 errs=0
+project=
 fail() { printf '  ! %s\n' "$*" >&2; errs=$((errs + 1)); }
+usage() { printf 'usage: %s [--check] [--project <path>]\n' "$0" >&2; exit 2; }
 
-for arg in "$@"; do
-  case "$arg" in
+while (( $# )); do
+  case "$1" in
     --check) dry=1 ;;
-    *) printf 'usage: %s [--check]\n' "$0" >&2; exit 2 ;;
+    --project) (( $# >= 2 )) || usage; project=$2; shift ;;
+    *) usage ;;
   esac
+  shift
 done
 
-for name in bash jq python3 dirname wc grep; do
+for name in bash jq python3 dirname wc grep sort diff cp mkdir git; do
   command -v "$name" >/dev/null || fail "need $name on PATH"
 done
 (( errs == 0 )) || exit 1
@@ -27,6 +31,59 @@ for seat in LEAD PEER SUPERVISOR; do
   PYTHONDONTWRITEBYTECODE=1 python3 "$kit/setup/role_prompt.py" "$seat" >/dev/null \
     || fail "$seat: common contract and role prompt must load within 16 KiB combined"
 done
+
+# Backends load skills only from the project's .agents/skills/ (or a user-wide skills directory),
+# so every skill the prompts and templates name must exist in the kit and be installed per project.
+kit_skills=("$kit"/.agents/skills/*/SKILL.md)
+[[ -f "${kit_skills[0]}" ]] || fail 'no Lead skills under .agents/skills/'
+while IFS= read -r path; do
+  [[ -f "$kit/$path" ]] || fail "$path: referenced by a prompt or template but missing from the kit"
+done < <(grep -rhoE '\.agents/skills/[A-Za-z0-9_-]+/SKILL\.md' "$kit/agents" "$kit/examples" | sort -u)
+
+if [[ -n "$project" ]]; then
+  if [[ ! -d "$project" ]]; then
+    fail "project directory not found: $project"
+  else
+    project=$(cd -- "$project" && pwd -P)
+    for skill in "${kit_skills[@]}"; do
+      name=${skill%/SKILL.md}; name=${name##*/}
+      source="$kit/.agents/skills/$name"; target="$project/.agents/skills/$name"
+      if [[ -L "$target" || -L "$project/.agents/skills" || -L "$project/.agents" ]]; then
+        fail "$project: refusing to use symlinked skill path for $name"
+        continue
+      fi
+      if (( dry == 0 )); then
+        mkdir -p "$target" && cp -R "$source/." "$target/"
+      fi
+      if [[ ! -f "$target/SKILL.md" ]]; then
+        fail "$project: missing skill $name; run without --check to install it"
+      elif ! diff -rq "$source" "$target" >/dev/null; then
+        fail "$project: skill $name differs from the kit; run without --check to refresh it"
+      fi
+    done
+    if [[ -f "$project/WORKSPACE_PROTOCOL.md" ]]; then
+      while IFS= read -r path; do
+        [[ -f "$project/$path" ]] || fail "$project: WORKSPACE_PROTOCOL.md names $path but it is not installed"
+      done < <(grep -oE '\.agents/skills/[A-Za-z0-9_-]+/SKILL\.md' "$project/WORKSPACE_PROTOCOL.md" | sort -u)
+    fi
+    # Installed skills are process documents: keep them out of the target repository unless the
+    # Human already tracks them. The repository-local exclude file never changes tracked files.
+    skills_git=untracked
+    if exclude=$(cd -- "$project" && git rev-parse --git-path info/exclude 2>/dev/null); then
+      [[ "$exclude" == /* ]] || exclude="$project/$exclude"
+      probe=${kit_skills[0]%/SKILL.md}; probe=".agents/skills/${probe##*/}/SKILL.md"
+      if git -C "$project" ls-files --error-unmatch .agents/skills >/dev/null 2>&1; then
+        skills_git=tracked
+      elif [[ -f "$project/$probe" ]] && git -C "$project" check-ignore -q "$probe"; then
+        skills_git=ignored
+      elif (( dry == 0 )); then
+        mkdir -p "${exclude%/*}" && printf '/.agents/skills/\n' >> "$exclude" && skills_git=ignored
+      else
+        fail "$project: .agents/skills is neither tracked nor ignored; run without --check to add it to $exclude"
+      fi
+    fi
+  fi
+fi
 
 for name in codex-room role-agent kiro-acp claude-sdk devin-acp copilot-acp cursor-acp; do
   wrapper="$kit/setup/$name"
@@ -363,4 +420,7 @@ PY
 fi
 
 (( errs == 0 )) || { printf '! %s error(s) — setup is not ready.\n' "$errs" >&2; exit 1; }
+if [[ -n "$project" ]]; then
+  printf '✓ %s kit skills present in %s/.agents/skills (%s in Git)\n' "${#kit_skills[@]}" "$project" "$skills_git"
+fi
 printf '✓ static kit/provider check passed; auth, daemon and launch not checked\nAfter changing providers: reload with the Paseo CLI and verify launch per SETUP.md\n'

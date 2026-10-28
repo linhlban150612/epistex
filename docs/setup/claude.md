@@ -42,9 +42,13 @@ thêm prompt role vào `request.appendSystemPrompt` của bản tin `control_req
 giữ nguyên system prompt, append text và các field khác của SDK. Flag CLI
 `--append-system-prompt` đơn lẻ không đủ: field `appendSystemPrompt` trong `initialize` thay flag đó.
 Một field trong `initialize` chỉ thay flag CLI tương ứng; flag không có field tương ứng vẫn có hiệu lực.
-Paseo 0.11.4 gửi `initialize` với `hooks`, `appendSystemPrompt`, `forwardSubagentText`,
-`perTaskStopAffordance`, và tự đặt `--model`, `--effort`, `--permission-mode`, `--setting-sources`;
-không thêm các flag đó vào `command`. `claude-sdk` thêm `--disallowed-tools` cho `Agent`, `Task`,
+Paseo 0.13.2 (Claude Agent SDK 0.3.246) gửi `initialize` với `hooks`, `appendSystemPrompt`,
+`forwardSubagentText`, `perTaskStopAffordance`, và tự đặt `--model`, `--effort`, `--thinking`,
+`--thinking-display`, `--permission-mode`, `--permission-prompt-tool stdio`, `--setting-sources`,
+`--allow-dangerously-skip-permissions`, `--include-partial-messages`; không thêm các flag đó vào
+`command`. Vì `--allow-dangerously-skip-permissions` luôn có, `set_agent_mode` có thể chuyển một
+seat đang chạy sang `bypassPermissions`. Paseo chỉ thêm `--disallowedTools` khi runtime settings có
+tool bị chặn; launch thường không có. `claude-sdk` thêm `--disallowed-tools` cho `Agent`, `Task`,
 `Workflow`, `CronCreate`, `CronDelete`, `CronList`, `ScheduleWakeup`, `RemoteTrigger`: Paseo quản lý
 topology và seat không tạo schedule/heartbeat. Kiểm danh sách tool bằng launch thật.
 

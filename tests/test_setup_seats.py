@@ -433,6 +433,39 @@ class SetupSeatsTest(unittest.TestCase):
                         settings.unlink()
                     settings.write_text('{"compactionTokenLimit": 100000}')
 
+    def test_droid_fallback_peer_seat_is_checked_like_droid_peer(self):
+        providers = self.data["agents"]["providers"]
+        home = pathlib.Path(self.temporary.name) / "droid-home" / "peer-2"
+        (home / ".factory").mkdir(parents=True)
+        (home / ".factory/settings.json").write_text('{"compactionTokenLimit": 100000}')
+        providers["droid-peer-2"] = dict(copy.deepcopy(providers["droid-peer"]), label="Factory Droid Peer Seat 2",
+                                         env={"FACTORY_API_KEY": "fk-peer-2", "FACTORY_HOME_OVERRIDE": str(home)})
+        self.data["daemon"]["agentProfiles"] += [
+            dict(p, id="droid-peer-2--" + p["id"].removeprefix("droid-peer--"), provider="droid-peer-2")
+            for p in self.data["daemon"]["agentProfiles"] if p["provider"] == "droid-peer"]
+        with self.subTest("fallback seat with own key and home"):
+            result = self.check_config(self.data)
+            self.assertEqual(result.returncode, 0, result.stderr)
+        cases = (
+            ("fallback without key", lambda d: d["agents"]["providers"]["droid-peer-2"].__setitem__("env", {}),
+             "droid-peer-2: wrong launcher, tools, env or model/effort"),
+            ("fallback with Lead role", lambda d: d["agents"]["providers"]["droid-peer-2"]["command"].__setitem__(1, "lead"),
+             "droid-peer-2: wrong launcher, tools, env or model/effort"),
+            ("fallback profile missing", lambda d: d["daemon"]["agentProfiles"].remove(
+                next(p for p in d["daemon"]["agentProfiles"] if p["id"] == "droid-peer-2--kimi-k3--high")),
+             "droid-peer-2: missing or wrong supported model/effort profile"),
+            ("fallback shares home", lambda d: d["agents"]["providers"]["droid-lead"].__setitem__(
+                "env", {"FACTORY_API_KEY": "fk-lead", "FACTORY_HOME_OVERRIDE": str(home)}),
+             "droid seats: each FACTORY_HOME_OVERRIDE must be unique"),
+        )
+        for name, mutate, expected in cases:
+            with self.subTest(name):
+                data = copy.deepcopy(self.data)
+                mutate(data)
+                result = self.check_config(data)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(expected, result.stderr)
+
     def test_profile_normalization_preserves_catalog_launch_settings_and_foreign_profiles(self):
         profiles = self.data["daemon"]["agentProfiles"]
         profiles[0]["featureValues"] = {"example_feature": False}

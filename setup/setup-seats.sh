@@ -307,7 +307,7 @@ else
     (.FACTORY_API_KEY | type == "string" and startswith("fk-")) and
     (.FACTORY_HOME_OVERRIDE | type == "string" and startswith("/")))'
   droid_homes=$(jq -r '[.agents.providers | to_entries[] |
-    select((.key | test("^droid-(peer|lead|supervisor)$")) and .value.enabled == true) |
+    select((.key | test("^droid-(peer(-[0-9]+)?|lead|supervisor)$")) and .value.enabled == true) |
     .value.env.FACTORY_HOME_OVERRIDE? | strings] | if length == (unique | length) then .[] else "DUPLICATE" end' "$paseo_config")
   while IFS= read -r home; do
     [[ -n "$home" ]] || continue
@@ -396,7 +396,10 @@ source, installed = map(pathlib.Path, sys.argv[1:])
 sys.exit(installed.is_symlink() or not installed.is_file() or installed.read_bytes() != source.read_bytes())
 PY
   done
-  if jq -e '.agents.providers["droid-peer"].enabled == true' "$paseo_config" >/dev/null; then
+  # droid-peer-N: fallback Peer seats, each with its own key and home (no stored login).
+  droid_peers=$(jq -r '.agents.providers | to_entries[] |
+    select((.key | test("^droid-peer(-[0-9]+)?$")) and .value.enabled == true) | .key' "$paseo_config")
+  for seat in $droid_peers; do
     # Requested efforts advertised by Droid ACP, not generic Paseo metadata.
     droid_efforts='{
       "gemini-4-argon":["low","medium"], "gemini-3.8-flash":["low","medium"],
@@ -405,11 +408,13 @@ PY
       "glm-5.3-flash":["low","high"], "glm-5.3":["low","high"],
       "kimi-k3":["low","high"], "deepseek-v4.1-flash":["low","high"]
     }'
-    jq -e --arg command "$kit/setup/role-agent" --argjson efforts "$droid_efforts" '
-      .agents.providers["droid-peer"] |
-      .extends == "acp" and .label == "Factory Droid Peer Seat" and
+    jq -e --arg command "$kit/setup/role-agent" --argjson efforts "$droid_efforts" --arg seat "$seat" '
+      .agents.providers[$seat] |
+      .extends == "acp" and
+      .label == ("Factory Droid Peer Seat" + ($seat | ltrimstr("droid-peer") | sub("^-";" "))) and
       .command == [$command,"peer","droid"] and
       .paseoTools.enabled == false and ('"$droid_env"') and
+      ($seat == "droid-peer" or .env != {}) and
       ([.models[].id] | sort) == ((["gpt-6-luna"] + ($efforts | keys)) | sort) and
       [.models[] | select(.isDefault == true) | .id] == ["gpt-6-luna"] and
       all(.models[]; . as $model |
@@ -418,23 +423,23 @@ PY
           (if .id == "gpt-6-luna" then ["off","low","medium","high","xhigh","max"] | sort
            else $efforts[$model.id] | sort end) and
         [.thinkingOptions[] | select(.isDefault == true) | .id] == ["low"])
-    ' "$paseo_config" >/dev/null || fail 'droid-peer: wrong launcher, tools, env or model/effort'
+    ' "$paseo_config" >/dev/null || fail "$seat: wrong launcher, tools, env or model/effort"
     for effort in low medium; do
-      jq -e --arg effort "$effort" '
-        [.daemon.agentProfiles[]? | select(.id == ("droid-peer--gpt-6-luna--" + $effort))] |
-        length == 1 and all(.[]; .provider == "droid-peer" and .model == "gpt-6-luna" and .thinkingOptionId == $effort)
-      ' "$paseo_config" >/dev/null || fail "droid-peer: missing or wrong GPT-6 Luna $effort profile"
+      jq -e --arg effort "$effort" --arg seat "$seat" '
+        [.daemon.agentProfiles[]? | select(.id == ($seat + "--gpt-6-luna--" + $effort))] |
+        length == 1 and all(.[]; .provider == $seat and .model == "gpt-6-luna" and .thinkingOptionId == $effort)
+      ' "$paseo_config" >/dev/null || fail "$seat: missing or wrong GPT-6 Luna $effort profile"
     done
-    jq -e --argjson efforts "$droid_efforts" '
+    jq -e --argjson efforts "$droid_efforts" --arg seat "$seat" '
       . as $config |
       all($efforts | to_entries[]; . as $entry |
         all(.value[]; . as $effort |
           [$config.daemon.agentProfiles[]? |
-            select(.id == ("droid-peer--" + ($entry.key | gsub("\\.";"-")) + "--" + $effort))] |
-          length == 1 and all(.[]; .provider == "droid-peer" and
+            select(.id == ($seat + "--" + ($entry.key | gsub("\\.";"-")) + "--" + $effort))] |
+          length == 1 and all(.[]; .provider == $seat and
             .model == $entry.key and .thinkingOptionId == $effort)))
-    ' "$paseo_config" >/dev/null || fail 'droid-peer: missing or wrong supported model/effort profile'
-  fi
+    ' "$paseo_config" >/dev/null || fail "$seat: missing or wrong supported model/effort profile"
+  done
   jq -e '
     [.daemon.agentProfiles[]? as $p |
       .agents.providers[$p.provider] as $seat |

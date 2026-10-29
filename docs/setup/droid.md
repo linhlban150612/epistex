@@ -143,6 +143,24 @@ where no stored login exists.
    Repeat with `lead` and `supervisor`.
 3. Run `paseo reload`, `setup-seats.sh --check` and one Paseo launch per seat.
 
+### Fallback Peer seats
+
+Droid reads one `FACTORY_API_KEY` per process, so a key cannot fail over inside a running session.
+Sessions are organization-scoped, so a session started with one key cannot resume with another.
+For more Peer keys, add seats `droid-peer-2`, `droid-peer-3`, and so on. Each one is a copy of
+`droid-peer` with:
+
+- label `Factory Droid Peer Seat N`;
+- its own `FACTORY_API_KEY` and its own `FACTORY_HOME_OVERRIDE` (for example
+  `~/.local/state/epistex/droid/peer-N`, prepared as in step 1); `env` must not be `{}`;
+- a copy of each `droid-peer--*` profile with the ID prefix `droid-peer-N--` and provider
+  `droid-peer-N`. Add these profiles only when the seat is enabled: the checker rejects profiles of
+  a disabled seat.
+
+`setup-seats.sh --check` applies the `droid-peer` checks to every enabled `droid-peer-N` seat. When
+one key has no quota, the Lead starts a new Peer on the next seat. The new Peer does not get the
+old session's context.
+
 Rollback: restore the backup, run `paseo reload`, then remove `~/.local/state/epistex/droid`
 when you no longer need its session history. `~/.factory` is not changed.
 

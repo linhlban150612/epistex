@@ -83,7 +83,8 @@ Refer to Authority in `AGENTS.md`; record only additional coordination decisions
 - Supervisor startup context: use [the Lead initial prompt template](LEAD_INITIAL_PROMPT.md)
   to separate outcomes, verified constraints, open assumptions and decision authority.
 - Connected hosts (Paseo `paseo host add`, 0.13.0+): `disabled` by default. Only when the Human
-  sets `enabled` here may the Lead create a Peer on another host. Then the Peer must deliver the
+  sets `enabled` here, with the host's `serverId` (Lead has no `list_hosts`), may the Lead create a
+  Peer on that host. Then the Peer must deliver the
   candidate where the Lead can read it (pushed ref the Lead may fetch, or snapshot with checksum),
   the handoff and the brief record the Paseo `serverId`, and a `host unreachable` /
   `host removed` notification is `BLOCKED`, never done.

@@ -69,7 +69,8 @@
             "start_workspace_script",
             "stop_workspace_script",
             "update_agent",
-            "update_schedule"
+            "update_schedule",
+            "list_hosts"
           ]
         },
         "models": [
@@ -126,6 +127,23 @@
           {
             "id": "gpt-6.1-sol",
             "label": "GPT-6.1 Sol",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "gpt-6.1-terra",
+            "label": "GPT-6.1 Terra",
             "isDefault": false,
             "thinkingOptions": [
               {
@@ -491,7 +509,8 @@
             "start_workspace_script",
             "stop_workspace_script",
             "update_agent",
-            "update_schedule"
+            "update_schedule",
+            "list_hosts"
           ]
         },
         "models": [
@@ -672,7 +691,8 @@
             "start_workspace_script",
             "stop_workspace_script",
             "update_agent",
-            "update_schedule"
+            "update_schedule",
+            "list_hosts"
           ]
         },
         "enabled": true
@@ -1314,7 +1334,8 @@
             "start_workspace_script",
             "stop_workspace_script",
             "update_agent",
-            "update_schedule"
+            "update_schedule",
+            "list_hosts"
           ]
         },
         "models": [
@@ -1454,7 +1475,8 @@
             "start_workspace_script",
             "stop_workspace_script",
             "update_agent",
-            "update_schedule"
+            "update_schedule",
+            "list_hosts"
           ]
         },
         "models": [
@@ -1533,7 +1555,8 @@
             "start_workspace_script",
             "stop_workspace_script",
             "update_agent",
-            "update_schedule"
+            "update_schedule",
+            "list_hosts"
           ]
         },
         "models": [
@@ -2121,6 +2144,24 @@
         "name": "codex-peer · gpt-6.1-sol · medium",
         "provider": "codex-peer",
         "model": "gpt-6.1-sol",
+        "modeId": "auto-review",
+        "thinkingOptionId": "medium",
+        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
+      },
+      {
+        "id": "codex-peer--gpt-6-1-terra--low",
+        "name": "codex-peer · gpt-6.1-terra · low",
+        "provider": "codex-peer",
+        "model": "gpt-6.1-terra",
+        "modeId": "auto-review",
+        "thinkingOptionId": "low",
+        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
+      },
+      {
+        "id": "codex-peer--gpt-6-1-terra--medium",
+        "name": "codex-peer · gpt-6.1-terra · medium",
+        "provider": "codex-peer",
+        "model": "gpt-6.1-terra",
         "modeId": "auto-review",
         "thinkingOptionId": "medium",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."

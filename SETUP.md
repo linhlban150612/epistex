@@ -61,13 +61,13 @@ use `injectIntoProviders`; that field is not the current provider policy mechani
 Lead uses `paseoTools.disabledTools` to block the catalog and keeps exactly 11 tools:
 `list_workspaces`, `list_providers`, `list_models`, `list_profiles`, `create_agent`, `send_agent_prompt`,
 `cancel_agent`, `archive_agent`,
-`list_pending_permissions`, `respond_to_permission`, `set_agent_mode`. Supervisor also keeps `create_workspace`, `get_agent_activity`, `get_agent_status` and `list_agents` (15 tools kept; 46 blocked), while Lead keeps 11 tools (50 blocked). Lead does not have `get_agent_activity`, `get_agent_status` and `list_agents`, so Lead waits for notifications instead of polling or reading the Peer timeline. Kiro Supervisor/Lead and Droid Lead use the same policy.
+`list_pending_permissions`, `respond_to_permission`, `set_agent_mode`. Supervisor also keeps `create_workspace`, `get_agent_activity`, `get_agent_status`, `list_agents` and `list_hosts` (16 tools kept; 46 blocked), while Lead keeps 11 tools (51 blocked). Lead does not have `get_agent_activity`, `get_agent_status` and `list_agents`, so Lead waits for notifications instead of polling or reading the Peer timeline; nor `list_hosts`, so Lead does not discover connected hosts. Kiro Supervisor/Lead and Droid Lead use the same policy.
 Lead runs without approval waits: Lead profiles use a bypass mode (`claude-lead` `bypassPermissions`, `agy-lead` `yolo`, `droid-lead` `auto-high`, `codex-lead` `full-access`: approval `never`, sandbox `danger-full-access`); `kiro-lead` auto-approves through agent `permissions.rules` (V3). `amp-lead` uses `local`: amp-acp has no bypass mode.
 Codex Peer profiles use `modeId: auto-review` ([why](docs/setup/codex-runtime.md#peer-sandbox-and-worktrees)); `setup-seats.sh --check` rejects `codex-peer` profiles without it. Claude Peer profiles use `modeId: bypassPermissions`: `acceptEdits` stops a non-interactive Peer on its first Bash permission request; `--check` rejects other modes.
-Groups blocked for Lead: 11 schedule/heartbeat, 22 browser, 5 terminal, 12 workspace/agent/provider;
+Groups blocked for Lead: 11 schedule/heartbeat, 22 browser, 5 terminal, 13 workspace/agent/provider/host;
 for Supervisor the workspace/agent/provider group is down to 8 (see the list in the
 [provider example](examples/paseo-providers.json)). Paseo >= 0.13.0 is required (reason: [known limitations](README.md#cautions-and-known-limitations)); the daemon and CLI must be the same version.
-`speak` cannot be blocked and is outside the catalog. A test pins the 61-name catalog to force a review
+`speak` cannot be blocked and is outside the catalog. A test pins the 62-name catalog to force a review
 when Paseo is upgraded. The `--check` script confirms the exact deny-list on every enabled provider.
 
 ## 4. Merge provider seats
@@ -80,7 +80,7 @@ operational `daemon.agentProfiles` list. Do not replace the whole file: keep oth
 merging: replace `<KIT>` with the absolute path to `epistex`; if you need to pin the project, add an absolute
 `env.EPISTEX_PROJECT_ROOT`; delete `_doc`; confirm model IDs with
 `paseo provider diagnostic codex --json` or provider discovery. The example selects Lead `gpt-6.1-sol` and
-Peer `gpt-6-luna`, default effort `low`. `command` must keep the correct role, `lead` or `peer`.
+Peer `gpt-6-luna` (Peer also offers `gpt-6.1-sol` and `gpt-6.1-terra`, low/medium), default effort `low`. `command` must keep the correct role, `lead` or `peer`.
 
 ## 5. Paseo agent profiles
 

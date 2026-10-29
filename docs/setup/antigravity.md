@@ -28,7 +28,7 @@ The server lists the ACP `session/new` cwd as a workspace but runs shell command
 
 ## Lead seat
 
-`agy-lead` invokes `setup/role-agent lead agy`, so every session's first prompt carries `agents/contract/COMMON.md` followed by `agents/LEAD.md`. It enables Paseo tools with the same 50-tool `disabledTools` deny-list as every other `*-lead` seat; `setup-seats.sh --check` enforces the exact list. It also requires `daemon.mcp.injectIntoAgents`.
+`agy-lead` invokes `setup/role-agent lead agy`, so every session's first prompt carries `agents/contract/COMMON.md` followed by `agents/LEAD.md`. It enables Paseo tools with the same 51-tool `disabledTools` deny-list as every other `*-lead` seat; `setup-seats.sh --check` enforces the exact list. It also requires `daemon.mcp.injectIntoAgents`.
 
 `agy-lead` runs in `yolo` mode, so no tool call prompts; a real Paseo launch confirmed this.
 

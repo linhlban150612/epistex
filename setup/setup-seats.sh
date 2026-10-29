@@ -127,9 +127,9 @@ else
       + ["claude-peer"]) | unique[]
   ' "$paseo_config")
 
-  expected_deny_lead='["archive_workspace","browser_back","browser_click","browser_close_tab","browser_drag","browser_evaluate","browser_fill","browser_forward","browser_hover","browser_keypress","browser_list_tabs","browser_logs","browser_navigate","browser_new_tab","browser_reload","browser_resize","browser_screenshot","browser_scroll","browser_select","browser_snapshot","browser_type","browser_upload","browser_wait","capture_terminal","create_heartbeat","create_schedule","create_terminal","create_workspace","delete_heartbeat","delete_schedule","get_agent_activity","get_agent_status","inspect_provider","inspect_schedule","kill_agent","kill_terminal","list_agents","list_schedules","list_terminals","list_workspace_scripts","pause_schedule","rename_workspace","resume_schedule","run_schedule_once","schedule_logs","send_terminal_keys","start_workspace_script","stop_workspace_script","update_agent","update_schedule"]'
+  expected_deny_lead='["archive_workspace","browser_back","browser_click","browser_close_tab","browser_drag","browser_evaluate","browser_fill","browser_forward","browser_hover","browser_keypress","browser_list_tabs","browser_logs","browser_navigate","browser_new_tab","browser_reload","browser_resize","browser_screenshot","browser_scroll","browser_select","browser_snapshot","browser_type","browser_upload","browser_wait","capture_terminal","create_heartbeat","create_schedule","create_terminal","create_workspace","delete_heartbeat","delete_schedule","get_agent_activity","get_agent_status","inspect_provider","inspect_schedule","kill_agent","kill_terminal","list_agents","list_hosts","list_schedules","list_terminals","list_workspace_scripts","pause_schedule","rename_workspace","resume_schedule","run_schedule_once","schedule_logs","send_terminal_keys","start_workspace_script","stop_workspace_script","update_agent","update_schedule"]'
   # Lead waits for notifications, so it has no status, list or activity tools to poll with. Supervisor keeps them.
-  expected_deny_supervisor=$(jq -c 'map(select(. != "create_workspace" and . != "get_agent_activity" and . != "get_agent_status" and . != "list_agents"))' <<<"$expected_deny_lead")
+  expected_deny_supervisor=$(jq -c 'map(select(. != "create_workspace" and . != "get_agent_activity" and . != "get_agent_status" and . != "list_agents" and . != "list_hosts"))' <<<"$expected_deny_lead")
 
   while IFS= read -r provider; do
     [[ -n "$provider" ]] || continue
@@ -169,7 +169,7 @@ else
     [[ "$seat" != peer ]] || model=gpt-6-luna
     jq -e --arg key "codex-$seat" --arg role "$seat" \
       --arg command "$kit/setup/codex-room" --arg model "$model" '
-      .agents.providers[$key] |
+      .agents.providers[$key] | .models as $models |
       .extends == "codex" and .enabled == true and
       .command == [$command, $role] and
       .paseoTools.enabled == ($role == "lead") and
@@ -177,7 +177,8 @@ else
       any(.models[]; .id == $model and .isDefault == ($role == "lead" or $model == "gpt-6-luna") and
         (if $role == "lead" then ([.thinkingOptions[] | select(.isDefault == true) | .id] == ["low"])
          else ([.thinkingOptions[].id] | sort) == ["low","medium"] end)) and
-      (if $role == "peer" then any(.models[]; .id == "gpt-6.1-sol" and .isDefault != true and ([.thinkingOptions[].id] | sort) == ["low","medium"]) else true end)
+      (if $role == "peer" then all("gpt-6.1-sol", "gpt-6.1-terra"; . as $m |
+        any($models[]; .id == $m and .isDefault != true and ([.thinkingOptions[].id] | sort) == ["low","medium"])) else true end)
     ' "$paseo_config" >/dev/null || fail "codex-$seat: wrong wrapper, tool permissions or model/effort"
   done
   jq -e '.agents.providers["codex-lead"].models[] | select(.id == "gpt-6.1-sol") |
@@ -196,6 +197,11 @@ else
       length == 1 and all(.[]; .provider == "codex-peer" and .model == "gpt-6-luna" and
         .thinkingOptionId == $effort and .modeId == "auto-review")
     ' "$paseo_config" >/dev/null || fail "codex-peer: missing or wrong gpt-6-luna $effort profile (modeId must be auto-review)"
+    jq -e --arg effort "$effort" '
+      [.daemon.agentProfiles[]? | select(.id == ("codex-peer--gpt-6-1-terra--" + $effort))] |
+      length == 1 and all(.[]; .provider == "codex-peer" and .model == "gpt-6.1-terra" and
+        .thinkingOptionId == $effort and .modeId == "auto-review")
+    ' "$paseo_config" >/dev/null || fail "codex-peer: missing or wrong gpt-6.1-terra $effort profile (modeId must be auto-review)"
   done
   # acceptEdits and default stop a non-interactive Claude Peer on its first Bash permission request.
   jq -e 'all(.daemon.agentProfiles[]? | select(.provider == "claude-peer"); .modeId == "bypassPermissions")

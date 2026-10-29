@@ -11,9 +11,9 @@ from collections import Counter
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "setup" / "setup-seats.sh"
-CATALOG = set("""archive_agent archive_workspace browser_back browser_click browser_close_tab browser_drag browser_evaluate browser_fill browser_forward browser_hover browser_keypress browser_list_tabs browser_logs browser_navigate browser_new_tab browser_reload browser_resize browser_screenshot browser_scroll browser_select browser_snapshot browser_type browser_upload browser_wait cancel_agent capture_terminal create_agent create_heartbeat create_schedule create_terminal create_workspace delete_heartbeat delete_schedule get_agent_activity get_agent_status inspect_provider inspect_schedule kill_agent kill_terminal list_agents list_models list_pending_permissions list_profiles list_providers list_schedules list_terminals list_workspace_scripts list_workspaces pause_schedule rename_workspace respond_to_permission resume_schedule run_schedule_once schedule_logs send_agent_prompt send_terminal_keys set_agent_mode start_workspace_script stop_workspace_script update_agent update_schedule""".split())
+CATALOG = set("""archive_agent archive_workspace browser_back browser_click browser_close_tab browser_drag browser_evaluate browser_fill browser_forward browser_hover browser_keypress browser_list_tabs browser_logs browser_navigate browser_new_tab browser_reload browser_resize browser_screenshot browser_scroll browser_select browser_snapshot browser_type browser_upload browser_wait cancel_agent capture_terminal create_agent create_heartbeat create_schedule create_terminal create_workspace delete_heartbeat delete_schedule get_agent_activity get_agent_status inspect_provider inspect_schedule kill_agent kill_terminal list_agents list_hosts list_models list_pending_permissions list_profiles list_providers list_schedules list_terminals list_workspace_scripts list_workspaces pause_schedule rename_workspace respond_to_permission resume_schedule run_schedule_once schedule_logs send_agent_prompt send_terminal_keys set_agent_mode start_workspace_script stop_workspace_script update_agent update_schedule""".split())
 KEEP_LEAD = set("""list_workspaces list_providers list_models list_profiles create_agent send_agent_prompt cancel_agent archive_agent list_pending_permissions respond_to_permission set_agent_mode""".split())
-KEEP_SUPERVISOR = KEEP_LEAD | {"create_workspace", "get_agent_activity", "get_agent_status", "list_agents"}
+KEEP_SUPERVISOR = KEEP_LEAD | {"create_workspace", "get_agent_activity", "get_agent_status", "list_agents", "list_hosts"}
 DENY_LEAD = CATALOG - KEEP_LEAD
 DENY_SUPERVISOR = CATALOG - KEEP_SUPERVISOR
 
@@ -81,8 +81,8 @@ class SetupSeatsTest(unittest.TestCase):
         return self.run_check("--check")
 
     def test_example_catalog_passes_without_changing_files(self):
-        self.assertEqual((len(CATALOG), len(KEEP_LEAD), len(DENY_LEAD)), (61, 11, 50))
-        self.assertEqual((len(KEEP_SUPERVISOR), len(DENY_SUPERVISOR)), (15, 46))
+        self.assertEqual((len(CATALOG), len(KEEP_LEAD), len(DENY_LEAD)), (62, 11, 51))
+        self.assertEqual((len(KEEP_SUPERVISOR), len(DENY_SUPERVISOR)), (16, 46))
         match = re.search(r"expected_deny_lead='(\[.*?\])'", SCRIPT.read_text())
         self.assertIsNotNone(match, "checker deny-list constant not found")
         self.assertEqual(set(json.loads(match.group(1))), DENY_LEAD)
@@ -184,6 +184,10 @@ class SetupSeatsTest(unittest.TestCase):
              "codex-lead: missing or wrong gpt-6.1-sol low profile"),
             ("codex peer read-only", lambda d: profile(d, "codex-peer--gpt-6-luna--medium").__setitem__("modeId", "auto"),
              "codex-peer: missing or wrong gpt-6-luna medium profile"),
+            ("codex peer Terra read-only", lambda d: profile(d, "codex-peer--gpt-6-1-terra--low").__setitem__("modeId", "auto"),
+             "codex-peer: missing or wrong gpt-6.1-terra low profile"),
+            ("codex peer without Terra", lambda d: seat(d, "codex-peer").__setitem__("models", [m for m in seat(d, "codex-peer")["models"] if m["id"] != "gpt-6.1-terra"]),
+             "codex-peer: wrong wrapper"),
             ("claude peer acceptEdits", lambda d: profile(d, "claude-peer--claude-opus-5-5--medium").__setitem__(
                 "modeId", "acceptEdits"), "claude-peer: every profile needs modeId bypassPermissions"),
             # Pi and OMP seats

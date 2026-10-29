@@ -301,25 +301,51 @@ else
       ' "$paseo_config" >/dev/null || fail "$seat: missing or wrong swe-2-high profile"
     done
   fi
-  if jq -e '.agents.providers["droid-lead"].enabled == true' "$paseo_config" >/dev/null; then
-    jq -e --arg command "$kit/setup/role-agent" '
-      .agents.providers["droid-lead"] |
-      .extends == "acp" and .command == [$command,"lead","droid"] and
-      .paseoTools.enabled == true and .env == {} and
-      ([.models[].id] | sort) == ["claude-opus-5-5","claude-sonnet-5-5","gemini-4-argon","gpt-6.1-sol"] and
-      all(.models[]; ([.thinkingOptions[].id] | sort) == ["low","medium"])
-    ' "$paseo_config" >/dev/null || fail 'droid-lead: wrong launcher, tools or model/effort'
+  # Droid env is empty (stored login) or a per-seat key plus its own Droid home: Droid 0.251.0
+  # rejects sessions when a key and the stored login in ~/.factory belong to different orgs.
+  droid_env='.env == {} or (.env | keys == ["FACTORY_API_KEY","FACTORY_HOME_OVERRIDE"] and
+    (.FACTORY_API_KEY | type == "string" and startswith("fk-")) and
+    (.FACTORY_HOME_OVERRIDE | type == "string" and startswith("/")))'
+  droid_homes=$(jq -r '[.agents.providers | to_entries[] |
+    select((.key | test("^droid-(peer|lead|supervisor)$")) and .value.enabled == true) |
+    .value.env.FACTORY_HOME_OVERRIDE? | strings] | if length == (unique | length) then .[] else "DUPLICATE" end' "$paseo_config")
+  while IFS= read -r home; do
+    [[ -n "$home" ]] || continue
+    if [[ "$home" == DUPLICATE ]]; then
+      fail 'droid seats: each FACTORY_HOME_OVERRIDE must be unique'
+    elif [[ -L "$home" || ! -d "$home" || -L "$home/.factory" || "$home/" == "$kit/"* ]]; then
+      fail "droid seats: FACTORY_HOME_OVERRIDE $home must be an existing non-symlink directory outside the kit"
+    elif [[ -L "$home/.factory/settings.json" || ! -f "$home/.factory/settings.json" ]] ||
+      ! jq -e '.compactionTokenLimit == 100000' "$home/.factory/settings.json" >/dev/null 2>&1; then
+      # Droid reads only this copy; without it the limit falls back to 250000.
+      fail "droid seats: $home/.factory/settings.json must be a regular file (copy, not symlink) with compactionTokenLimit 100000"
+    fi
+  done <<<"$droid_homes"
+  for role in lead supervisor; do
+    seat="droid-$role"
+    jq -e --arg seat "$seat" '.agents.providers[$seat].enabled == true' "$paseo_config" >/dev/null || continue
+    default=claude-opus-5-5
+    [[ "$role" != supervisor ]] || default=claude-sonnet-5-5
+    jq -e --arg command "$kit/setup/role-agent" --arg seat "$seat" --arg role "$role" --arg default "$default" "
+      .agents.providers[\$seat] |
+      .extends == \"acp\" and .command == [\$command,\$role,\"droid\"] and
+      .paseoTools.enabled == true and ($droid_env) and
+      ([.models[].id] | sort) == [\"claude-opus-5-5\",\"claude-sonnet-5-5\",\"gemini-4-argon\",\"gpt-6.1-sol\"] and
+      [.models[] | select(.isDefault == true) | .id] == [\$default] and
+      all(.models[]; ([.thinkingOptions[].id] | sort) == [\"low\",\"medium\"])
+    " "$paseo_config" >/dev/null || fail "$seat: wrong launcher, tools, env or model/effort"
     for model in claude-opus-5-5 claude-sonnet-5-5 gpt-6.1-sol gemini-4-argon; do
       for effort in low medium; do
-        jq -e --arg model "$model" --arg effort "$effort" '
-          [.daemon.agentProfiles[]? | select(.id == ("droid-lead--" + ($model | gsub("\\.";"-")) + "--" + $effort))] |
+        # auto-high: lower Droid modes stop on a permission request for every Paseo MCP call.
+        jq -e --arg seat "$seat" --arg model "$model" --arg effort "$effort" '
+          [.daemon.agentProfiles[]? | select(.id == ($seat + "--" + ($model | gsub("\\.";"-")) + "--" + $effort))] |
           length == 1 and all(.[];
-            .provider == "droid-lead" and .model == $model and .thinkingOptionId == $effort and
+            .provider == $seat and .model == $model and .thinkingOptionId == $effort and
             .modeId == "auto-high")
-        ' "$paseo_config" >/dev/null || fail "droid-lead: missing or wrong $model $effort profile"
+        ' "$paseo_config" >/dev/null || fail "$seat: missing or wrong $model $effort profile"
       done
     done
-  fi
+  done
   if jq -e '.agents.providers["amp-lead"].enabled == true' "$paseo_config" >/dev/null; then
     jq -e --arg command "$kit/setup/role-agent" '
       .agents.providers["amp-lead"] |
@@ -383,7 +409,7 @@ PY
       .agents.providers["droid-peer"] |
       .extends == "acp" and .label == "Factory Droid Peer Seat" and
       .command == [$command,"peer","droid"] and
-      .paseoTools.enabled == false and .env == {} and
+      .paseoTools.enabled == false and ('"$droid_env"') and
       ([.models[].id] | sort) == ((["gpt-6-luna"] + ($efforts | keys)) | sort) and
       [.models[] | select(.isDefault == true) | .id] == ["gpt-6-luna"] and
       all(.models[]; . as $model |
@@ -392,7 +418,7 @@ PY
           (if .id == "gpt-6-luna" then ["off","low","medium","high","xhigh","max"] | sort
            else $efforts[$model.id] | sort end) and
         [.thinkingOptions[] | select(.isDefault == true) | .id] == ["low"])
-    ' "$paseo_config" >/dev/null || fail 'droid-peer: wrong launcher, tools or model/effort'
+    ' "$paseo_config" >/dev/null || fail 'droid-peer: wrong launcher, tools, env or model/effort'
     for effort in low medium; do
       jq -e --arg effort "$effort" '
         [.daemon.agentProfiles[]? | select(.id == ("droid-peer--gpt-6-luna--" + $effort))] |

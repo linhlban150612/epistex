@@ -25,7 +25,7 @@ Backends: **Claude, Codex, Devin, Copilot, Cursor, Pi, Amp, Kiro, Droid, Antigra
 `initialize` message when using stream-json, or uses `--append-system-prompt` outside the SDK.
 Pi uses native launch instructions. Devin/Copilot/Cursor/Amp/Kiro/Droid/Antigravity use the ACP proxy, which adds role
 instructions to each session's first prompt during the proxy lifecycle — **not the system prompt**.
-Droid does not support Paseo MCP through this configuration.
+Droid Lead/Supervisor use the injected Paseo MCP; Droid Peer has Paseo tools disabled.
 
 This is coordination among agents running as the same Unix user, **not an OS sandbox**. Read-only
 and owned scope are contract/prompt rules, not restrictions on arbitrary shell use. Disabling MCP

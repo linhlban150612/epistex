@@ -1,6 +1,6 @@
 # Factory Droid seats
 
-This guide covers `droid-peer` and `droid-lead`, Paseo seats backed by Factory Droid through the ACP proxy in
+This guide covers `droid-peer`, `droid-lead` and `droid-supervisor`, Paseo seats backed by Factory Droid through the ACP proxy in
 `setup/role-agent`. Paseo remains the only lifecycle/topology owner. The seat is a role-wrapped
 provider: do not use the plain `factory-droid` provider or attach Peer profiles to it, because that
 provider does not inject the common contract and the selected role prompt
@@ -12,8 +12,9 @@ provider does not inject the common contract and the selected role prompt
    `role-agent peer droid` runs `droid exec --output-format acp`. Verified version: 0.247.0
    (`droid update --version 0.247.0`). The ACP registry entry for 0.247.0 launches
    `--output-format acp-daemon`; the seat keeps `acp`, which 0.247.0 still supports.
-2. Authenticate Droid with Factory's supported login flow before launching a seat. Credentials stay
-   in Droid's user state, never in this repository.
+2. Authenticate Droid before launching a seat: use Factory's login flow (shared by all seats), or
+   give each seat its own key (see [Per-seat API keys](#per-seat-api-keys)). Credentials stay in
+   Droid's user state or in the Paseo config, never in this repository.
 3. Droid 0.247.0 reports `auto` ("Auto Model") with reasoning `none` only, and `gpt-6-luna`
    ("GPT-6 Luna") with `none`, `low`, `medium`, `high`, `xhigh`, `max`, upstream default `medium`
    (observed on 0.241.1; `~/.factory/settings.json` `reasoningEffort` overrides it). The seat
@@ -80,7 +81,7 @@ low/high models does not prove runtime medium support.
 
 - Role instructions are added to each session's first prompt by the ACP proxy, not to the system
   prompt.
-- Droid does not support Paseo MCP through this configuration; Peers have Paseo tools disabled anyway.
+- Droid Lead/Supervisor use the injected Paseo MCP; Droid Peer has Paseo tools disabled.
 - Static checks do not prove authentication, the `acp` output mode, effort mapping or runtime
   integration. The operator merges/reloads the config and performs an actual Paseo launch.
   Last verified on 0.247.0 (2026-10-22): `droid-peer` (`gpt-6-luna`, `low`) and `droid-lead`
@@ -94,3 +95,69 @@ per SETUP.md (50-entry deny-list). Models `claude-opus-5-5`, `claude-sonnet-5-5`
 `gemini-4-argon` with low/medium effort. Profiles carry `modeId: "auto-high"` (all operations are
 auto-approved, so Lead never waits for permission). Droid's advertised modes: `normal`, `spec`, `auto-low`,
 `auto-medium`, `auto-high`.
+
+## droid-supervisor
+
+Provider `droid-supervisor`, command `["<KIT>/setup/role-agent","supervisor","droid"]`, Supervisor
+Paseo tool policy per SETUP.md (46-entry deny-list). Same four models and low/medium efforts as
+`droid-lead`; default `claude-sonnet-5-5`, `low`. Profiles `droid-supervisor--<model>--<effort>`
+carry `modeId: "auto-high"`. Live probe on Droid 0.251.0 (2026-10-29): in `normal`, `auto-low` and
+`auto-medium` the seat stopped on a permission request for the Paseo MCP call `list_workspaces`; in
+`auto-high` it completed the call and showed the common contract as its first role-instruction line.
+
+## Per-seat API keys
+
+To bill or track each role on a different Factory key, give each seat its key **and** its own Droid
+home in the live Paseo config (`~/.paseo/config.json`), then run `paseo reload`.
+
+Droid 0.251.0 cannot combine a key with the stored login in `~/.factory`: `session/new` succeeds,
+then `session/set_config_option` returns `Unknown session identifier` and the prompt fails with
+`Session not found` (`assertSessionAccessibleForOrganization`). Paseo always sets model and effort,
+so every launch fails. `FACTORY_HOME_OVERRIDE` moves Droid's state to `$FACTORY_HOME_OVERRIDE/.factory`,
+where no stored login exists.
+
+1. Back up the config and create one state dir per seat (outside the kit; not a symlink):
+
+   ```bash
+   cp -p ~/.paseo/config.json ~/.paseo/config.json.bak-droid-home-$(date +%Y%m%d%H%M%S)
+   for r in peer lead supervisor; do
+     mkdir -p ~/.local/state/epistex/droid/$r/.factory
+     install -m 600 ~/.factory/settings.json ~/.local/state/epistex/droid/$r/.factory/settings.json
+   done
+   chmod -R go-rwx ~/.local/state/epistex/droid
+   ```
+
+   The copy keeps `compactionTokenLimit`, `sessionDefaultSettings` and hooks. Copy, do not symlink:
+   a symlink lets one seat write the global file, and an atomic rewrite would silently replace the
+   link. Droid reads only this copy (without it the limit falls back to 250000), so after each change
+   to `~/.factory/settings.json`, run the `install` line again for all three seats. Do not copy `auth*`
+   files. `mcp.json`, custom droids and plugins are not copied; Lead/Supervisor get Paseo MCP
+   through ACP.
+2. Set the env of each seat (absolute paths; `~` is not expanded):
+
+   ```json
+   "droid-peer": { "env": { "FACTORY_API_KEY": "fk-...",
+     "FACTORY_HOME_OVERRIDE": "/home/<user>/.local/state/epistex/droid/peer" } }
+   ```
+
+   Repeat with `lead` and `supervisor`.
+3. Run `paseo reload`, `setup-seats.sh --check` and one Paseo launch per seat.
+
+Rollback: restore the backup, run `paseo reload`, then remove `~/.local/state/epistex/droid`
+when you no longer need its session history. `~/.factory` is not changed.
+
+Notes:
+
+- Live probe (2026-10-29, Droid 0.251.0): all three seats completed a Paseo prompt; Lead and
+  Supervisor called `list_workspaces`. Sessions went to each seat's dir; no `auth*` file was created.
+  The agent's file tool resolved `~/` to the real home and shell `$HOME` stayed unchanged.
+- `FACTORY_HOME_OVERRIDE` is not in Factory's docs (found in the 0.251.0 binary). Re-check it after
+  each Droid update.
+- An invalid key fails with `Authentication failed`, so the key is used for auth.
+- `setup-seats.sh --check` accepts `env` that is `{}` or exactly `FACTORY_API_KEY` (`fk-` prefix)
+  plus an absolute `FACTORY_HOME_OVERRIDE`. Each home must be unique, exist, sit outside the kit
+  and not be a symlink (nor its `.factory`). Its `.factory/settings.json` must be a regular file with
+  `compactionTokenLimit` 100000.
+- Never put a key in `examples/paseo-providers.json` or another tracked file.
+- Separate keys separate usage and billing, not access: all roles run as the same Unix user, so
+  every agent can read the Paseo config and its keys.

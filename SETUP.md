@@ -11,7 +11,7 @@ For Codex runtime selection and resume, see the [Codex runtime guide](docs/setup
 | Amp Supervisor/Lead/Peer through ACP | [docs/setup/amp.md](docs/setup/amp.md) |
 | Kiro Supervisor/Lead/Peer through ACP | [docs/setup/kiro.md](docs/setup/kiro.md) |
 | Antigravity Lead/Peer through ACP | [docs/setup/antigravity.md](docs/setup/antigravity.md) |
-| Factory Droid Lead/Peer through ACP | [docs/setup/droid.md](docs/setup/droid.md) |
+| Factory Droid Supervisor/Lead/Peer through ACP | [docs/setup/droid.md](docs/setup/droid.md) |
 | Pi Peer, OMP Peer | [docs/setup/pi-omp.md](docs/setup/pi-omp.md) |
 | Devin Peer through ACP | [docs/setup/devin.md](docs/setup/devin.md) |
 | GitHub Copilot Peer through ACP | [docs/setup/copilot.md](docs/setup/copilot.md) |
@@ -61,8 +61,8 @@ use `injectIntoProviders`; that field is not the current provider policy mechani
 Lead uses `paseoTools.disabledTools` to block the catalog and keeps exactly 11 tools:
 `list_workspaces`, `list_providers`, `list_models`, `list_profiles`, `create_agent`, `send_agent_prompt`,
 `cancel_agent`, `archive_agent`,
-`list_pending_permissions`, `respond_to_permission`, `set_agent_mode`. Supervisor also keeps `create_workspace`, `get_agent_activity`, `get_agent_status`, `list_agents` and `list_hosts` (16 tools kept; 46 blocked), while Lead keeps 11 tools (51 blocked). Lead does not have `get_agent_activity`, `get_agent_status` and `list_agents`, so Lead waits for notifications instead of polling or reading the Peer timeline; nor `list_hosts`, so Lead does not discover connected hosts. Kiro Supervisor/Lead and Droid Lead use the same policy.
-Lead runs without approval waits: Lead profiles use a bypass mode (`claude-lead` `bypassPermissions`, `agy-lead` `yolo`, `droid-lead` `auto-high`, `codex-lead` `full-access`: approval `never`, sandbox `danger-full-access`); `kiro-lead` auto-approves through agent `permissions.rules` (V3). `amp-lead` uses `local`: amp-acp has no bypass mode.
+`list_pending_permissions`, `respond_to_permission`, `set_agent_mode`. Supervisor also keeps `create_workspace`, `get_agent_activity`, `get_agent_status`, `list_agents` and `list_hosts` (16 tools kept; 46 blocked), while Lead keeps 11 tools (51 blocked). Lead does not have `get_agent_activity`, `get_agent_status` and `list_agents`, so Lead waits for notifications instead of polling or reading the Peer timeline; nor `list_hosts`, so Lead does not discover connected hosts. Kiro and Droid Supervisor/Lead use the same policy.
+Lead runs without approval waits: Lead profiles use a bypass mode (`claude-lead` `bypassPermissions`, `agy-lead` `yolo`, `droid-lead` `auto-high` (also `droid-supervisor`), `codex-lead` `full-access`: approval `never`, sandbox `danger-full-access`); `kiro-lead` auto-approves through agent `permissions.rules` (V3). `amp-lead` uses `local`: amp-acp has no bypass mode.
 Codex Peer profiles use `modeId: auto-review` ([why](docs/setup/codex-runtime.md#peer-sandbox-and-worktrees)); `setup-seats.sh --check` rejects `codex-peer` profiles without it. Claude Peer profiles use `modeId: bypassPermissions`: `acceptEdits` stops a non-interactive Peer on its first Bash permission request; `--check` rejects other modes.
 Groups blocked for Lead: 11 schedule/heartbeat, 22 browser, 5 terminal, 13 workspace/agent/provider/host;
 for Supervisor the workspace/agent/provider group is down to 8 (see the list in the

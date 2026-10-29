@@ -50,6 +50,7 @@ class SetupSeatsTest(unittest.TestCase):
         providers["kiro-lead"]["command"] = [str(self.kit / "setup" / "role-agent"), "lead", "kiro"]
         providers["droid-peer"]["command"] = [str(self.kit / "setup" / "role-agent"), "peer", "droid"]
         providers["droid-lead"]["command"] = [str(self.kit / "setup" / "role-agent"), "lead", "droid"]
+        providers["droid-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "droid"]
         providers["amp-lead"]["command"] = [str(self.kit / "setup" / "role-agent"), "lead", "amp"]
         providers["amp-peer"]["command"] = [str(self.kit / "setup" / "role-agent"), "peer", "amp"]
         providers["devin-peer"]["command"] = [str(self.kit / "setup" / "role-agent"), "peer", "devin"]
@@ -236,17 +237,29 @@ class SetupSeatsTest(unittest.TestCase):
              "kiro-supervisor: wrong launcher, tools or model/effort"),
             # Droid seats
             ("droid peer unwrapped", lambda d: seat(d, "droid-peer").__setitem__(
-                "command", ["droid", "exec", "--output-format", "acp"]), "droid-peer: wrong launcher, tools or model/effort"),
+                "command", ["droid", "exec", "--output-format", "acp"]), "droid-peer: wrong launcher, tools, env or model/effort"),
             ("droid peer with lead role", lambda d: seat(d, "droid-peer").__setitem__(
-                "command", [kit + "/role-agent", "lead", "droid"]), "droid-peer: wrong launcher, tools or model/effort"),
+                "command", [kit + "/role-agent", "lead", "droid"]), "droid-peer: wrong launcher, tools, env or model/effort"),
             ("droid Luna not default", lambda d: model(d, "droid-peer", "gpt-6-luna").__setitem__("isDefault", False),
-             "droid-peer: wrong launcher, tools or model/effort"),
+             "droid-peer: wrong launcher, tools, env or model/effort"),
             ("droid model missing", lambda d: seat(d, "droid-peer")["models"].remove(
-                model(d, "droid-peer", "gemini-4-argon")), "droid-peer: wrong launcher, tools or model/effort"),
+                model(d, "droid-peer", "gemini-4-argon")), "droid-peer: wrong launcher, tools, env or model/effort"),
             ("droid effort missing", lambda d: model(d, "droid-peer", "glm-5.3-flash").__setitem__(
                 "thinkingOptions", [o for o in model(d, "droid-peer", "glm-5.3-flash")["thinkingOptions"] if o["id"] != "high"]),
-             "droid-peer: wrong launcher, tools or model/effort"),
-            ("droid fabricated medium", fabricated_medium, "droid-peer: wrong launcher, tools or model/effort"),
+             "droid-peer: wrong launcher, tools, env or model/effort"),
+            ("droid fabricated medium", fabricated_medium, "droid-peer: wrong launcher, tools, env or model/effort"),
+            ("droid peer extra env", lambda d: seat(d, "droid-peer").__setitem__(
+                "env", {"FACTORY_API_KEY": "fk-a", "FACTORY_HOME_OVERRIDE": "/tmp/a", "DROID_EXTRA": "1"}), "droid-peer: wrong launcher, tools, env or model/effort"),
+            ("droid lead malformed key", lambda d: seat(d, "droid-lead").__setitem__(
+                "env", {"FACTORY_API_KEY": "", "FACTORY_HOME_OVERRIDE": "/tmp/a"}), "droid-lead: wrong launcher, tools, env or model/effort"),
+            ("droid supervisor with lead role", lambda d: seat(d, "droid-supervisor")["command"].__setitem__(1, "lead"),
+             "droid-supervisor: wrong launcher, tools, env or model/effort"),
+            ("droid supervisor expensive default", default_model("droid-supervisor", "claude-opus-5-5"),
+             "droid-supervisor: wrong launcher, tools, env or model/effort"),
+            ("droid supervisor lead deny-list", deny("droid-supervisor", sorted(DENY_LEAD)),
+             "droid-supervisor: paseoTools.disabledTools must exactly match"),
+            ("droid supervisor permission mode", lambda d: profile(d, "droid-supervisor--gpt-6-1-sol--low").__setitem__(
+                "modeId", "auto-medium"), "droid-supervisor: missing or wrong gpt-6.1-sol low profile"),
             ("droid Luna profile missing", lambda d: drop(d, "droid-peer--gpt-6-luna--low"),
              "droid-peer: missing or wrong GPT-6 Luna low profile"),
             ("droid supported profile missing", lambda d: drop(d, "droid-peer--kimi-k3--high"),
@@ -365,6 +378,60 @@ class SetupSeatsTest(unittest.TestCase):
             (pathlib.Path(self.temporary.name) / ".kiro/agents/epistex_lead.json").unlink()
             result = self.check_config(self.data)
             self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_droid_seats_need_separate_key_and_home(self):
+        seats = ("droid-peer", "droid-lead", "droid-supervisor")
+        homes = []
+        for index, name in enumerate(seats):
+            home = pathlib.Path(self.temporary.name) / "droid-home" / name
+            (home / ".factory").mkdir(parents=True)
+            (home / ".factory/settings.json").write_text('{"compactionTokenLimit": 100000}')
+            homes.append(home)
+            self.data["agents"]["providers"][name]["env"] = {
+                "FACTORY_API_KEY": f"fk-seat-{index}", "FACTORY_HOME_OVERRIDE": str(home)}
+        with self.subTest("separate keys and homes"):
+            result = self.check_config(self.data)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+        def env(name):
+            return self.data["agents"]["providers"][name]["env"]
+
+        cases = (
+            ("key without home", lambda: env("droid-lead").pop("FACTORY_HOME_OVERRIDE"),
+             "droid-lead: wrong launcher, tools, env or model/effort"),
+            ("relative home", lambda: env("droid-peer").__setitem__("FACTORY_HOME_OVERRIDE", "droid-home"),
+             "droid-peer: wrong launcher, tools, env or model/effort"),
+            ("shared home", lambda: env("droid-supervisor").__setitem__("FACTORY_HOME_OVERRIDE", str(homes[0])),
+             "droid seats: each FACTORY_HOME_OVERRIDE must be unique"),
+            ("missing home", lambda: shutil.rmtree(homes[1]),
+             f"droid seats: FACTORY_HOME_OVERRIDE {homes[1]} must be an existing non-symlink directory"),
+            ("symlinked factory dir", lambda: (shutil.rmtree(homes[2] / ".factory"),
+                                               (homes[2] / ".factory").symlink_to(pathlib.Path.home())),
+             f"droid seats: FACTORY_HOME_OVERRIDE {homes[2]} must be an existing non-symlink directory"),
+            ("settings missing", lambda: (homes[0] / ".factory/settings.json").unlink(),
+             f"droid seats: {homes[0]}/.factory/settings.json must be a regular file"),
+            ("settings symlink", lambda: ((homes[0] / ".factory/settings.json").unlink(),
+                                          (homes[0] / ".factory/settings.json").symlink_to(homes[1] / ".factory/settings.json")),
+             f"droid seats: {homes[0]}/.factory/settings.json must be a regular file"),
+            ("default compaction limit", lambda: (homes[1] / ".factory/settings.json").write_text('{"compactionTokenLimit": 250000}'),
+             f"droid seats: {homes[1]}/.factory/settings.json must be a regular file"),
+        )
+        for name, mutate, expected in cases:
+            with self.subTest(name):
+                saved = copy.deepcopy(self.data)
+                mutate()
+                result = self.check_config(self.data)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(expected, result.stderr)
+                self.data = saved
+                for home in homes:
+                    if (home / ".factory").is_symlink():
+                        (home / ".factory").unlink()
+                    (home / ".factory").mkdir(parents=True, exist_ok=True)
+                    settings = home / ".factory/settings.json"
+                    if settings.is_symlink():
+                        settings.unlink()
+                    settings.write_text('{"compactionTokenLimit": 100000}')
 
     def test_profile_normalization_preserves_catalog_launch_settings_and_foreign_profiles(self):
         profiles = self.data["daemon"]["agentProfiles"]

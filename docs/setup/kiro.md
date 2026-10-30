@@ -139,9 +139,9 @@ bị reject. Từ extension V3, adapter chỉ relay `_kiro/session/context` và 
 permission request với `options[]` của agent; adapter không tự tạo consent. Notifications và unknown metadata giữ nguyên; unsupported agent-to-client requests
 nhận JSON-RPC error, permission và negotiated fs/terminal callbacks relay bình thường.
 
-Role instructions được prepend vào **prompt đầu tiên mỗi session trong vòng đời adapter**,
-kể cả phiên load; không phải system prompt. `session/prompt`, cancellation, errors và replay
-không được giả thành completion. Shell và cùng Unix user vẫn không phải OS sandbox; policy
+Role instructions được prepend vào **prompt đầu tiên của mỗi session mới** (`session/new`);
+không phải system prompt. Phiên `session/load` không được prepend lại vì history đã có role.
+`session/prompt`, cancellation, errors và replay không được giả thành completion. Shell và cùng Unix user vẫn không phải OS sandbox; policy
 không ngăn một agent độc hại sửa file config hoặc tự gọi CLI.
 
 ## Kiểm độc lập

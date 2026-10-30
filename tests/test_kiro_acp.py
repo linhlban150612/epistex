@@ -232,8 +232,9 @@ class KiroACPTest(unittest.TestCase):
         loaded = c.call('session/load', sessionId='seat', cwd=str(self.cwd), mcpServers=[])
         self.assertEqual(loaded['result']['_meta'], {'future':'retain'})
         self.assertEqual((self.current(loaded, 'model'), self.current(loaded, 'effortLevel')), ('claude-opus-5.5', 'low'))
+        # The loaded history already holds the role; Paseo idle release resumes sessions this way.
         observed = self.prompt(c, 'after load')['result']['observed']
-        self.assertIn('# Peer', observed['prompt'][0]['text'])
+        self.assertEqual(observed['prompt'], [{'type': 'text', 'text': 'after load'}])
 
     def test_selection_requires_backend_confirmation(self):
         with self.subTest('initial effort pin ignored by backend'):

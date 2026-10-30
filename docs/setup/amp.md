@@ -38,11 +38,17 @@ Chọn permission mode từ discovery (amp-acp v0.10.0 chỉ có `local` và `or
 `amp-lead--medium` dùng `local`. Thay `<KIT>` bằng đường dẫn tuyệt
 đối, giữ `role-agent` executable, rồi chạy `paseo reload` và tạo phiên mới.
 
-ACP proxy thêm role instructions vào prompt đầu tiên của mỗi session trong vòng đời proxy,
-không phải system prompt. Kiểm heading Lead/Peer từ nội dung session agent thực sự nhận,
+ACP proxy thêm role instructions vào prompt đầu tiên của mỗi session mới, không phải system prompt.
+Session được khôi phục bằng `session/load` hoặc `session/resume` đã có role trong history, nên proxy
+không thêm lại. Kiểm heading Lead/Peer từ nội dung session agent thực sự nhận,
 CWD thực tế và tool inventory: Lead phải gọi được một Paseo tool read-only; Peer không thấy
 Paseo tools. Không yêu cầu agent đọc file prompt rồi coi đó là proof injection.
 Lead điều phối bằng `amp-peer`, không dùng provider Amp gốc.
+
+Live resume (2026-10-30, Paseo 0.14.0, `amp-acp` 0.10.0): sau khi restart daemon, proxy mới gửi
+`session/load` cùng session ID, rồi prompt kế tiếp. Một wrapper ghi lại ACP request mà `amp-acp` nhận:
+code đã sửa gửi tổng cộng 1 bản role cho hai prompt (1 rồi 0); commit cha chưa sửa gửi 2 (1 rồi 1).
+Agent vẫn nhớ token từ turn đầu. Chưa kiểm `session/resume` và idle release thật sau 1 giờ.
 
 Live E2E (2026-10-25, Amp `0.0.1792886472`, Paseo 0.13.0): `amp-peer` low launch qua Paseo, CWD là
 project, không thấy tool Paseo. Amp bọc prompt dưới heading `# Instructions` của riêng nó; heading role

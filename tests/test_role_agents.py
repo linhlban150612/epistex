@@ -49,6 +49,16 @@ class ProfilesTest(unittest.TestCase):
                             "type": "text", "text": "Role instructions for this session:\n" + instructions})
                         self.assertEqual(first, expected)
                         self.assertEqual(second, prompt)
+                        # A new proxy process resuming the session (Paseo idle release) must not
+                        # add the role again: the loaded history already holds it.
+                        for method in ("session/load", "session/resume"):
+                            restore = json.dumps({"jsonrpc": "2.0", "id": 8, "method": method,
+                                                  "params": {"sessionId": "seat", "cwd": folder, "mcpServers": []}}) + "\n"
+                            result = subprocess.run(
+                                [sys.executable, str(ROOT / "setup" / launcher[0]), *launcher[1:]],
+                                input=restore + raw, text=True, capture_output=True,
+                                env={**os.environ, "PATH": folder}, timeout=10)
+                            self.assertEqual(result.stdout.splitlines()[1:], [restore.strip(), raw.strip()])
 
     def test_cursor_blocks_prompts_until_parameters_confirmed_and_reblocks_on_drift(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -119,6 +129,20 @@ for line in sys.stdin:
                         self.assertEqual(replies[4]["result"]["prompt"], [{"type": "text", "text": "task"}])
                     for i in (5, 6):
                         self.assertIn("error", replies[i])
+            with self.subTest("loaded session keeps its role without a second copy"):
+                requests = [
+                    ("initialize", {"protocolVersion": 1, "clientCapabilities": {}}),
+                    ("session/load", {"sessionId": "seat", "cwd": folder, "mcpServers": []}),
+                    ("session/prompt", {"sessionId": "seat", "prompt": [{"type": "text", "text": "rework"}]}),
+                ]
+                result = subprocess.run(
+                    [sys.executable, str(ROOT / "setup/role-agent"), "peer", "cursor"],
+                    input="".join(json.dumps({"jsonrpc": "2.0", "id": i, "method": m, "params": p}) + "\n"
+                                  for i, (m, p) in enumerate(requests)),
+                    text=True, capture_output=True, timeout=15,
+                    env={**os.environ, "PATH": folder, "HOME": folder, "CURSOR_CONFIG_DIR": str(config), "FAULT": ""})
+                replies = {r["id"]: r for r in map(json.loads, result.stdout.splitlines()) if "id" in r}
+                self.assertEqual(replies[2]["result"]["prompt"], [{"type": "text", "text": "rework"}], result.stderr)
         # Native drift, either after a prompt or right after the final confirmation, blocks the
         # next prompt until an explicit reselection confirms every parameter again.
         for at, drift in (("prompt", "model"), ("prompt", "fast"), ("prompt", "reasoning_effort"),
@@ -376,29 +400,39 @@ print(json.dumps({"effective":append, "args":args}))
                 self.assertEqual(result.stdout, "")
 
     def test_acp_primes_each_session_once_pins_cwd_and_preserves_other_messages(self):
-        seen = set()
+        primer = proxy.Primer("peer")
         prompt = {"jsonrpc": "2.0", "id": 7, "method": "session/prompt",
                   "params": {"sessionId": "a", "prompt": [{"type": "image", "data": "opaque"},
                                                           {"type": "text", "text": "actual task"}]}}
         raw = (json.dumps(prompt) + "\n").encode()
-        primed = json.loads(proxy.prime(raw, "peer", seen))
+        primed = json.loads(proxy.prime(raw, primer))
         self.assertIn("# Peer", primed["params"]["prompt"][0]["text"])
         self.assertEqual(primed["params"]["prompt"][1:], prompt["params"]["prompt"])
-        self.assertEqual(proxy.prime(raw, "peer", seen), raw)
+        self.assertEqual(proxy.prime(raw, primer), raw)
         prompt["params"]["sessionId"] = "b"
-        self.assertIn("# Peer", json.loads(proxy.prime((json.dumps(prompt) + "\n").encode(), "peer", seen))["params"]["prompt"][0]["text"])
-        self.assertEqual(proxy.prime(b'{"method":"session/update"}\n', "peer", seen), b'{"method":"session/update"}\n')
+        self.assertIn("# Peer", json.loads(proxy.prime((json.dumps(prompt) + "\n").encode(), primer))["params"]["prompt"][0]["text"])
+        self.assertEqual(proxy.prime(b'{"method":"session/update"}\n', primer), b'{"method":"session/update"}\n')
         # ACP pins the session cwd when requested.
-        new = {"jsonrpc": "2.0", "id": 1, "method": "session/new", "params": {"cwd": "/work/project", "mcpServers": []}}
-        self.assertEqual(proxy.session_cwd((json.dumps(new) + "\n").encode()), "/work/project")
+        for method in ("session/new", "session/load", "session/resume"):
+            new = {"jsonrpc": "2.0", "id": 1, "method": method, "params": {"cwd": "/work/project", "mcpServers": []}}
+            self.assertEqual(proxy.session_cwd((json.dumps(new) + "\n").encode()), "/work/project")
         self.assertIsNone(proxy.session_cwd(b'{"method":"session/prompt","params":{"cwd":"/x"}}\n'))
         self.assertIsNone(proxy.session_cwd(b"not json\n"))
         prompt = {"method": "session/prompt", "params": {"sessionId": "a", "prompt": [{"type": "text", "text": "task"}]}}
         raw = (json.dumps(prompt) + "\n").encode()
-        text = json.loads(proxy.prime(raw, "lead", set(), "/work/project"))["params"]["prompt"][0]["text"]
+        text = json.loads(proxy.prime(raw, proxy.Primer("lead"), "/work/project"))["params"]["prompt"][0]["text"]
         self.assertTrue(text.startswith("Session working directory: /work/project."))
         self.assertIn("# Lead", text)
-        self.assertNotIn("Session working directory", json.loads(proxy.prime(raw, "lead", set()))["params"]["prompt"][0]["text"])
+        self.assertNotIn("Session working directory", json.loads(proxy.prime(raw, proxy.Primer("lead")))["params"]["prompt"][0]["text"])
+        # A restored session already holds the role: its first prompt in a new proxy gets the
+        # cwd pin again (Antigravity runs shell commands elsewhere), never a second role copy.
+        restored = proxy.Primer("lead")
+        load = {"method": "session/resume", "params": {"sessionId": "a", "cwd": "/work/project"}}
+        self.assertEqual(proxy.prime((json.dumps(load) + "\n").encode(), restored), (json.dumps(load) + "\n").encode())
+        first = json.loads(proxy.prime(raw, restored, "/work/project"))["params"]["prompt"]
+        self.assertEqual(first, [{"type": "text", "text": "Session working directory: /work/project. Run every shell command in that directory."},
+                                 {"type": "text", "text": "task"}])
+        self.assertEqual(proxy.prime(raw, restored, "/work/project"), raw)
 
 if __name__ == "__main__":
     unittest.main()

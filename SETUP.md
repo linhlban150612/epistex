@@ -203,7 +203,8 @@ Common part for Devin, Copilot and Cursor ([devin.md](docs/setup/devin.md),
   `["<KIT>/setup/role-agent","peer","<backend>"]`; `models: [{"id":"<MODEL>","label":"<LABEL>","isDefault":true}]`,
   add `thinkingOptions: [{"id":"<EFFORT>","label":"<LABEL>","isDefault":true}]` when the backend has effort.
 - **Inject prompt:** `role-agent` switches to `setup/<backend>-acp` with `os.execv`; the launcher uses an
-  ACP proxy that adds role instructions to the first prompt of each session, not to the system prompt.
+  ACP proxy that adds role instructions to the first prompt of each new session, not to the system prompt;
+  a session restored with `session/load` or `session/resume` already holds the role and does not get it again.
   Do not add project policy to a provider or edit the backend's global instructions.
 - **Live verify:** after `paseo reload`, create a new session with the real model/effort and mode from discovery.
   Check the role heading from the context the agent actually receives, the CWD with `pwd`, the model/effort and the inventory,

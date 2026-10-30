@@ -24,7 +24,9 @@ Backends: **Claude, Codex, Devin, Copilot, Cursor, Pi, Amp, Kiro, Droid, Antigra
 `model_instructions_file`. Claude adds the role to `appendSystemPrompt` in the SDK
 `initialize` message when using stream-json, or uses `--append-system-prompt` outside the SDK.
 Pi uses native launch instructions. Devin/Copilot/Cursor/Amp/Kiro/Droid/Antigravity use the ACP proxy, which adds role
-instructions to each session's first prompt during the proxy lifecycle — **not the system prompt**.
+instructions to each new session's first prompt — **not the system prompt**. A session restored
+with `session/load` or `session/resume` already holds the role in its history, so the proxy does
+not add it again; a backend that compacts the role out of a loaded session does not get it back.
 Droid Lead/Supervisor use the injected Paseo MCP; Droid Peer has Paseo tools disabled.
 
 This is coordination among agents running as the same Unix user, **not an OS sandbox**. Read-only
@@ -74,7 +76,7 @@ Runtime layout, resume selection, environment variables and Seatworks compatibil
 | Path | Role |
 |---|---|
 | `agents/*.md` | Supervisor, Lead, and Peer prompts |
-| `agents/contract/COMMON.md`, `setup/role_prompt.py` | Shared role invariants and combined prompt loader/size check |
+| `agents/contract/COMMON.md`, `setup/role_prompt.py` | Shared role invariants, combined prompt loader/size check and the ACP session primer shared by all proxies |
 | `setup/role-agent` | Native Claude/Pi launcher and ACP instruction proxy |
 | `setup/{amp,devin,copilot,cursor,kiro}-acp`, `setup/claude-sdk`, `setup/kiro-*.json` | Per-backend launchers and Kiro agent configs |
 | `setup/codex-room` | Select runtime/resume and generate Codex config |
@@ -115,6 +117,16 @@ recovery checks.
   mid-turn by the restart yields `was closed`, not `finished`, and its round must be reassigned;
   archived agents stay out of `list_agents`. A `send_agent_prompt` receipt only proves the prompt
   was queued.
+- Agent tree and idle release (Paseo 0.14.0, read from its source, not yet verified live): an agent
+  created through Paseo MCP `create_agent` is a child of the calling agent (label
+  `paseo.parent-agent-id`), unless the hidden legacy `relationship: {kind: "detached"}` is used.
+  Peers created by a Lead are therefore its children; a Lead opened by the Human from the UI or CLI
+  is a root, so it is not a child of the Supervisor. With the global `agents.idleRuntimeCleanup`
+  setting (default on, no per-agent setting), Paseo stops the runtime of an agent idle for one hour
+  only if the agent and all its descendants are eligible. An agent waiting on a finish
+  notification is never released, so a Lead waiting for its Peer keeps running. A released agent
+  shows status `closed`, like a real close, and its next prompt resumes the session. `closed`
+  is therefore not cessation evidence; archive the agent once its work is closed.
 - Connected hosts (`paseo host add`) are opt-in per repository in `WORKSPACE_PROTOCOL.md` § Routing;
   the kit has not been verified live with a remote Peer.
 - `setup/codex-room` preserves private runtime data and canonical config, disables native

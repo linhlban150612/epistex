@@ -10,7 +10,7 @@ import sys
 import threading
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from role_prompt import load_prompt
+from role_prompt import Primer, load_prompt
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ROLES = ("supervisor", "lead", "peer")
@@ -20,28 +20,27 @@ ACP = {
 }
 
 
-def prime(line: bytes, role: str, seen: set[str], cwd: str | None = None) -> bytes:
+def prime(line: bytes, primer: Primer, cwd: str | None = None) -> bytes:
     try:
         message = json.loads(line)
     except (ValueError, UnicodeDecodeError):
         return line
-    if not isinstance(message, dict) or message.get("method") != "session/prompt":
+    method = message.get("method") if isinstance(message, dict) else None
+    if method not in ("session/prompt", "session/load", "session/resume"):
         return line
     params = message.get("params")
     if not isinstance(params, dict) or not isinstance(params.get("sessionId"), str):
         return line
-    session = params["sessionId"]
-    if session in seen:
+    if method != "session/prompt":
+        primer.restore(params["sessionId"])
         return line
     prompt = params.get("prompt")
     if not isinstance(prompt, list):
         return line
-    instructions = load_prompt(role)
-    text = "Role instructions for this session:\n" + instructions
-    if cwd:
-        text = f"Session working directory: {cwd}. Run every shell command in that directory.\n\n" + text
-    params["prompt"] = [{"type": "text", "text": text}, *prompt]
-    seen.add(session)
+    primed = primer.prime(params["sessionId"], prompt, cwd)
+    if primed is prompt:
+        return line
+    params["prompt"] = primed
     return (json.dumps(message, ensure_ascii=False) + "\n").encode()
 
 
@@ -50,7 +49,7 @@ def session_cwd(line: bytes) -> str | None:
         message = json.loads(line)
     except (ValueError, UnicodeDecodeError):
         return None
-    if not isinstance(message, dict) or message.get("method") not in ("session/new", "session/load"):
+    if not isinstance(message, dict) or message.get("method") not in ("session/new", "session/load", "session/resume"):
         return None
     params = message.get("params")
     cwd = params.get("cwd") if isinstance(params, dict) else None
@@ -109,13 +108,13 @@ def run_acp(command: list[str], role: str, pin_cwd: bool = False) -> int:
     forwarding = threading.Thread(target=output)
     forwarding.start()
     assert child.stdin is not None
-    seen: set[str] = set()
+    primer = Primer(role)
     cwd = None
     try:
         for line in sys.stdin.buffer:
             if pin_cwd:
                 cwd = session_cwd(line) or cwd
-            child.stdin.write(prime(line, role, seen, cwd))
+            child.stdin.write(prime(line, primer, cwd))
             child.stdin.flush()
     except BrokenPipeError:
         pass

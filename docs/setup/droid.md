@@ -79,8 +79,8 @@ low/high models does not prove runtime medium support.
 
 ## Known limitations
 
-- Role instructions are added to each session's first prompt by the ACP proxy, not to the system
-  prompt.
+- Role instructions are added to each new session's first prompt by the ACP proxy, not to the system
+  prompt. A session restored with `session/load` or `session/resume` does not get them again.
 - Droid Lead/Supervisor use the injected Paseo MCP; Droid Peer has Paseo tools disabled.
 - Static checks do not prove authentication, the `acp` output mode, effort mapping or runtime
   integration. The operator merges/reloads the config and performs an actual Paseo launch.

@@ -45,7 +45,7 @@ def run(role, args):
         pending = {}
         pending_confirmation = {}
         lock = threading.Lock()
-        seen = set()
+        primer = role_agent.Primer(role)
         selected = None
         sessions = set()
         confirmed = {}
@@ -172,6 +172,8 @@ def run(role, args):
                         sid = result.get("sessionId", params.get("sessionId"))
                         choose(sid, "grok-4.7-low")
                         sessions.add(sid)
+                        if method == "session/load":
+                            primer.restore(sid)
                         result["models"], result["configOptions"] = model_state(), options()
                     elif method == "session/set_model" or (method == "session/set_config_option" and params.get("configId") == "model"):
                         choose(params["sessionId"], params.get("modelId", params.get("value")))
@@ -183,7 +185,7 @@ def run(role, args):
                             sid = params.get("sessionId")
                             if selected is None or sid not in sessions or confirmed.get(sid) != selected:
                                 raise ValueError("Cursor model parameters are not confirmed; reselect a seat model")
-                            child.stdin.write(role_agent.prime(line, role, seen))
+                            child.stdin.write(role_agent.prime(line, primer))
                             child.stdin.flush()
                         continue
                     else:

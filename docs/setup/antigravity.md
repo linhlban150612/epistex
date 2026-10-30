@@ -24,11 +24,11 @@ Merge the `agy-peer` entry and its model profiles from `examples/paseo-providers
 
 The server's `session/new` advertises modes `default`, `auto_edit` (auto-approve file edit tools) and `yolo` (auto-approve everything). Each `daemon.agentProfiles` entry selects the mode with `modeId` (`auto_edit` for `agy-peer`, `yolo` for `agy-lead`); the orchestrator must copy `modeId` into `create_agent` alongside `provider` and `model`. `auto_edit` auto-approves file edits only, so Peer shell commands still prompt. The seat has no plan mode: `plan` exists only as a `/plan` slash command.
 
-The server lists the ACP `session/new` cwd as a workspace but runs shell commands from its own `~/.gemini/antigravity-cli/skills` directory. `role-agent` therefore states the session cwd in each session's first prompt, together with the role instructions; a real Paseo launch confirmed `pwd` then reports the project root. Never use `--dangerously-skip-permissions`. Paseo's built-in `antigravity` provider always passes it and skips `setup/role-agent`, so do not use it for any Epistex seat; `agy-lead` gets auto-approval from `yolo` mode instead.
+The server lists the ACP `session/new` cwd as a workspace but runs shell commands from its own `~/.gemini/antigravity-cli/skills` directory. `role-agent` therefore states the session cwd in each session's first prompt, together with the role instructions; after `session/load` or `session/resume` in a new proxy process it repeats only the cwd line, because the restored history already holds the role; a real Paseo launch confirmed `pwd` then reports the project root. Never use `--dangerously-skip-permissions`. Paseo's built-in `antigravity` provider always passes it and skips `setup/role-agent`, so do not use it for any Epistex seat; `agy-lead` gets auto-approval from `yolo` mode instead.
 
 ## Lead seat
 
-`agy-lead` invokes `setup/role-agent lead agy`, so every session's first prompt carries `agents/contract/COMMON.md` followed by `agents/LEAD.md`. It enables Paseo tools with the same 51-tool `disabledTools` deny-list as every other `*-lead` seat; `setup-seats.sh --check` enforces the exact list. It also requires `daemon.mcp.injectIntoAgents`.
+`agy-lead` invokes `setup/role-agent lead agy`, so every new session's first prompt carries `agents/contract/COMMON.md` followed by `agents/LEAD.md`. It enables Paseo tools with the same 51-tool `disabledTools` deny-list as every other `*-lead` seat; `setup-seats.sh --check` enforces the exact list. It also requires `daemon.mcp.injectIntoAgents`.
 
 `agy-lead` runs in `yolo` mode, so no tool call prompts; a real Paseo launch confirmed this.
 
@@ -38,5 +38,5 @@ The official server advertises `mcpCapabilities` `http` and `sse`; Paseo forward
 
 The server reads its settings from `~/.gemini/antigravity-acp/settings.json`. This is private runtime state and must remain outside the repository.
 
-- The server advertises `loadSession`, `session/list` and `session/resume`. Cancelling a running prompt through Paseo returns the agent to idle; session resume through Paseo is not verified.
+- The server advertises `loadSession`, `session/list` and `session/resume`. Cancelling a running prompt through Paseo returns the agent to idle; session resume through Paseo was verified live on 2026-10-30 (Paseo 0.14.0, `agy-peer` gemini-3.8-flash-low): after a daemon restart, the server transcript shows the next prompt with only the cwd line and no second role copy, and `pwd` reports the session cwd.
 - The role configuration is an example only. The operator merges/reloads it and performs an actual Paseo launch; static checks do not establish that authentication or runtime integration works.

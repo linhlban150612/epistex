@@ -4,9 +4,12 @@
 import json
 import os
 import pathlib
+import shlex
 import shutil
+import signal
 import subprocess
 import sys
+import tempfile
 import threading
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -146,8 +149,26 @@ def main() -> int:
         if shutil.which(command[0]) is None:
             raise SystemExit(f"agent executable not found: {command[0]}")
         os.execvp(command[0], command)
+    if agent == "droid":
+        return run_droid(role, sys.argv[3:])
     # The Antigravity server runs shell commands in its own skills directory, not the session cwd.
     return run_acp([*ACP[agent], *sys.argv[3:]], role, pin_cwd=agent == "agy")
+
+
+def run_droid(role: str, args: list[str]) -> int:
+    """Run Droid ACP with the seat guard hook; ACP mode ignores --remove-tools, not --settings."""
+    if any(arg == "--settings" or arg.startswith("--settings=") for arg in args):
+        raise SystemExit("Droid seats own --settings: another settings file could drop the seat guard hook")
+    hook = {"type": "command", "command": shlex.quote(str(ROOT / "setup/droid-guard")), "timeout": 10}
+    descriptor, path = tempfile.mkstemp(prefix="epistex-droid-", suffix=".json")
+    # Paseo stops the proxy with a signal; exit normally so the settings file is removed.
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
+    try:
+        with os.fdopen(descriptor, "w") as settings:
+            json.dump({"hooks": {"PreToolUse": [{"matcher": "*", "hooks": [hook]}]}}, settings)
+        return run_acp([*ACP["droid"], "--settings", path, *args], role)
+    finally:
+        os.unlink(path)
 
 
 if __name__ == "__main__":

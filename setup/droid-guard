@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+"""Droid PreToolUse hook: deny native subagents, missions, loops and automations in role seats.
+
+Paseo owns agent lifecycle and topology, and roles create no schedules. Droid runs this hook for
+direct tool calls and for each tool call inside a Script; exit code 2 rejects the call.
+"""
+
+import json
+import sys
+
+DENIED = {
+    "Task", "TaskOutput", "TaskStop",
+    "ProposeMission", "StartMissionRun",
+    "Loop",
+    "CreateAutomation", "EditAutomation", "DeleteAutomation", "RunAutomation",
+}
+
+
+def main() -> int:
+    try:
+        name = json.load(sys.stdin)["tool_name"]
+    except (ValueError, KeyError, TypeError):
+        sys.stderr.write("Epistex seat policy: unreadable PreToolUse input; tool call denied.\n")
+        return 2
+    if name in DENIED:
+        sys.stderr.write(f"Epistex seat policy denies {name}: Paseo owns agents, and roles create no schedules.\n")
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -321,6 +321,14 @@ else
       fail "droid seats: $home/.factory/settings.json must be a regular file (copy, not symlink) with compactionTokenLimit 100000"
     fi
   done <<<"$droid_homes"
+  if jq -e '[.agents.providers | to_entries[] | select(.key | test("^droid-(peer|lead|supervisor)$")) |
+      .value.enabled == true] | any' "$paseo_config" >/dev/null; then
+    # role-agent passes this PreToolUse hook to every Droid seat; ACP ignores --remove-tools.
+    guard="$kit/setup/droid-guard" allow=0 deny=0
+    printf '{"tool_name":"Glob"}' | "$guard" >/dev/null 2>&1 || allow=$?
+    printf '{"tool_name":"Task"}' | "$guard" >/dev/null 2>&1 || deny=$?
+    (( allow == 0 && deny == 2 )) || fail 'droid seats: setup/droid-guard must be executable, allow Glob and deny Task with exit 2'
+  fi
   for role in lead supervisor; do
     seat="droid-$role"
     jq -e --arg seat "$seat" '.agents.providers[$seat].enabled == true' "$paseo_config" >/dev/null || continue

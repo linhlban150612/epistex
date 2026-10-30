@@ -415,6 +415,10 @@ class SetupSeatsTest(unittest.TestCase):
              f"droid seats: {homes[0]}/.factory/settings.json must be a regular file"),
             ("default compaction limit", lambda: (homes[1] / ".factory/settings.json").write_text('{"compactionTokenLimit": 250000}'),
              f"droid seats: {homes[1]}/.factory/settings.json must be a regular file"),
+            ("guard hook not executable", lambda: (self.kit / "setup/droid-guard").chmod(0o644),
+             "droid seats: setup/droid-guard must be executable, allow Glob and deny Task"),
+            ("guard hook allows Task", lambda: (self.kit / "setup/droid-guard").write_text("#!/bin/sh\nexit 0\n"),
+             "droid seats: setup/droid-guard must be executable, allow Glob and deny Task"),
         )
         for name, mutate, expected in cases:
             with self.subTest(name):
@@ -424,6 +428,7 @@ class SetupSeatsTest(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(expected, result.stderr)
                 self.data = saved
+                shutil.copy2(ROOT / "setup/droid-guard", self.kit / "setup/droid-guard")
                 for home in homes:
                     if (home / ".factory").is_symlink():
                         (home / ".factory").unlink()

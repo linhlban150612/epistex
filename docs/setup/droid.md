@@ -9,8 +9,8 @@ provider does not inject the common contract and the selected role prompt
 ## Prerequisites
 
 1. Install Factory Droid and ensure the `droid` binary is on the PATH inherited by Paseo.
-   `role-agent peer droid` runs `droid exec --output-format acp`. Verified version: 0.247.0
-   (`droid update --version 0.247.0`). The ACP registry entry for 0.247.0 launches
+   `role-agent peer droid` runs `droid exec --output-format acp --settings <guard file>`. Verified
+   versions: 0.247.0 and 1.0.0 (`droid update --version 1.0.0`). The ACP registry entry for 0.247.0 launches
    `--output-format acp-daemon`; the seat keeps `acp`, which 0.247.0 still supports.
 2. Authenticate Droid before launching a seat: use Factory's login flow (shared by all seats), or
    give each seat its own key (see [Per-seat API keys](#per-seat-api-keys)). Credentials stay in
@@ -41,6 +41,35 @@ into `create_agent`.
 
 `setup-seats.sh --check` validates the seat and profile only when `droid-peer` is enabled, so
 configs without Droid still pass.
+
+## Seat guard hook
+
+Droid has native subagents, Missions, loops and automations. Paseo owns agent lifecycle and
+topology, and roles create no schedules, so every Droid seat denies these tools: `Task`,
+`TaskOutput`, `TaskStop`, `ProposeMission`, `StartMissionRun`, `Loop`, `CreateAutomation`,
+`EditAutomation`, `DeleteAutomation`, `RunAutomation`. Other tools, Paseo MCP and Script stay
+available.
+
+- `role-agent <role> droid` writes a private settings file with a `PreToolUse` hook that runs
+  `setup/droid-guard`, and starts `droid exec --output-format acp --settings <file>`. It removes
+  the file when the seat exits (SIGTERM included; a SIGKILL leaves a 157-byte file in `$TMPDIR`).
+  No manual setup; the seat's `settings.json` is not changed.
+- The hook runs for direct calls and for each tool call inside a Script, and exit code 2 rejects
+  the call. Unreadable hook input is also rejected.
+- `role-agent` rejects a `--settings` launch argument, because a second settings file could drop
+  the hook.
+- `setup-seats.sh --check` fails when any Droid seat is enabled and `setup/droid-guard` is not
+  executable, does not allow `Glob`, or does not deny `Task` with exit code 2.
+
+Why a hook: Droid 1.0.0 ACP accepts `--remove-tools`/`--only-tools` silently and ignores them, and
+ACP has no tool config option. Paseo MCP calls inside Script stay allowed: Opus 5.5 runs in Droid's
+`script_only` mode, where Paseo tools are callable only inside a Script.
+
+Live probe (2026-10-30, Droid 1.0.0, through Paseo): `droid-peer` (`gpt-6-luna`), `droid-lead`
+(`claude-opus-5-5`) and `droid-supervisor` (`claude-sonnet-5-5`) each got
+`Epistex seat policy denies Task` for a `Task` call. Lead and Supervisor completed
+`list_workspaces`, and Peer completed `Glob`. A direct ACP probe also rejected `Loop` inside a
+Script.
 
 ## Additional model capabilities and profiles
 
@@ -82,10 +111,13 @@ low/high models does not prove runtime medium support.
 - Role instructions are added to each new session's first prompt by the ACP proxy, not to the system
   prompt. A session restored with `session/load` or `session/resume` does not get them again.
 - Droid Lead/Supervisor use the injected Paseo MCP; Droid Peer has Paseo tools disabled.
+- The [seat guard hook](#seat-guard-hook) denies tools by name only. It is not an OS sandbox: a
+  seat can still start processes through `Execute`.
 - Static checks do not prove authentication, the `acp` output mode, effort mapping or runtime
   integration. The operator merges/reloads the config and performs an actual Paseo launch.
-  Last verified on 0.247.0 (2026-10-22): `droid-peer` (`gpt-6-luna`, `low`) and `droid-lead`
-  (`claude-opus-5-5`, `low`, `auto-high`) completed a Paseo prompt.
+  Last verified on 1.0.0 (2026-10-30): `droid-peer` (`gpt-6-luna`, `low`), `droid-lead`
+  (`claude-opus-5-5`, `low`, `auto-high`) and `droid-supervisor` (`claude-sonnet-5-5`, `low`,
+  `auto-high`) completed a Paseo prompt with the guard hook; earlier on 0.247.0 (2026-10-22).
 
 
 ## droid-lead

@@ -12,6 +12,8 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 proxy = importlib.machinery.SourceFileLoader("role_agent", str(ROOT / "setup" / "role-agent")).load_module()
+DROID_SETTINGS = {"hooks": {"PreToolUse": [{"matcher": "*", "hooks": [
+    {"type": "command", "command": str(ROOT / "setup/droid-guard"), "timeout": 10}]}]}}
 claude_sdk = importlib.machinery.SourceFileLoader("claude_sdk", str(ROOT / "setup" / "claude-sdk")).load_module()
 
 
@@ -21,11 +23,17 @@ class ProfilesTest(unittest.TestCase):
             for backend, binary, acp_args, role, launchers in (
                 ("devin", "devin", ["acp"], "peer", (["role-agent", "peer", "devin"], ["devin-acp", "peer"])),
                 ("copilot", "copilot", ["--acp"], "peer", (["role-agent", "peer", "copilot"], ["copilot-acp", "peer"])),
-                ("droid", "droid", ["exec", "--output-format", "acp"], "peer", (["role-agent", "peer", "droid"],)),
+                ("droid", "droid", ["exec", "--output-format", "acp", "--settings", DROID_SETTINGS], "peer",
+                 (["role-agent", "peer", "droid"],)),
             ):
                 executable = pathlib.Path(folder) / binary
+                # Print argv with a --settings file replaced by its content, read while the seat runs.
                 executable.write_text(f"#!{sys.executable}\nimport json, sys\n"
-                                      "print(json.dumps(sys.argv[1:]), flush=True)\n"
+                                      "args = sys.argv[1:]\n"
+                                      "if '--settings' in args:\n"
+                                      "    i = args.index('--settings') + 1\n"
+                                      "    args[i] = json.load(open(args[i]))\n"
+                                      "print(json.dumps(args), flush=True)\n"
                                       "for line in sys.stdin:\n"
                                       "    print(line, end='', flush=True)\n"
                                       "sys.exit(7)\n")
@@ -38,8 +46,9 @@ class ProfilesTest(unittest.TestCase):
                         result = subprocess.run(
                             [sys.executable, str(ROOT / "setup" / launcher[0]), *launcher[1:], "--extra"],
                             input=raw * 2, text=True, capture_output=True,
-                            env={**os.environ, "PATH": folder}, timeout=10)
+                            env={**os.environ, "PATH": folder, "TMPDIR": folder}, timeout=10)
                         self.assertEqual(result.returncode, 7, result.stderr)
+                        self.assertEqual(list(pathlib.Path(folder).glob("epistex-droid-*")), [])
                         args, first, second = map(json.loads, result.stdout.splitlines())
                         self.assertEqual(args, [*acp_args, "--extra"])
                         expected = json.loads(raw)
@@ -59,6 +68,19 @@ class ProfilesTest(unittest.TestCase):
                                 input=restore + raw, text=True, capture_output=True,
                                 env={**os.environ, "PATH": folder}, timeout=10)
                             self.assertEqual(result.stdout.splitlines()[1:], [restore.strip(), raw.strip()])
+
+    def test_droid_guard_denies_native_agents_and_schedules_only(self):
+        for payload, code in (('{"tool_name":"Task"}', 2), ('{"tool_name":"StartMissionRun"}', 2),
+                              ('{"tool_name":"Loop"}', 2), ('{"tool_name":"CreateAutomation"}', 2),
+                              ('{"tool_name":"ListAutomations"}', 0), ('{"tool_name":"Script"}', 0),
+                              ('{"tool_name":"paseo___create_agent"}', 0), ("not json", 2)):
+            with self.subTest(payload=payload):
+                result = subprocess.run([str(ROOT / "setup/droid-guard")], input=payload, text=True,
+                                        capture_output=True, timeout=10)
+                self.assertEqual(result.returncode, code, result.stderr)
+        result = subprocess.run([sys.executable, str(ROOT / "setup/role-agent"), "peer", "droid", "--settings", "x"],
+                                text=True, capture_output=True, timeout=10)
+        self.assertIn("Droid seats own --settings", result.stderr)
 
     def test_cursor_blocks_prompts_until_parameters_confirmed_and_reblocks_on_drift(self):
         with tempfile.TemporaryDirectory() as folder:

@@ -23,7 +23,7 @@ class LeadSkillsTest(unittest.TestCase):
             self.assertIn(f"`{name}` skill", entry_points, path)
         prompt = subprocess.run([sys.executable, str(ROOT / "setup/role_prompt.py"), "lead"],
                                 text=True, capture_output=True, check=True).stdout
-        self.assertLessEqual(len(prompt.encode()), 16384 - 512, "Lead prompt must keep 512 B of headroom")
+        self.assertLessEqual(len(prompt.encode()), 16384 - 1024, "Lead prompt must keep 1 KiB of headroom")
 
 
 if __name__ == "__main__":

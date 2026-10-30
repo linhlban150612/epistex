@@ -75,7 +75,7 @@ Each lane also reports one line for each property: `<P-id>: pass | fail | not-ch
 A lane returns both inside its six-cell handoff (`PEER.md` §Handoff): property lines and
 findings under `Verification`, the reviewed candidate identity under `Candidate`, and `Scope`
 with `Changed:` empty — a lane writes nothing. `Outcome` keeps its standard form
-(`complete | partial | blocked | reopen; Done: …`) plus `blockers: <n>`.
+(`complete | partial | BLOCKED | REOPEN_REQUEST | DEPENDENCY_REQUEST; Done: …`) plus `blockers: <n>`.
 
 - `blocker`: the lane judges the candidate unsafe to accept.
 - `major`: rework is necessary, but the change is not unsafe.

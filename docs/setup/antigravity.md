@@ -4,13 +4,14 @@ This guide adds `agy-peer`, a Paseo Peer, and an example `agy-lead` seat (see [L
 
 ## Prerequisites and install
 
-1. Download the pinned registry release for your platform (Linux x86_64, version 1.4.1):
+1. Download the pinned registry release for your platform (Linux x86_64, version 1.4.5; earlier
+   verified: 1.4.1):
 
    ```sh
-   curl -fsSLO https://dl.google.com/agy-extensions/releases/linux/agy-acp-server-1.4.1-linux-x86_64.zip
-   sha256sum agy-acp-server-1.4.1-linux-x86_64.zip
-   # 2e37012ceb2a5c7fc7309b6e6596234fb637ee3c62a5199f65d4cbe777871384
-   unzip agy-acp-server-1.4.1-linux-x86_64.zip
+   curl -fsSLO https://dl.google.com/agy-extensions/releases/linux/agy-acp-server-1.4.5-linux-x86_64.zip
+   sha256sum agy-acp-server-1.4.5-linux-x86_64.zip
+   # 923923a0d7dc8073f66cc6f78647a3107e3a7ee2b7e1a24df8b3927b5188013b
+   unzip agy-acp-server-1.4.5-linux-x86_64.zip
    install -m 755 agy_acp_server.par localharness_external ~/.local/bin/
    ```
 

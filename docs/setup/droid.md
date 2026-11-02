@@ -10,8 +10,10 @@ provider does not inject the common contract and the selected role prompt
 
 1. Install Factory Droid and ensure the `droid` binary is on the PATH inherited by Paseo.
    `role-agent peer droid` runs `droid exec --output-format acp --settings <guard file>`. Verified
-   versions: 0.247.0 and 1.0.0 (`droid update --version 1.0.0`). The ACP registry entry for 0.247.0 launches
-   `--output-format acp-daemon`; the seat keeps `acp`, which 0.247.0 still supports.
+   versions: 0.247.0, 1.0.0 and 1.1.0 (`droid update --version 1.1.0`, the ACP registry pin on
+   2026-11-02). The registry entry launches `--output-format acp-daemon`; the seat keeps `acp`,
+   which 1.1.0 still supports (`droid-peer`, `droid-lead` and `droid-supervisor` reach
+   `session/new` through Paseo on 1.1.0).
 2. Authenticate Droid before launching a seat: use Factory's login flow (shared by all seats), or
    give each seat its own key (see [Per-seat API keys](#per-seat-api-keys)). Credentials stay in
    Droid's user state or in the Paseo config, never in this repository.

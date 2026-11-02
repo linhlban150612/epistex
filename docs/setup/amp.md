@@ -34,7 +34,8 @@ Profile pins:
 | `amp-peer` | `low` | `amp-peer--low` | Không có |
 | `amp-supervisor` | `medium`, `high` | `amp-supervisor--medium`, `amp-supervisor--high` | Không có |
 
-Chọn permission mode từ discovery (amp-acp v0.10.0 chỉ có `local` và `orb`, không có mode bypass);
+Chọn permission mode từ discovery (amp-acp v0.10.0 và v0.12.0, pin của ACP registry ngày 2026-11-02,
+chỉ có `local` và `orb`, không có mode bypass);
 `amp-lead--medium` dùng `local`. Thay `<KIT>` bằng đường dẫn tuyệt
 đối, giữ `role-agent` executable, rồi chạy `paseo reload` và tạo phiên mới.
 

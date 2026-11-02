@@ -1,8 +1,12 @@
 # Epistex delivery plugin (Paseo 0.14.0)
 
-Status: **Step 0 only.** The facts below were read from the installed Paseo 0.14.0 build
+Status: **Step 1 (scaffold).** The facts below were read from the installed Paseo 0.14.0 build
 (`$(npm root -g)/@getpaseo/cli/node_modules/@getpaseo/{plugin,server,client,protocol}`) and from
-the live daemon on this host. The plugin under `plugins/epistex-delivery/` does not exist yet.
+the live daemon on this host. `plugins/epistex-delivery/` holds the manifest (pin `0.14.0`), the
+entry and a fail-closed version guard: without `server.on` or when `agent.turn_ended` cannot be
+registered, the plugin logs the reason and registers nothing. Paseo's own
+`compileDirectoryPlugin` + `evaluateBundle` (0.14.0) load the bundle; `node --test` covers the
+guard (`tests/test_delivery_plugin.py` runs it). Not installed in `~/.paseo/config.json`.
 
 ## Purpose
 

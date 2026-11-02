@@ -1,0 +1,21 @@
+{
+  "name": "epistex-delivery",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "files": [
+    "paseo-plugin.json",
+    "OVERVIEW.md",
+    "index.server.ts",
+    "server/"
+  ],
+  "scripts": {
+    "test": "node --test 'server/**/*.test.ts'",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@getpaseo/plugin": "0.14.0",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.3"
+  }
+}

@@ -2,9 +2,14 @@
 """Mechanical handoff gate: compare a Peer handoff with its brief and the Git candidate.
 
 Usage: check-handoff <brief.json> <handoff.txt> [--repo <path>] [--rerun]
+       check-handoff --parse-only <handoff.txt> [--json]
 
 Prints READY_FOR_REVIEW or FAIL with reasons; exit 0/1. Never prints ACCEPTED:
 behaviour, tests, public contract, open findings and cessation stay with the Lead.
+
+--parse-only runs the parser without a brief or repository and reports the handoff shape
+(header, cells, hex tokens in Candidate, snapshot wording). plugins/epistex-delivery/server/handoff.ts
+ports the same parser; tests/fixtures/handoffs/ keeps both in parity.
 """
 
 import argparse
@@ -22,6 +27,7 @@ HEADER = re.compile(r"^Task ID:\s*(?P<task>.+?)\s*\|\s*Round:\s*(?P<round>\S+)")
 CELL_START = re.compile(r"^(?:[*_`]{1,2})?(%s)(?:[*_`]{1,2})?(?:\s{2,}|\s*:\s*|\s*$|(?<=[*_`])\s+)"
                         % "|".join(re.escape(c) for c in CELLS))
 SHA = re.compile(r"\b[0-9a-f]{7,40}\b")
+SNAPSHOT = re.compile(r"snapshot|checksum|uncommitted|no candidate SHA", re.I)
 EXIT = re.compile(r"\b(?:exit(?:\s+(?:status|code))?|rc|status)\s*[:=]?\s*(\d+)\b", re.I)
 # A reported run is a deliberate baseline run when its line names the base, a stash or a
 # regression check. Such runs may fail; the candidate run must still report exit 0.
@@ -43,6 +49,28 @@ def parse_handoff(text):
         elif current and line.strip():
             cells[current] += "\n" + line.strip()
     return header, cells
+
+
+def classify_handoff(text):
+    """Shape check without a brief or repository: the delivery plugin's HANDBACK_VALID test.
+
+    `shas` are hex tokens in the Candidate cell; they are not resolved to commits here, so
+    `valid` means "looks like a complete handback", not READY_FOR_REVIEW.
+    """
+    header, cells = parse_handoff(text)
+    reasons = []
+    if header is None:
+        reasons.append("handoff header 'Task ID: … | Round: …' not found")
+    missing = [c for c in CELLS if not cells.get(c)]
+    if missing:
+        reasons.append("missing cells: " + ", ".join(missing))
+    candidate = cells.get("Candidate", "")
+    shas = SHA.findall(candidate)
+    snapshot = SNAPSHOT.search(candidate) is not None
+    if header is not None and not missing and len(shas) < 2 and not snapshot:
+        reasons.append(f"Candidate cell needs base SHA and candidate SHA (found {len(shas)})")
+    return {"header": header, "cells": cells, "missing": missing, "shas": shas, "snapshot": snapshot,
+            "reasons": reasons, "valid": not reasons}
 
 
 def glob_to_regex(pattern):
@@ -116,7 +144,7 @@ def check(brief, handoff, repo, rerun):
             if not subprocess.run(["git", "-C", str(repo), "cat-file", "-e", f"{sha}^{{commit}}"],
                                   capture_output=True).returncode]
     if len(shas) < 2:
-        if re.search(r"snapshot|checksum|uncommitted|no candidate SHA", candidate_cell, re.I):
+        if SNAPSHOT.search(candidate_cell):
             reasons.append("snapshot candidate: UNSUPPORTED; verify checksums by hand")
         else:
             reasons.append(f"Candidate cell needs base SHA and candidate SHA that resolve to commits in {repo} (found {len(shas)})")
@@ -186,11 +214,28 @@ def check(brief, handoff, repo, rerun):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("brief")
-    parser.add_argument("handoff")
+    parser.add_argument("brief", nargs="?")
+    parser.add_argument("handoff", nargs="?")
     parser.add_argument("--repo", help="git repo to resolve SHAs (default: brief.repo_root or worktree)")
     parser.add_argument("--rerun", action="store_true", help="rerun required_checks in the candidate worktree")
+    parser.add_argument("--parse-only", metavar="HANDOFF", help="parse HANDOFF without a brief and report its shape")
+    parser.add_argument("--json", action="store_true", help="with --parse-only: print the result as JSON")
     args = parser.parse_args(argv)
+    if args.parse_only:
+        try:
+            result = classify_handoff(pathlib.Path(args.parse_only).read_text(encoding="utf-8"))
+        except OSError as error:
+            print(f"FAIL\n- {error}")
+            return 1
+        if args.json:  # the JSON is the report; only a read error is a failure
+            print(json.dumps(result, ensure_ascii=False))
+            return 0
+        print("VALID" if result["valid"] else "FAIL")
+        for reason in result["reasons"]:
+            print(f"- {reason}")
+        return 0 if result["valid"] else 1
+    if not args.brief or not args.handoff:
+        parser.error("brief and handoff are required unless --parse-only is used")
     try:
         brief = json.loads(pathlib.Path(args.brief).read_text(encoding="utf-8"))
         handoff = pathlib.Path(args.handoff).read_text(encoding="utf-8")

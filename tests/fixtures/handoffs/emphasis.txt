@@ -1,0 +1,16 @@
+I finished the round. Summary below.
+
+Task ID: eval/task--20261022-161431 | Round: 3 (assigned by the brief)
+
+**Outcome**: partial; Done: a; Not done: b
+**Candidate** base 3f2a9c1; uncommitted candidate on branch eval/task--20261022-161431;
+  worktree /tmp/repo (diff sha256 0a184d9dc3b8fa90d6a48f5cc8ce41074537be65a5e848a714844125a55aeb01)
+*Scope*  Changed:
+- `src/a.py` (file mới)
+- `src/b.py`.
+Read: README.md
+`Verification`
+baseline run: `true` exit 1
+candidate: `true` exit 0
+Unknown / risk: không có
+Ownership: dừng ghi, trả scope

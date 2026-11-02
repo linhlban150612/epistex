@@ -142,5 +142,37 @@ class CheckHandoffTest(unittest.TestCase):
                 self.assertEqual(result.returncode, 1)
                 self.assertIn("UNSUPPORTED", result.stdout)
 
+    def test_parse_only_reports_shape_without_brief_or_repo(self):
+        fixtures = ROOT / "tests/fixtures/handoffs"
+
+        def parse_only(name, *extra):
+            return subprocess.run([sys.executable, str(SCRIPT), "--parse-only", str(fixtures / name), *extra],
+                                  text=True, capture_output=True, env=ENV)
+
+        valid = json.loads(parse_only("valid.txt", "--json").stdout)
+        self.assertTrue(valid["valid"])
+        self.assertEqual(valid["header"], {"task": "T-1", "round": "1"})
+        self.assertEqual(len(valid["shas"]), 2)
+        emphasis = json.loads(parse_only("emphasis.txt", "--json").stdout)
+        self.assertEqual(emphasis["header"]["round"], "3")
+        self.assertEqual(emphasis["cells"]["Unknown / risk"], "không có")
+        self.assertTrue(emphasis["snapshot"])
+        for name, reason in {"missing-cell.txt": "missing cells: Ownership",
+                             "no-round.txt": "header 'Task ID: … | Round: …' not found",
+                             "truncated.txt": "missing cells: Scope, Verification, Unknown / risk, Ownership",
+                             "empty.txt": "missing cells: Outcome"}.items():
+            with self.subTest(name):
+                as_json = parse_only(name, "--json")
+                self.assertEqual(as_json.returncode, 0, "JSON mode reports, it does not judge")
+                self.assertFalse(json.loads(as_json.stdout)["valid"])
+                as_text = parse_only(name)
+                self.assertEqual(as_text.returncode, 1)
+                self.assertIn(reason, as_text.stdout)
+        self.assertEqual(parse_only("valid.txt").stdout.strip(), "VALID")
+        missing_args = subprocess.run([sys.executable, str(SCRIPT), "brief.json"], text=True, capture_output=True, env=ENV)
+        self.assertEqual(missing_args.returncode, 2)
+        self.assertIn("brief and handoff are required", missing_args.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

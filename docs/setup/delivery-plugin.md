@@ -1,12 +1,15 @@
 # Epistex delivery plugin (Paseo 0.14.0)
 
-Status: **Step 1 (scaffold).** The facts below were read from the installed Paseo 0.14.0 build
-(`$(npm root -g)/@getpaseo/cli/node_modules/@getpaseo/{plugin,server,client,protocol}`) and from
-the live daemon on this host. `plugins/epistex-delivery/` holds the manifest (pin `0.14.0`), the
-entry and a fail-closed version guard: without `server.on` or when `agent.turn_ended` cannot be
-registered, the plugin logs the reason and registers nothing. Paseo's own
-`compileDirectoryPlugin` + `evaluateBundle` (0.14.0) load the bundle; `node --test` covers the
-guard (`tests/test_delivery_plugin.py` runs it). Not installed in `~/.paseo/config.json`.
+Status: **Step 2 (scaffold + shared parser).** The facts below were read from the installed Paseo
+0.14.0 build (`$(npm root -g)/@getpaseo/cli/node_modules/@getpaseo/{plugin,server,client,protocol}`)
+and from the live daemon on this host. `plugins/epistex-delivery/` holds the manifest (pin
+`0.14.0`), the entry and a fail-closed version guard: without `server.on` or when
+`agent.turn_ended` cannot be registered, the plugin logs the reason and registers nothing. Paseo's
+own `compileDirectoryPlugin` + `evaluateBundle` (0.14.0) load the bundle. `server/handoff.ts`
+ports `parse_handoff`/`classify_handoff` from `setup/check-handoff`; `check-handoff --parse-only
+<file> --json` exposes the Python result and `tests/fixtures/handoffs/` is run through both
+(`node --test` in the plugin, driven by `tests/test_delivery_plugin.py`). Not installed in
+`~/.paseo/config.json`.
 
 ## Purpose
 
@@ -89,12 +92,17 @@ paseo plugin ls --json
 paseo plugin logs epistex-delivery
 ```
 
-## Open questions for the Human
+## Decisions and open questions
 
-1. Parser: shell out to `setup/check-handoff --parse-only --json` or port to TypeScript with the
-   shared fixture suite?
-2. Root (UI-opened) Peers: in scope or not?
+Decided by the Human (2026-11-02):
+
+1. Parser: **ported to TypeScript** (`server/handoff.ts`) with the shared fixture suite; the Python
+   `--parse-only --json` output is the parity oracle.
+4. Send policy when the Lead is busy (see difference 2): **event-gated send plus `steer`** for the
+   residual race (`sourceAgentId: <peerId>`, `activeTurnBehavior: "steer"`, `messageId:
+   <delivery-id>`), the same path as native `notifyOnFinish`.
+
+Still open:
+
+2. Root (UI-opened) Peers: in scope or not? (Current design: ignored.)
 3. Outbox retention after the Lead is archived: compact, or keep for audit?
-4. Send policy when the Lead is busy (see difference 2): event-gated send plus `steer` for the
-   residual race, or event-gated send plus `interrupt`? `interrupt` always replaces a running
-   Lead turn; `steer` replaces only when the provider cannot steer.

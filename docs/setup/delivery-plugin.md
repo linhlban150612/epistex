@@ -1,6 +1,7 @@
 # Epistex delivery plugin (Paseo 0.14.0)
 
-Status: **Step 5 (scaffold + shared parser + outbox + turn_ended delivery + reconcile).** The facts below were read from the installed Paseo
+Status: **Step 6 (scaffold + shared parser + outbox + turn_ended delivery + reconcile + setup-seats pin
+check and install/remove flags).** The facts below were read from the installed Paseo
 0.14.0 build (`$(npm root -g)/@getpaseo/cli/node_modules/@getpaseo/{plugin,server,client,protocol}`)
 and from the live daemon on this host. `plugins/epistex-delivery/` holds the manifest (pin
 `0.14.0`), the entry and a fail-closed version guard: without `server.on` or when
@@ -105,14 +106,23 @@ Its outbox is a delivery receipt store outside Git; it holds no authority or dec
 - Enabling plugins (`pluginsEnabled: true`) and installing the plugin change the user's live
   `~/.paseo/config.json`; both need the Human's approval.
 
-## Planned install path (not executed yet)
+## Install path (not executed yet on this host)
 
 ```bash
 # Human-approved: set "pluginsEnabled": true in ~/.paseo/config.json, then
-paseo plugin install /abs/path/to/epistex/plugins/epistex-delivery
+bash <KIT>/setup/setup-seats.sh --install-plugin   # runs: paseo plugin install <KIT>/plugins/epistex-delivery
 paseo plugin ls --json
 paseo plugin logs epistex-delivery
+bash <KIT>/setup/setup-seats.sh --check            # pin, path, pluginsEnabled and daemon version
 ```
+
+`setup-seats.sh` shares the `0.14.0` pin with `paseo-plugin.json` and `server/plugin.ts` and fails when
+they drift. It refuses to install under `--check`, when `paseo --version` is not the pin, or when
+`pluginsEnabled` is not `true`; it never edits `config.json` itself (the daemon does, through the
+CLI). With the plugin installed, `--check` fails when the entry is not a `directory` source at the kit
+path, points through a symlink, is disabled, `pluginsEnabled` is off, or the daemon version differs from
+the pin; without `paseo` on PATH the version check is reported as pending. `--remove-plugin` removes the
+config entry and keeps the receipts under `${PASEO_HOME:-~/.paseo}/epistex-delivery/`.
 
 ## Decisions and open questions
 

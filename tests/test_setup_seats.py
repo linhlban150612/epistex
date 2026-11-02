@@ -25,7 +25,7 @@ class SetupSeatsTest(unittest.TestCase):
         self.bin = pathlib.Path(self.temporary.name) / "bin"
         self.bin.mkdir()
         self.kit = pathlib.Path(self.temporary.name) / "kit"
-        for directory in ("setup", "agents", "examples", ".agents", ".pi", ".omp"):
+        for directory in ("setup", "agents", "examples", ".agents", ".pi", ".omp", "plugins"):
             shutil.copytree(ROOT / directory, self.kit / directory)
         self.script = self.kit / "setup" / "setup-seats.sh"
         for name in ("bash", "jq", "dirname", "wc", "chmod", "grep", "sort", "diff", "cp", "mkdir", "git"):
@@ -470,6 +470,109 @@ class SetupSeatsTest(unittest.TestCase):
                 again = subprocess.run(command, input=result.stdout, text=True,
                                        capture_output=True, check=True)
                 self.assertEqual(json.loads(again.stdout), data)
+
+    def test_delivery_plugin_pin_and_install_are_checked(self):
+        plugin_dir = (self.kit / "plugins/epistex-delivery").resolve()
+        calls = pathlib.Path(self.temporary.name) / "paseo-calls"
+        paseo = self.bin / "paseo"
+        paseo.write_text("#!/usr/bin/env bash\n"
+                         f"printf '%s\\n' \"$*\" >> {calls}\n"
+                         "[[ \"$1\" == --version ]] && printf '%s\\n' \"$FAKE_PASEO_VERSION\"\nexit 0\n")
+        paseo.chmod(0o755)
+        self.env["FAKE_PASEO_VERSION"] = "0.14.0"
+
+        with self.subTest("not installed is a note, never an error"):
+            result = self.check_config(self.data)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("delivery plugin not installed (prompt workaround for #6346 stays)", result.stdout)
+
+        installed = {"pluginsEnabled": True, "plugins": {"epistex-delivery": {"source": "directory", "path": str(plugin_dir)}}}
+        with self.subTest("installed from the kit directory on the pinned daemon"):
+            result = self.check_config({**self.data, **installed})
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn("delivery plugin", result.stdout + result.stderr)
+
+        link = pathlib.Path(self.temporary.name) / "plugin-link"
+        link.symlink_to(plugin_dir)
+        for name, patch, message in (
+            ("pluginsEnabled off", {"pluginsEnabled": False}, "pluginsEnabled is not true"),
+            ("entry disabled", {"plugins": {"epistex-delivery": {**installed["plugins"]["epistex-delivery"], "enabled": False}}},
+             "disabled in config"),
+            ("foreign path", {"plugins": {"epistex-delivery": {"source": "directory", "path": self.temporary.name}}},
+             "must be a directory source at"),
+            ("symlinked path", {"plugins": {"epistex-delivery": {"source": "directory", "path": str(link)}}},
+             "(no symlink)"),
+            ("non-directory source", {"plugins": {"epistex-delivery": {"source": "npm", "path": str(plugin_dir)}}},
+             "must be a directory source at"),
+        ):
+            with self.subTest(name):
+                result = self.check_config({**self.data, **installed, **patch})
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(message, result.stderr)
+
+        with self.subTest("daemon version off the pin"):
+            self.env["FAKE_PASEO_VERSION"] = "0.15.0"
+            result = self.check_config({**self.data, **installed})
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("pinned to Paseo 0.14.0 but paseo is 0.15.0", result.stderr)
+            self.assertEqual(self.check_config(self.data).returncode, 0, "not installed: version is not gated")
+
+        with self.subTest("paseo absent leaves the pin pending"):
+            paseo.unlink()
+            result = self.check_config({**self.data, **installed})
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("pin 0.14.0 not checked against the daemon (pending)", result.stdout)
+            paseo.write_text("#!/usr/bin/env bash\n"
+                             f"printf '%s\\n' \"$*\" >> {calls}\n"
+                             "[[ \"$1\" == --version ]] && printf '%s\\n' \"$FAKE_PASEO_VERSION\"\nexit 0\n")
+            paseo.chmod(0o755)
+
+        with self.subTest("manifest and guard must share the pin"):
+            manifest = plugin_dir / "paseo-plugin.json"
+            original = manifest.read_text()
+            manifest.write_text(original.replace('"paseo": "0.14.0"', '"paseo": "0.15.0"'))
+            result = self.check_config(self.data)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("must pin Paseo 0.14.0", result.stderr)
+            manifest.write_text(original)
+
+        self.save()
+        calls.write_text("")
+        with self.subTest("--install-plugin refuses --check, a wrong daemon and pluginsEnabled off"):
+            self.assertEqual(self.run_check("--check", "--install-plugin").returncode, 2)
+            self.assertEqual(self.run_check("--install-plugin", "--remove-plugin").returncode, 2)
+            self.env["FAKE_PASEO_VERSION"] = "0.15.0"
+            result = self.run_check("--install-plugin")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("paseo is 0.15.0; not installing", result.stderr)
+            self.env["FAKE_PASEO_VERSION"] = "0.14.0"
+            result = self.run_check("--install-plugin")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('set "pluginsEnabled": true in config.json first', result.stderr)
+            self.assertNotIn("plugin install", calls.read_text())
+
+        with self.subTest("--install-plugin installs once through the CLI"):
+            self.config.write_text(json.dumps({**self.data, "pluginsEnabled": True}))
+            result = self.run_check("--install-plugin")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(f"plugin install {plugin_dir}\n", calls.read_text())
+            self.assertIn("delivery plugin installed from", result.stdout)
+            calls.write_text("")
+            self.config.write_text(json.dumps({**self.data, **installed}))
+            result = self.run_check("--install-plugin")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("already installed", result.stdout)
+            self.assertNotIn("plugin install", calls.read_text())
+
+        with self.subTest("--remove-plugin goes through the CLI and keeps receipts"):
+            result = self.run_check("--remove-plugin")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("plugin remove epistex-delivery\n", calls.read_text())
+            self.assertIn("receipts under PASEO_HOME/epistex-delivery are kept", result.stdout)
+            self.config.write_text(json.dumps(self.data))
+            result = self.run_check("--remove-plugin")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("nothing to remove", result.stdout)
 
     def test_project_installs_and_checks_every_kit_skill(self):
         self.save()

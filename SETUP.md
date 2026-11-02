@@ -165,6 +165,14 @@ wrong model, effort or tool permission, or if a prompt or template names a skill
 location; if you use `CODEX_BIN`, set the same value for the checker and the providers. A passing result
 does not prove auth, the daemon, model availability or a successful launch: those are steps 2 and 8.
 
+The optional [delivery plugin](docs/setup/delivery-plugin.md) is pinned to Paseo `0.14.0`. `--check` confirms
+the pin in `plugins/epistex-delivery/`, and, when `config.json` has a `plugins.epistex-delivery` entry, that it is a
+`directory` source at the kit path (no symlink), not disabled, `pluginsEnabled` is `true`, and `paseo --version`
+(when on PATH) equals the pin; it fails on any mismatch. Install is a Human-approved change to the live config:
+set `"pluginsEnabled": true` in `config.json`, then run `setup-seats.sh --install-plugin` (refused under `--check`,
+when the daemon version differs from the pin, or when `pluginsEnabled` is not `true`). `--remove-plugin` removes
+the config entry through the CLI and keeps the receipts under `${PASEO_HOME:-~/.paseo}/epistex-delivery/`.
+
 ## 8. Prove isolation
 
 Start a `codex-peer` agent and ask it to report the common and role headings from its received

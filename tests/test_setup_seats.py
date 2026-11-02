@@ -135,6 +135,12 @@ class SetupSeatsTest(unittest.TestCase):
             d["daemon"]["agentProfiles"].append({"id": "droid-peer--glm-5-3--medium", "provider": "droid-peer",
                                                  "model": "glm-5.3", "thinkingOptionId": "medium"})
 
+        def fabricated_high_1017(d):
+            model(d, "droid-peer", "deepseek-v4.1-flash-1017")["thinkingOptions"].append(
+                {"id": "high", "label": "High", "isDefault": False})
+            d["daemon"]["agentProfiles"].append({"id": "droid-peer--deepseek-v4-1-flash-1017--high", "provider": "droid-peer",
+                                                 "model": "deepseek-v4.1-flash-1017", "thinkingOptionId": "high"})
+
         def default_model(name, mid):
             def mutate(d):
                 for m in seat(d, name)["models"]:
@@ -248,6 +254,7 @@ class SetupSeatsTest(unittest.TestCase):
                 "thinkingOptions", [o for o in model(d, "droid-peer", "glm-5.3-flash")["thinkingOptions"] if o["id"] != "high"]),
              "droid-peer: wrong launcher, tools, env or model/effort"),
             ("droid fabricated medium", fabricated_medium, "droid-peer: wrong launcher, tools, env or model/effort"),
+            ("droid 1017 fabricated high", fabricated_high_1017, "droid-peer: wrong launcher, tools, env or model/effort"),
             ("droid peer extra env", lambda d: seat(d, "droid-peer").__setitem__(
                 "env", {"FACTORY_API_KEY": "fk-a", "FACTORY_HOME_OVERRIDE": "/tmp/a", "DROID_EXTRA": "1"}), "droid-peer: wrong launcher, tools, env or model/effort"),
             ("droid lead malformed key", lambda d: seat(d, "droid-lead").__setitem__(

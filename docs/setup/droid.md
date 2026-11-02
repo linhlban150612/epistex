@@ -34,7 +34,7 @@ Merge the `droid-peer` entry and its `droid-peer--*` profiles from
 | Paseo tools | Disabled |
 | Default model | `gpt-6-luna`, default effort `low` (the seat default; upstream defaults to `medium`) |
 | Luna profiles | `droid-peer--gpt-6-luna--low`; `droid-peer--gpt-6-luna--medium` |
-| Additional models/profiles | Ten models, 20 supported profiles listed below; each defaults to `low` |
+| Additional models/profiles | Eleven models, 21 supported profiles listed below; each defaults to `low` |
 
 Luna retains its six thinking options. Each additional model exposes only its requested supported
 low/medium or low/high choices, not every upstream effort. The checker requires every `droid-peer` profile to
@@ -76,7 +76,7 @@ Script.
 ## Additional model capabilities and profiles
 
 The capability source is a direct ACP inventory of Droid 0.241.1, re-checked unchanged on 0.247.0
-(2026-10-22): start
+(2026-10-22) and, for `deepseek-v4.1-flash-1017`, on 1.1.0 (2026-11-02): start
 `droid exec --output-format acp`, initialize a session without a prompt, select each
 model using `session/set_config_option` with `configId=model`, then inspect the returned
 `reasoning_effort` select. This verifies advertised per-model choices, not successful model
@@ -94,10 +94,11 @@ execution, authentication for inference, or Paseo integration. No model prompt w
 | `glm-5.3` | low, high, max | low, high |
 | `kimi-k3` | off, low, high, max | low, high |
 | `deepseek-v4.1-flash` | off, low, high, max | low, high |
+| `deepseek-v4.1-flash-1017` | off, low, high, max | low (requested: low only) |
 
 Profile IDs follow `droid-peer--<model-id-with-dots-replaced-by-hyphens>--<effort>`, for example
-`droid-peer--gpt-6-1-sol--medium`; the profile's `model` stays `gpt-6.1-sol`. There are 22 Droid
-profiles total: two existing Luna profiles plus 20 additions. The checker requires all supported
+`droid-peer--gpt-6-1-sol--medium`; the profile's `model` stays `gpt-6.1-sol`. There are 23 Droid
+profiles total: two existing Luna profiles plus 21 additions. The checker requires all supported
 profiles and rejects missing models/choices, mismatched provider/model/effort, and fabricated medium
 options or profiles for the four low/high models.
 

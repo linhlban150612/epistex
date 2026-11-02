@@ -432,7 +432,8 @@ PY
       "claude-opus-5-5":["low","medium"], "claude-sonnet-5-5":["low","medium"],
       "claude-haiku-5-5":["low","medium"], "gpt-6.1-sol":["low","medium"],
       "glm-5.3-flash":["low","high"], "glm-5.3":["low","high"],
-      "kimi-k3":["low","high"], "deepseek-v4.1-flash":["low","high"]
+      "kimi-k3":["low","high"], "deepseek-v4.1-flash":["low","high"],
+      "deepseek-v4.1-flash-1017":["low"]
     }'
     jq -e --arg command "$kit/setup/role-agent" --argjson efforts "$droid_efforts" '
       .agents.providers["droid-peer"] |

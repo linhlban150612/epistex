@@ -1984,6 +1984,18 @@
                 "isDefault": false
               }
             ]
+          },
+          {
+            "id": "deepseek-v4.1-flash-1017",
+            "label": "DeepSeek V4.1 Flash 1017",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              }
+            ]
           }
         ]
       }
@@ -2230,6 +2242,14 @@
         "model": "deepseek-v4.1-flash",
         "thinkingOptionId": "high",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: high. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
+      },
+      {
+        "id": "droid-peer--deepseek-v4-1-flash-1017--low",
+        "name": "droid-peer · deepseek-v4.1-flash-1017 · low",
+        "provider": "droid-peer",
+        "model": "deepseek-v4.1-flash-1017",
+        "thinkingOptionId": "low",
+        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
         "id": "amp-supervisor--medium",

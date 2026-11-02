@@ -1,6 +1,6 @@
 # Epistex delivery plugin (Paseo 0.14.0)
 
-Status: **Step 2 (scaffold + shared parser).** The facts below were read from the installed Paseo
+Status: **Step 3 (scaffold + shared parser + outbox).** The facts below were read from the installed Paseo
 0.14.0 build (`$(npm root -g)/@getpaseo/cli/node_modules/@getpaseo/{plugin,server,client,protocol}`)
 and from the live daemon on this host. `plugins/epistex-delivery/` holds the manifest (pin
 `0.14.0`), the entry and a fail-closed version guard: without `server.on` or when
@@ -8,7 +8,11 @@ and from the live daemon on this host. `plugins/epistex-delivery/` holds the man
 own `compileDirectoryPlugin` + `evaluateBundle` (0.14.0) load the bundle. `server/handoff.ts`
 ports `parse_handoff`/`classify_handoff` from `setup/check-handoff`; `check-handoff --parse-only
 <file> --json` exposes the Python result and `tests/fixtures/handoffs/` is run through both
-(`node --test` in the plugin, driven by `tests/test_delivery_plugin.py`). Not installed in
+(`node --test` in the plugin, driven by `tests/test_delivery_plugin.py`). `server/outbox.ts`
+is the receipt store: `<leadAgentId>.jsonl` append-only with `fsync` (a `sent` update is a second
+line for the same `deliveryId`, folded on load), `cursors.json` written temp file + rename, and
+`deliveryId()` = sha256 over `peerAgentId, taskId|"?", round|"?", candidate|"?", lastMessageId`.
+A torn last line is skipped with a warning. Not wired to the hook yet. Not installed in
 `~/.paseo/config.json`.
 
 ## Purpose

@@ -135,8 +135,9 @@ recovery checks.
 - Agent tree and idle release (Paseo 0.14.0, read from its source, not yet verified live): an agent
   created through Paseo MCP `create_agent` is a child of the calling agent (label
   `paseo.parent-agent-id`), unless the hidden legacy `relationship: {kind: "detached"}` is used.
-  Peers created by a Lead are therefore its children; a Lead opened by the Human from the UI or CLI
-  is a root, so it is not a child of the Supervisor. With the global `agents.idleRuntimeCleanup`
+  A Lead created by the Supervisor is therefore its child, and Peers created by a Lead are the
+  Lead's children. An agent the Human opens from the UI or CLI is a root. No Paseo config sets or
+  enforces this tree. With the global `agents.idleRuntimeCleanup`
   setting (default on, no per-agent setting), Paseo stops the runtime of an agent idle for one hour
   only if the agent and all its descendants are eligible. An agent waiting on a finish
   notification is never released, so a Lead waiting for its Peer keeps running. A released agent

@@ -188,6 +188,32 @@ Observations, not plugin faults:
   The run therefore proves the duplicate path (native plus plugin, same turn, handled once), not
   the missing-notification path, which the fault-injection scenarios C and D cover.
 
+## Live run 2 after the cleanup (2026-11-02)
+
+Same setup on a fresh clone (`eval/live-delivery-20261102-225410`, baseline `736f30c`, kit
+installed with `setup-seats.sh --project`, plugin installed as `--install-plugin` default). Lead
+`droid-lead/gpt-6.1-sol` (`485b657b…`), Peer created by the Lead:
+`droid-peer/deepseek-v4.1-flash-1017`, effort `low` (`0b5b2224…`). Task `INT-TESTS`: unit tests for
+`DataUtil.safeToInt`/`parseToInt`, commit required. Receipts: `~/.paseo/epistex-delivery/485b657b-….jsonl`.
+
+| Step | Observed | Result |
+| --- | --- | --- |
+| Reconcile with stale cursors | The first event after the plugin reload read the four watched Peers of the earlier runs; each timeline read failed with `Working directory does not exist` (their clones were deleted). Each Peer was skipped with a logged error, `reconciled 4 watched peer(s)`, and the live event was still processed. | pass (after the fix below) |
+| Round 1 | Peer committed `f4c7066` (15 tests pass), wrote a valid handoff, then ended the turn with a `TodoWrite` call and the text "the handoff above stands". Plugin: `TURN_ENDED_INVALID_HANDOFF b7f09c47…` (header and all cells missing in the last message). Lead asked for a handoff-only resend; plugin: `HANDBACK_VALID 54fca5c4…` (`INT-TESTS`, round 1, candidate `736f30c..f4c7066`). Lead reran `./verify quick` (exit 0), accepted the commit, archived the Peer. One round, no duplicate assignment. | pass |
+
+Plugin fault found and fixed in this run: `reconcile()` let a failed timeline read of one watched
+Peer throw out of the `agent.turn_ended` handler, so two Lead turn ends were dropped and, because the
+rejected promise was cached, every later event failed too. `server/delivery.ts` now skips that Peer
+(`reconcile: peer <id> skipped: <error>`) and, if reconcile still fails, clears the cached promise,
+logs and handles the live event anyway. Regression test: "reconcile skips a watched peer whose
+timeline read fails and still delivers the live event".
+
+Observation, not a plugin fault: the Peer's Paseo record carries `config.modeId: auto-high`, yet
+its Droid session stopped on an `edit` permission request until the Human ran
+`paseo agent mode <peer> auto-high` and `paseo permit allow`. The Lead correctly refused to approve
+it. Cause not identified (Droid ACP mode application at session start); watch for it on
+`droid-peer` seats.
+
 ## Decisions and open questions
 
 Decided by the Human (2026-11-02):

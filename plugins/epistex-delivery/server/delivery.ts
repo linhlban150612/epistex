@@ -100,10 +100,16 @@ export class Delivery {
       for (const peerAgentId of this.outbox.watchedPeers()) {
         const latest = this.outbox.latestFor(peerAgentId);
         if (!latest) continue;
-        const peer = (await paseo.agents.ref(peerAgentId).refresh())?.agent;
-        if (!peer || peer.status === "running" || peer.status === "initializing") continue;
-        const synthetic: TurnEndedEvent = { agent: { ...NO_HOOK_AGENT, id: peerAgentId, parentAgentId: latest.leadAgentId, provider: peer.provider }, turnId: null, outcome: { kind: "completed" }, timeline: [] };
-        await this.recordTurn(synthetic, latest.leadAgentId, paseo);
+        try {
+          const peer = (await paseo.agents.ref(peerAgentId).refresh())?.agent;
+          if (!peer || peer.status === "running" || peer.status === "initializing") continue;
+          const synthetic: TurnEndedEvent = { agent: { ...NO_HOOK_AGENT, id: peerAgentId, parentAgentId: latest.leadAgentId, provider: peer.provider }, turnId: null, outcome: { kind: "completed" }, timeline: [] };
+          await this.recordTurn(synthetic, latest.leadAgentId, paseo);
+        } catch (error) {
+          // A Peer whose cwd is gone (deleted scratch clone) makes the timeline read fail; one
+          // such Peer must not stop the catch-up of the others or the delivery of live events.
+          this.log.error(`reconcile: peer ${peerAgentId} skipped: ${error instanceof Error ? error.message : String(error)}`);
+        }
       }
       for (const record of this.outbox.records()) if (record.state === "pending") leads.add(record.leadAgentId);
       for (const leadAgentId of leads) await this.flush(leadAgentId, paseo);
@@ -113,7 +119,13 @@ export class Delivery {
   }
 
   async onTurnEnded(event: TurnEndedEvent, paseo: DeliveryPaseo): Promise<void> {
-    await this.reconcile(paseo);
+    try {
+      await this.reconcile(paseo);
+    } catch (error) {
+      // Never let a failed catch-up block the live event; retry the catch-up on the next one.
+      this.reconciled = null;
+      this.log.error(`reconcile failed; will retry on the next event: ${error instanceof Error ? error.message : String(error)}`);
+    }
     const { agent } = event;
     if (LEAD_PROVIDER.test(agent.provider)) {
       await this.flush(agent.id, paseo);

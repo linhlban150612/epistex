@@ -18,7 +18,7 @@ interface Sent {
 }
 
 /** Fake of the PaseoApi slice: per-agent snapshots, timeline pages served in order, recorded sends. */
-function fakePaseo(agents: Record<string, AgentSnapshot | null>, pages: Record<string, TimelinePage[]> = {}) {
+function fakePaseo(agents: Record<string, AgentSnapshot | null>, pages: Record<string, TimelinePage[] | Error> = {}) {
   const sent: Sent[] = [];
   const refetches: Array<{ agentId: string; options: unknown }> = [];
   let failSend: Error | null = null;
@@ -33,6 +33,7 @@ function fakePaseo(agents: Record<string, AgentSnapshot | null>, pages: Record<s
           refetch: async (options) => {
             refetches.push({ agentId, options });
             const queue = pages[agentId] ?? [];
+            if (queue instanceof Error) throw queue;
             return queue.length > 1 ? queue.shift()! : (queue[0] ?? { epoch: "e0", entries: [] });
           },
         },
@@ -273,6 +274,52 @@ test("reconcile on the first event: watched peers are caught up, pending records
     // Reconcile is once per process: a later event does not repeat it.
     await second.onTurnEnded(peerTurn({ agent: { ...peerTurn().agent, id: "root", parentAgentId: null } }), session2.paseo);
     assert.equal(session2.refetches.length, 1);
+  });
+});
+
+test("reconcile skips a watched peer whose timeline read fails and still delivers the live event", async () => {
+  await scratch(async (first, outbox) => {
+    // Session 1: peer-1 and peer-2 delivered, so both have stored cursors.
+    const session1 = fakePaseo(
+      { "lead-1": leadIdle },
+      { "peer-1": [{ epoch: "e1", entries: [assistant(VALID, 1, { messageId: "a" })] }], "peer-2": [{ epoch: "e2", entries: [assistant(VALID, 1, { messageId: "b" })] }] },
+    );
+    await first.onTurnEnded(peerTurn(), session1.paseo);
+    await first.onTurnEnded(peerTurn({ agent: { ...peerTurn().agent, id: "peer-2" } }), session1.paseo);
+    assert.equal(session1.sent.length, 2);
+
+    // Session 2: peer-1's scratch clone was deleted, so Paseo rejects its timeline read (seen live on
+    // 0.14.0); peer-2 finished another turn while the plugin was down; peer-3 ends a turn now.
+    const lines: string[] = [];
+    const log: Logger = { info: (m) => lines.push(`info ${m}`), error: (m) => lines.push(`error ${m}`) };
+    const second = new Delivery({ outbox: new Outbox(outbox.directory), log, now: () => "2026-11-02T01:00:00.000Z" });
+    const session2 = fakePaseo(
+      {
+        "lead-1": leadIdle,
+        "peer-1": { id: "peer-1", provider: "codex-peer", status: "closed" },
+        "peer-2": { id: "peer-2", provider: "codex-peer", status: "idle" },
+        "peer-3": { id: "peer-3", provider: "codex-peer", status: "idle" },
+      },
+      {
+        "peer-1": new Error("Invalid params: Working directory does not exist: /gone"),
+        "peer-2": [{ epoch: "e2", entries: [assistant(VALID.replace("Round: 1", "Round: 2"), 5, { messageId: "c" })] }],
+        "peer-3": [{ epoch: "e3", entries: [assistant(VALID, 1, { messageId: "d" })] }],
+      },
+    );
+    await second.onTurnEnded(peerTurn({ agent: { ...peerTurn().agent, id: "peer-3" } }), session2.paseo);
+
+    assert.deepEqual(
+      session2.sent.map((s) => [s.options.sourceAgentId, /round: (\S+)/.exec(s.text)?.[1]]),
+      [["peer-2", "2"], ["peer-3", "1"]],
+      "the caught-up peer-2 turn, then the live peer-3 turn; peer-1 is skipped, not fatal",
+    );
+    assert.ok(lines.some((l) => /^error reconcile: peer peer-1 skipped: Invalid params: Working directory does not exist/.test(l)));
+    assert.ok(lines.some((l) => /reconciled 2 watched peer\(s\), 1 lead\(s\)/.test(l)), "reconcile completed despite the failing peer");
+
+    // Reconcile completed, so a later event does not repeat it.
+    const refetches = session2.refetches.length;
+    await second.onTurnEnded(peerTurn({ agent: { ...peerTurn().agent, id: "root", parentAgentId: null } }), session2.paseo);
+    assert.equal(session2.refetches.length, refetches);
   });
 });
 

@@ -1,7 +1,7 @@
 # Epistex delivery plugin (Paseo 0.14.0)
 
-Status: **Step 7 (scaffold + shared parser + outbox + turn_ended delivery + reconcile + setup-seats pin
-check and install/remove flags + Lead prompt/README wiring; not yet installed or run live).** The facts below were read from the installed Paseo
+Status: **Step 8 (installed on this host and verified live, 2026-11-02; five fault-injection
+scenarios passed, see [Live fault-injection results](#live-fault-injection-results-2026-11-02)).** The facts below were read from the installed Paseo
 0.14.0 build (`$(npm root -g)/@getpaseo/cli/node_modules/@getpaseo/{plugin,server,client,protocol}`)
 and from the live daemon on this host. `plugins/epistex-delivery/` holds the manifest (pin
 `0.14.0`), the entry and a fail-closed version guard: without `server.on` or when
@@ -25,7 +25,8 @@ is logged and not delivered (its message, if any, was delivered already; a repla
 here); `failed`/`canceled` turns without a message become `TURN_ENDED_NO_MESSAGE`. Reconcile
 (difference 6) runs once per plugin process on the first `agent.turn_ended` event: every Peer
 with a stored cursor that is not `running` is read `after` its cursor and recorded, then every
-Lead with `pending` records is flushed. Not installed in `~/.paseo/config.json`.
+Lead with `pending` records is flushed. Installed in `~/.paseo/config.json` on this host as a
+`directory` source at the kit path (`pluginsEnabled: true`, Human-approved 2026-11-02).
 
 ## Purpose
 
@@ -106,15 +107,21 @@ Its outbox is a delivery receipt store outside Git; it holds no authority or dec
 - Enabling plugins (`pluginsEnabled: true`) and installing the plugin change the user's live
   `~/.paseo/config.json`; both need the Human's approval.
 
-## Install path (not executed yet on this host)
+## Install path (executed on this host 2026-11-02)
 
 ```bash
 # Human-approved: set "pluginsEnabled": true in ~/.paseo/config.json, then
 bash <KIT>/setup/setup-seats.sh --install-plugin   # runs: paseo plugin install <KIT>/plugins/epistex-delivery
-paseo plugin ls --json
-paseo plugin logs epistex-delivery
+paseo reload                                       # the daemon keeps pluginsEnabled in memory; see below
+paseo plugin ls --json                             # STATUS must be "running", not "disabled"
+paseo plugin logs epistex-delivery                 # expect: registered agent.turn_ended (Paseo 0.14.0)
 bash <KIT>/setup/setup-seats.sh --check            # pin, path, pluginsEnabled and daemon version
 ```
+
+Observed on install: the running daemon had read `pluginsEnabled: false` at start, so right after
+`--install-plugin` the entry existed but `paseo plugin ls` showed STATUS `disabled`. `paseo reload`
+re-read the global switch and the plugin went `running` with no daemon restart. `paseo reload` prints
+a hint to run `paseo daemon restart` for plugin sources; it was not needed.
 
 `setup-seats.sh` shares the `0.14.0` pin with `paseo-plugin.json` and `server/plugin.ts` and fails when
 they drift. It refuses to install under `--check`, when `paseo --version` is not the pin, or when
@@ -123,6 +130,29 @@ CLI). With the plugin installed, `--check` fails when the entry is not a `direct
 path, points through a symlink, is disabled, `pluginsEnabled` is off, or the daemon version differs from
 the pin; without `paseo` on PATH the version check is reported as pending. `--remove-plugin` removes the
 config entry and keeps the receipts under `${PASEO_HOME:-~/.paseo}/epistex-delivery/`.
+
+## Live fault-injection results (2026-11-02)
+
+Paseo 0.14.0, daemon on `127.0.0.1:6767`, plugin installed as above. Harness: one Lead
+(`droid-lead`, id `71feea91…`, prompt: reply only `ACK <delivery-id> <kind>`) and two Peers
+(`droid-peer`, A `69625e7a…`, B `d2c01db3…`) created with `paseo run --label
+paseo.parent-agent-id=<lead>`; each Peer echoed `tests/fixtures/handoffs/valid.txt` with its own
+Task/Round. Receipts: `~/.paseo/epistex-delivery/71feea91-….jsonl` and `cursors.json`. The eval
+workspace was archived afterwards; the receipts were kept (open question 3).
+
+| Scenario | Injected fault | Observed | Result |
+| --- | --- | --- | --- |
+| A. Smoke | none | Peer A turn end → `recorded HANDBACK_VALID 10e86e3f…`, `sent`; Lead received the §4.4 message and ACKed the id. Outbox and cursor file created. | pass |
+| B. Lead busy | Lead in a long turn when Peer A ended | Record `bc145291…` stayed `pending` ("lead is running; 1 delivery(ies) stay pending"); no steer into the running turn. When the Lead went idle (its turn was stopped), the record was `sent` and ACKed. | pass |
+| C. Missed turns + reconcile | `paseo plugin disable`, round 2 for A and B (plugin silent), `paseo plugin enable`, ping Lead | First event after enable reconciled 2 watched Peers in order (`5ee2305a…`, `3c3a456e…`): `recorded` + `sent`; Lead ACKed both ids. | pass |
+| D. Crash between fsync and send | Record `c0ffee…` injected as `pending` in the jsonl, Peer A mid-turn, `paseo daemon restart`, ping Lead | Cursor stale → tail read; A and B deduped ("already recorded; replay"); `c0ffee…` `sent` exactly once; Lead ACKed. Peer A came back `idle`, its cut turn produced no message. | pass |
+| E. Peer cut mid-turn | `paseo agent stop` on Peer B during a long turn | `TURN_ENDED_NO_MESSAGE 42b417d0…` with reasons "turn canceled: Interrupted; no assistant message after cursor"; Lead ACKed; agent count unchanged (no writer created). | pass |
+
+Side observations, not plugin faults: `paseo ls`/`inspect` show `labels: null` for Peers created
+with `--label paseo.parent-agent-id=…` although the plugin receives the parent correctly; after
+the restart the Lead timeline shows a Paseo-generated `[Message received] <title>` line for Peer B.
+Scope of the evidence: one host, one Lead, two Peers, five scenarios; it proves the delivery path
+on 0.14.0, not the prompt workaround's removal (that is a separate rollout decision).
 
 ## Decisions and open questions
 

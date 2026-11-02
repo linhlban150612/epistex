@@ -135,8 +135,9 @@ recovery checks.
   not an ACP runtime fix or a guarantee of delivery. #6346 is mitigated by the
   [delivery plugin](docs/setup/delivery-plugin.md) when it is installed: it relays the Peer's last
   message of a missed turn-end to the Lead as a `[epistex-delivery]` message with a `delivery-id`
-  (at-least-once; the Lead handles each ID once). The prompt workaround stays as the fallback
-  until eval shows the plugin works live. See [Lead monitoring](agents/LEAD.md#monitoring),
+  (at-least-once; the Lead handles each ID once). A five-scenario live fault-injection pass on
+  Paseo 0.14.0 (2026-11-02, one host) is recorded in that doc; the prompt workaround stays as the
+  fallback until a wider rollout. See [Lead monitoring](agents/LEAD.md#monitoring),
   the [seat-recovery skill](.agents/skills/seat-recovery/SKILL.md)
   and [Supervisor recovery](agents/SUPERVISOR.md#escalation-and-context-reset).
   Existing sessions retain their old injected instructions on load/resume; these edits do not

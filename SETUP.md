@@ -170,7 +170,9 @@ the pin in `plugins/epistex-delivery/`, and, when `config.json` has a `plugins.e
 `directory` source at the kit path (no symlink), not disabled, `pluginsEnabled` is `true`, and `paseo --version`
 (when on PATH) equals the pin; it fails on any mismatch. Install is a Human-approved change to the live config:
 set `"pluginsEnabled": true` in `config.json`, then run `setup-seats.sh --install-plugin` (refused under `--check`,
-when the daemon version differs from the pin, or when `pluginsEnabled` is not `true`). `--remove-plugin` removes
+when the daemon version differs from the pin, or when `pluginsEnabled` is not `true`). Run `paseo reload` after
+install: a daemon started with `pluginsEnabled: false` keeps that value in memory and lists the plugin as
+`disabled` until reloaded. `--remove-plugin` removes
 the config entry through the CLI and keeps the receipts under `${PASEO_HOME:-~/.paseo}/epistex-delivery/`.
 
 ## 8. Prove isolation

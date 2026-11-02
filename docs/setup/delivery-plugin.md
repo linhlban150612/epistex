@@ -1,7 +1,9 @@
 # Epistex delivery plugin (Paseo 0.14.0)
 
 Status: **Step 8 (installed on this host and verified live, 2026-11-02; five fault-injection
-scenarios passed, see [Live fault-injection results](#live-fault-injection-results-2026-11-02)).** The facts below were read from the installed Paseo
+scenarios passed, see [Live fault-injection results](#live-fault-injection-results-2026-11-02),
+and one run with the real role prompts, see
+[Live run with real seats](#live-run-with-real-seats-2026-11-02)).** The facts below were read from the installed Paseo
 0.14.0 build (`$(npm root -g)/@getpaseo/cli/node_modules/@getpaseo/{plugin,server,client,protocol}`)
 and from the live daemon on this host. `plugins/epistex-delivery/` holds the manifest (pin
 `0.14.0`), the entry and a fail-closed version guard: without `server.on` or when
@@ -152,7 +154,38 @@ Side observations, not plugin faults: `paseo ls`/`inspect` show `labels: null` f
 with `--label paseo.parent-agent-id=…` although the plugin receives the parent correctly; after
 the restart the Lead timeline shows a Paseo-generated `[Message received] <title>` line for Peer B.
 Scope of the evidence: one host, one Lead, two Peers, five scenarios; it proves the delivery path
-on 0.14.0, not the prompt workaround's removal (that is a separate rollout decision).
+on 0.14.0, not the prompt workaround's removal (that is a separate rollout decision). The run
+below adds the real role prompts to that evidence.
+
+## Live run with real seats (2026-11-02)
+
+Same host and plugin. Lead `droid-lead/gpt-6.1-sol` (thinking `low`, mode `auto-high`, id
+`9788612c…`) started with the `examples/LEAD_INITIAL_PROMPT.md` template on a scratch clone of a
+Java repository (`./verify quick` exit 0 at the baseline). Peers were created by the Lead itself:
+`droid-peer/deepseek-v4.1-flash-1017`, effort `low`. Task: unit tests for `DataUtil.parseToLong`,
+owned scope `src/test/java/com/smac/utils/**`, commit required. Receipts:
+`~/.paseo/epistex-delivery/9788612c-….jsonl` (five records, all `sent`), `cursors.json`.
+
+| Step | Peer | Observed | Result |
+| --- | --- | --- | --- |
+| Task 1, round 1 | `2b19cfaf…` | Peer committed `83f14f2` (7 tests pass). The Lead received both the native `[Agent finished]` and `[epistex-delivery] TURN_ENDED_INVALID_HANDOFF bb3d762b…` (reason: missing cell `Ownership`; the Peer wrote "Cessation and ownership"). The Lead handled them as one turn (§4.6): asked for a handoff-only resend, received `HANDBACK_VALID 3c4e5586…`, accepted `83f14f2`, archived the Peer. No duplicate round was assigned. | pass |
+| Task 2, round 1 | `7a9a3402…` | Peer committed `744d975` (9 tests pass). Same sequence: `TURN_ENDED_INVALID_HANDOFF 332e4375…` (task/round header missing) → resend → `HANDBACK_VALID a7050d02…` → accepted; Peer left idle on request. | pass |
+| Duplicate handback | `7a9a3402…` | The Peer was told directly to repeat its last handoff verbatim. The plugin recorded a new delivery `529368e3…` (new `lastMessageId`, so a new delivery-id, as designed). The Lead received it and took no action: no new round, no second acceptance, no reply. | pass |
+
+Observations, not plugin faults:
+
+- The Lead's first turn stalled for about 8 minutes after a `Glob` call (Droid session log
+  without new messages, status `running`). `paseo agent stop` followed by an `interrupt` prompt
+  made it continue and create the Peer. Backend (Droid / `gpt-6.1-sol`) behaviour; cause not
+  identified.
+- Both Peers produced the handoff cells with wrong labels or without the `Task ID | Round`
+  header on the first try, so the plugin classified the real turn end as
+  `TURN_ENDED_INVALID_HANDOFF` and the Lead had to request a resend. That is the §4.3 contract,
+  not a parser fault; the resend was valid both times.
+- The #6346 case itself (a background completion whose `notifyOnFinish` never arrives) did not
+  occur in this run: every turn end produced the native notification and the plugin delivery.
+  The run therefore proves the duplicate path (native plus plugin, same turn, handled once), not
+  the missing-notification path, which the fault-injection scenarios C and D cover.
 
 ## Decisions and open questions
 

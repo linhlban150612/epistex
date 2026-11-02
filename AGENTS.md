@@ -19,6 +19,8 @@
 - `docs/setup/context-compaction.md`: per-backend compaction thresholds and limits.
 - `docs/setup/codex-runtime.md`: Codex runtime/resume, environment compatibility, Peer sandbox
   and Supervisor pin.
+- `docs/setup/delivery-plugin.md`: the required Paseo delivery plugin (pin, install path, live
+  evidence, decisions); `SETUP.md` and `README.md` only link to it.
 
 ## Authority and repository hygiene
 

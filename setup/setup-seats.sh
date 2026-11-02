@@ -490,10 +490,10 @@ PY
     if [[ -z "$paseo_version" ]]; then
       printf '  note: paseo not on PATH; delivery plugin pin %s not checked against the daemon (pending)\n' "$plugin_pin"
     elif [[ "$paseo_version" != "$plugin_pin" ]]; then
-      fail "delivery plugin: pinned to Paseo $plugin_pin but paseo is $paseo_version; remove the plugin or match the pin"
+      fail "delivery plugin: pinned to Paseo $plugin_pin but paseo is $paseo_version; match the pin"
     fi
-  else
-    printf '  note: delivery plugin not installed; missed finish notifications (#6346) are not mitigated on this host; after Human approval run %s --install-plugin\n' "$0"
+  elif [[ -z "$plugin_action" ]]; then
+    fail "delivery plugin: not installed; it is required (missed finish notifications, #6346). After Human approval run $0 --install-plugin"
   fi
 fi
 

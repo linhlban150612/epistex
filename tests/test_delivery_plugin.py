@@ -1,4 +1,3 @@
-import json
 import pathlib
 import shutil
 import subprocess
@@ -9,13 +8,7 @@ PLUGIN = ROOT / "plugins/epistex-delivery"
 
 
 class DeliveryPluginTest(unittest.TestCase):
-    def test_manifest_pins_paseo_0_14_0_and_entry_exists(self):
-        manifest = json.loads((PLUGIN / "paseo-plugin.json").read_text())
-        self.assertEqual(manifest["id"], "epistex-delivery")
-        self.assertEqual(manifest["requirements"], {"paseo": "0.14.0"})
-        self.assertTrue((PLUGIN / "index.server.ts").is_file())
-        self.assertIn('PASEO_VERSION = "0.14.0"', (PLUGIN / "server/plugin.ts").read_text())
-
+    # The manifest/guard pin is enforced by setup-seats.sh --check (covered in test_setup_seats).
     def test_node_test_suite_passes(self):
         node = shutil.which("node")
         if node is None:

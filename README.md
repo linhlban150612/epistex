@@ -87,7 +87,7 @@ Runtime layout, resume selection, environment variables and Seatworks compatibil
 | `setup/setup-seats.sh`, `setup/normalize-profiles.jq`, `examples/paseo-providers.json` | Seat checker, profile normalizer and provider catalog |
 | `setup/check-handoff`, `setup/fail-on-base` | Mechanical gates for handoffs and reproducible-bug fixes |
 | `.agents/skills/*/SKILL.md` | Lead skills: Dual-Lane review, context reset, seat recovery, rework escalation, handling reopen/dependency requests; installed per project by `setup-seats.sh --project` |
-| `plugins/epistex-delivery/`, `docs/setup/delivery-plugin.md` | Paseo 0.14.0 server plugin that relays a Peer's end-of-turn handback to its Lead when the finish notification is missed; installed through `setup-seats.sh --install-plugin` after Human approval |
+| `plugins/epistex-delivery/`, `docs/setup/delivery-plugin.md` | Required Paseo 0.14.0 server plugin that relays a Peer's end-of-turn handback to its Lead; installed through `setup-seats.sh --install-plugin` after Human approval |
 | `.pi/settings.json`, `.omp/config.yml` | Checkout-scoped Pi/OMP compaction settings |
 | `examples/AGENTS_MD_SNIPPET.md`, `examples/WORKSPACE_PROTOCOL.md`, `examples/LEAD_INITIAL_PROMPT.md`, `examples/target-repo/` | Contract, policy, Lead startup and verify templates for target repos |
 | `eval/` | Peer behavior scenarios run against real agents; results stay outside Git |
@@ -116,8 +116,9 @@ recovery checks.
   the source: that is a trade-off change for the Human to decide, not a fix.
 
 - Paseo is the sole agent control plane and owns lifecycle and topology. Inspect live state before
-  operating. Paseo >= 0.13.0 is required: earlier daemons could lose finish notifications across a
-  restart, which the no-polling rule cannot recover from. Verified live on 0.13.0: a `finished`
+  operating. Paseo 0.14.0 exactly is required: the mandatory delivery plugin is pinned to it, and
+  daemons before 0.13.0 could lose finish notifications across a restart, which the no-polling
+  rule cannot recover from. Verified live on 0.13.0: a `finished`
   notification queued before a daemon restart is still delivered to the Lead afterwards; a Peer cut
   mid-turn by the restart yields `was closed`, not `finished`, and its round must be reassigned;
   archived agents stay out of `list_agents`. A `send_agent_prompt` receipt only proves the prompt
@@ -130,20 +131,17 @@ recovery checks.
   the [seat-recovery skill](.agents/skills/seat-recovery/SKILL.md)
   and [Supervisor recovery](agents/SUPERVISOR.md#escalation-and-context-reset).
 - [#6346](https://github.com/getpaseo/paseo/issues/6346) (one-shot finish notifications that miss
-  later autonomous/background completions) is mitigated by the
-  [delivery plugin](docs/setup/delivery-plugin.md): it relays the Peer's last message of each
-  turn end to the Lead as a `[epistex-delivery]` message with a `delivery-id` (at-least-once; the
-  Lead handles each ID once, and a delivery plus a `finished` for the same turn count as one
-  event). A five-scenario live fault-injection pass and a live run with the real Lead and Peer
-  prompts on Paseo 0.14.0 (2026-11-02, one host) are recorded in that doc. The earlier prompt
-  workaround (bounded rounds, `BLOCKED`/`WAITING_CI` handoffs on a CI route, escalation of
-  interim messages) was removed from the role prompts on 2026-11-02 by Human decision. A host
-  without the plugin has no mitigation for #6346; `setup/setup-seats.sh --check` reports that.
+  later autonomous/background completions) is mitigated by the required
+  [delivery plugin](docs/setup/delivery-plugin.md), which relays each Peer turn end to the Lead as
+  a `[epistex-delivery]` message; the Lead rules are in [Lead monitoring](agents/LEAD.md#monitoring),
+  the live evidence and the removal of the earlier prompt workaround (2026-11-02) in that doc.
   Existing sessions retain their old injected instructions on load/resume; these edits do not
   update running seats. Rollout to them needs a separate authorized transition, not a live resend.
-- Agent tree and idle release (Paseo 0.14.0, read from its source, not yet verified live): an agent
-  created through Paseo MCP `create_agent` is a child of the calling agent (label
-  `paseo.parent-agent-id`), unless the hidden legacy `relationship: {kind: "detached"}` is used.
+- Agent tree and idle release (Paseo 0.14.0, read from its source): an agent created through Paseo
+  MCP `create_agent` is a child of the calling agent (label `paseo.parent-agent-id`), unless the
+  hidden legacy `relationship: {kind: "detached"}` is used. The parent label was verified live on
+  2026-11-02 (the delivery plugin resolved Lead-created Peers to their Lead); idle release is not
+  yet verified live.
   A Lead created by the Supervisor is therefore its child, and Peers created by a Lead are the
   Lead's children. An agent the Human opens from the UI or CLI is a root. No Paseo config sets or
   enforces this tree. With the global `agents.idleRuntimeCleanup`

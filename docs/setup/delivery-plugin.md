@@ -204,8 +204,8 @@ Decided by the Human (2026-11-02):
 5. Prompt workaround for #6346 (bounded rounds, `BLOCKED`/`WAITING_CI` handoffs on a CI route,
    Lead escalation of interim messages): **removed from `agents/LEAD.md` and `agents/PEER.md`**
    after the fault-injection pass and the real-seat run above. The #3256 handling (stale
-   foreground turn, Human-run reload) stays. A host without the plugin has no mitigation for
-   #6346; `setup/setup-seats.sh --check` prints a note. Running seats keep their old injected
-   instructions until a separate authorized transition.
+   foreground turn, Human-run reload) stays. The plugin is therefore **required**: a host without
+   it has no mitigation for #6346, and `setup/setup-seats.sh --check` fails until it is installed.
+   Running seats keep their old injected instructions until a separate authorized transition.
 
 No open questions remain.

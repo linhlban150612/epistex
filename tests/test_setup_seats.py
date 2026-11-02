@@ -65,7 +65,9 @@ class SetupSeatsTest(unittest.TestCase):
         providers["claude-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "claude"]
         providers["codex-supervisor"]["command"] = [str(self.kit / "setup" / "codex-room"), "supervisor"]
         profiles = example["daemon"]["agentProfiles"]
-        self.data = {"daemon": {"mcp": {"enabled": True, "injectIntoAgents": True}, "agentProfiles": profiles}, "agents": {"providers": providers}}
+        self.plugin_dir = (self.kit / "plugins/epistex-delivery").resolve()
+        self.data = {"daemon": {"mcp": {"enabled": True, "injectIntoAgents": True}, "agentProfiles": profiles}, "agents": {"providers": providers},
+                     "pluginsEnabled": True, "plugins": {"epistex-delivery": {"source": "directory", "path": str(self.plugin_dir)}}}
 
     def tearDown(self):
         self.temporary.cleanup()
@@ -479,7 +481,8 @@ class SetupSeatsTest(unittest.TestCase):
                 self.assertEqual(json.loads(again.stdout), data)
 
     def test_delivery_plugin_pin_and_install_are_checked(self):
-        plugin_dir = (self.kit / "plugins/epistex-delivery").resolve()
+        plugin_dir = self.plugin_dir
+        bare = {k: v for k, v in self.data.items() if k not in ("pluginsEnabled", "plugins")}
         calls = pathlib.Path(self.temporary.name) / "paseo-calls"
         paseo = self.bin / "paseo"
         paseo.write_text("#!/usr/bin/env bash\n"
@@ -488,10 +491,10 @@ class SetupSeatsTest(unittest.TestCase):
         paseo.chmod(0o755)
         self.env["FAKE_PASEO_VERSION"] = "0.14.0"
 
-        with self.subTest("not installed is a note, never an error"):
-            result = self.check_config(self.data)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("delivery plugin not installed; missed finish notifications (#6346) are not mitigated on this host", result.stdout)
+        with self.subTest("not installed is an error: the plugin is required"):
+            result = self.check_config(bare)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("delivery plugin: not installed; it is required", result.stderr)
 
         installed = {"pluginsEnabled": True, "plugins": {"epistex-delivery": {"source": "directory", "path": str(plugin_dir)}}}
         with self.subTest("installed from the kit directory on the pinned daemon"):
@@ -522,7 +525,7 @@ class SetupSeatsTest(unittest.TestCase):
             result = self.check_config({**self.data, **installed})
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("pinned to Paseo 0.14.0 but paseo is 0.15.0", result.stderr)
-            self.assertEqual(self.check_config(self.data).returncode, 0, "not installed: version is not gated")
+            self.assertNotIn("pinned to Paseo", self.check_config(bare).stderr, "not installed: version is not gated")
 
         with self.subTest("paseo absent leaves the pin pending"):
             paseo.unlink()
@@ -543,7 +546,7 @@ class SetupSeatsTest(unittest.TestCase):
             self.assertIn("must pin Paseo 0.14.0", result.stderr)
             manifest.write_text(original)
 
-        self.save()
+        self.config.write_text(json.dumps(bare))
         calls.write_text("")
         with self.subTest("--install-plugin refuses --check, a wrong daemon and pluginsEnabled off"):
             self.assertEqual(self.run_check("--check", "--install-plugin").returncode, 2)
@@ -559,7 +562,7 @@ class SetupSeatsTest(unittest.TestCase):
             self.assertNotIn("plugin install", calls.read_text())
 
         with self.subTest("--install-plugin installs once through the CLI"):
-            self.config.write_text(json.dumps({**self.data, "pluginsEnabled": True}))
+            self.config.write_text(json.dumps({**bare, "pluginsEnabled": True}))
             result = self.run_check("--install-plugin")
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn(f"plugin install {plugin_dir}\n", calls.read_text())
@@ -576,7 +579,7 @@ class SetupSeatsTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("plugin remove epistex-delivery\n", calls.read_text())
             self.assertIn("receipts under PASEO_HOME/epistex-delivery are kept", result.stdout)
-            self.config.write_text(json.dumps(self.data))
+            self.config.write_text(json.dumps(bare))
             result = self.run_check("--remove-plugin")
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("nothing to remove", result.stdout)

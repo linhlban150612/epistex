@@ -128,37 +128,35 @@ Peers must belong to different model families, so the lanes judge independently.
 
 ## Monitoring
 
-After create/send, end the turn and **wait for notifications**. Never read Peer activity to
-check progress. Act on the reason in the notification's first line:
+Assign bounded rounds; name the authorized CI route and completion-event owner for heavy checks.
+After create/send, end the turn and wait for notifications, not progress polls. `queued` is not
+delivery; require the recipient's next event to name the task/round. Do not send additions into
+a running round; `steer` may replace it.
 
-- `finished`: validate the handback in `<agent-response>` (§ Acceptance). Nothing else is a handoff.
-- `needs permission`: relay the `<permission-request>` (`agentId`, `requestId`) to the Supervisor,
-  the Human if none; never answer it yourself.
-- `errored`, `was canceled`, `was closed`, `is unavailable`: not done; the common cessation gate
-  applies before any reassignment.
-- `host unreachable`, `host removed`: Peer status is unknown and notifications will not resume;
-  the gate cannot pass → `BLOCKED`.
+- `finished`: validate `<agent-response>` (§ Acceptance). An interim background-wait message is
+  not a handoff; escalate it to the Supervisor (Human if none): `notifyOnFinish` is one-shot.
+- `BLOCKED` with `WAITING_CI`: retain candidate/job identity; on the named CI completion event,
+  assign a fresh round. No event route → `BLOCKED`, not a timer or blind resend.
+- `needs permission`: relay agent/request IDs to Supervisor or Human; never answer yourself.
+- `errored`, `was canceled`, `was closed`, `is unavailable`: not done; cessation gate applies.
+- `host unreachable`, `host removed`: status unknown, notifications will not resume → `BLOCKED`.
 
-`send_agent_prompt` may steer a running turn or interrupt/replace it, depending on the backend;
-a rework round counts as sent only when the Peer's next handoff names it (common receipt rule).
-
-At the common three-event limit, REOPEN with the layer: re-frame your own premise,
-or ask the Human when the premise is theirs.
-
-For a **context reset** (stuck or context-lost agent), follow the `context-reset` skill
-(`.agents/skills/context-reset/SKILL.md`). Always: no explicit Human confirmation → no reset; no
-replacement writer before the [common cessation gate](contract/COMMON.md#ownership-and-candidate-identity)
-passes with lifecycle/tool execution evidence, unresolved → `BLOCKED`. The gate also applies to
-cancellation/reassignment without a reset.
+`A foreground turn is already active` → stop resends; never cancel and re-prompt (it queues
+behind the stuck turn). Escalate with task/round, candidate and error; recovery is a Human-run
+`paseo agent reload`. At the common three-event limit, REOPEN with the layer: re-frame your
+own premise, or ask the Human when it is theirs. Replacement: `context-reset` skill
+(`.agents/skills/context-reset/SKILL.md`), Human confirmation and the
+[cessation gate](contract/COMMON.md#ownership-and-candidate-identity) first.
+Unresolved writer/children → `BLOCKED`; idle/cancel receipt is not cessation.
 
 ## Acceptance
 
-Read § Handoff in the Peer prompt when preparing a brief/review. Read only the handoff: the
-`<agent-response>` in the notification. Only when it ends with `[truncated N chars; ...]`, ignore
-its `get_agent_activity` hint and run once per notification
-`paseo agent logs <id> --filter assistant_message --tail 1` ("No activity to display." means no
-handoff yet). Check task/round, done/not done, cells and candidate. Incomplete → ask the Peer to
-resend; never read the timeline, fill cells in, or ask the Peer to read the Lead prompt.
+Read § Handoff in the Peer prompt. Review only `<agent-response>`. If it ends with
+`[truncated N chars; ...]`, ignore its activity hint and retrieve once:
+`paseo agent logs <id> --filter assistant_message --tail 1` (no activity means no handoff).
+Check task/round, outcome, six cells and candidate. Incomplete → ask the Peer for a handoff-only
+resend; a stale-turn error goes to recovery. Never reconstruct cells from the timeline or ask the
+Peer to read the Lead prompt.
 
 Before closing, you may run the kit's mechanical pre-check on the handoff text:
 `setup/check-handoff <brief.json> <handoff.txt> --rerun` (cells, round, identities, declared vs

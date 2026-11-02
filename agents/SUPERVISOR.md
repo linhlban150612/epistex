@@ -51,3 +51,14 @@ event caused it. You still write no project artifact, assign no Peer and accept 
   You do not confirm resets. Supply lifecycle/tool execution evidence from any intervention.
   The Lead enforces the [cessation gate](LEAD.md#monitoring), including for ordinary
   cancellation/reassignment. Rework-cap replacements use the same confirmation gate.
+- On `A foreground turn is already active` or a Lead's missing-final-handoff escalation,
+  stop resends to the affected seat. Never `cancel_agent` and re-prompt it: the prompt queues
+  behind the stuck turn. Inspect that seat's lifecycle/runtime and write-capable
+  commands/children in response to the event; idle or cancel success alone is insufficient.
+  You have no reload tool: with that evidence, ask the Human to run
+  `paseo agent reload <agentId>` for the affected seat only. Before any new prompt to it,
+  verify cessation of the old turn and its commands. If reload fails, return the evidence to
+  the owning Lead for an authorized replacement with task/round, baseline/candidate and scope
+  preserved. Unknown cessation stays `BLOCKED`; do not create the replacement Peer yourself.
+- Do not restart the whole daemon or archive a Lead as a first recovery step. Archive can affect
+  descendants; no recovery bypasses their ownership/cessation gates. Do not add recovery timers.

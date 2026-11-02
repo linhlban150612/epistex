@@ -118,6 +118,20 @@ recovery checks.
   mid-turn by the restart yields `was closed`, not `finished`, and its round must be reassigned;
   archived agents stay out of `list_agents`. A `send_agent_prompt` receipt only proves the prompt
   was queued.
+- Temporary SLP workaround (observed on Paseo 0.14.0): [#3256](https://github.com/getpaseo/paseo/issues/3256)
+  tracks stale ACP foreground turns after forced cancellation;
+  [#6346](https://github.com/getpaseo/paseo/issues/6346) tracks one-shot finish notifications that miss
+  later autonomous/background completions. Assign bounded rounds, do short authorized local checks
+  within the turn, and route heavy checks to authorized CI. A pending check is a six-cell
+  `BLOCKED` handoff with `WAITING_CI`, frozen candidate, job/request identity and completion-event
+  owner, not a promise to report in another autonomous turn. On that CI event, the Lead assigns
+  a fresh round after handback. No event route means `BLOCKED`, not polling or an implicit CI trigger.
+  Stale-turn errors stop resends immediately; Human-confirmed, cessation-gated recovery reloads
+  only the affected seat before considering replacement. This is a prompt/workflow mitigation,
+  not an ACP runtime fix or a guarantee of delivery. See [Lead monitoring](agents/LEAD.md#monitoring)
+  and [Supervisor recovery](agents/SUPERVISOR.md#escalation-and-context-reset).
+  Existing sessions retain their old injected instructions on load/resume; these edits do not
+  update running seats. Rollout to them needs a separate authorized transition, not a live resend.
 - Agent tree and idle release (Paseo 0.14.0, read from its source, not yet verified live): an agent
   created through Paseo MCP `create_agent` is a child of the calling agent (label
   `paseo.parent-agent-id`), unless the hidden legacy `relationship: {kind: "detached"}` is used.

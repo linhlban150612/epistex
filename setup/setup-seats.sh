@@ -493,7 +493,7 @@ PY
       fail "delivery plugin: pinned to Paseo $plugin_pin but paseo is $paseo_version; remove the plugin or match the pin"
     fi
   else
-    printf '  note: delivery plugin not installed (prompt workaround for #6346 stays); after Human approval run %s --install-plugin\n' "$0"
+    printf '  note: delivery plugin not installed; missed finish notifications (#6346) are not mitigated on this host; after Human approval run %s --install-plugin\n' "$0"
   fi
 fi
 

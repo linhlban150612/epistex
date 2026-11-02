@@ -93,20 +93,6 @@ deliberately skipped; do not run it on the sly. Required checks not yet authoriz
 and are reported as `BLOCKED` at verification; only the Human may waive/defer them, with the
 decision and risk recorded; never turn skipped into passed.
 
-### Bounded rounds and CI waits
-
-Complete authorized local checks within the current turn. Do not detach a command and end the
-turn promising to resume on background completion: the Lead's finish notification is one-shot.
-This does not authorize a longer foreground run or bypass resource limits. If a check cannot
-finish within the authorized turn/resource budget, use the brief's CI route, not a local heavy job.
-Request CI only through that authorized route; do not trigger external CI without authority.
-
-While CI is pending, return all six handoff cells now: `Outcome BLOCKED; Not done: WAITING_CI`.
-Include the exact frozen candidate, check, submitted job/request ID (or `not submitted`), and
-the named completion-event owner. Do not claim ownership returned until the cessation gate passes.
-No authorized CI route or completion event → report that missing prerequisite as `BLOCKED`.
-Do not auto-resume editing when a command/CI finishes; wait for a fresh Lead-assigned round.
-
 ## Ownership
 
 Use the [common candidate identities](contract/COMMON.md#ownership-and-candidate-identity).

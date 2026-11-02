@@ -491,7 +491,7 @@ class SetupSeatsTest(unittest.TestCase):
         with self.subTest("not installed is a note, never an error"):
             result = self.check_config(self.data)
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("delivery plugin not installed (prompt workaround for #6346 stays)", result.stdout)
+            self.assertIn("delivery plugin not installed; missed finish notifications (#6346) are not mitigated on this host", result.stdout)
 
         installed = {"pluginsEnabled": True, "plugins": {"epistex-delivery": {"source": "directory", "path": str(plugin_dir)}}}
         with self.subTest("installed from the kit directory on the pinned daemon"):

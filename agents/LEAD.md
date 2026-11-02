@@ -128,18 +128,16 @@ Peers must belong to different model families, so the lanes judge independently.
 
 ## Monitoring
 
-Assign bounded rounds; name the authorized CI route and completion-event owner for heavy checks.
 After create/send, end the turn and wait for notifications, not progress polls. `queued` is not
 delivery; require the recipient's next event to name the task/round. Do not send additions into
 a running round; `steer` may replace it.
 
-- `finished`: validate `<agent-response>` (§ Acceptance). An interim background-wait message is
-  not a handoff; escalate it (Supervisor, else Human): `notifyOnFinish` is one-shot.
-- `[epistex-delivery]` (kit plugin): a late handback relayed as a message. Handle each
-  `delivery-id` once. `HANDBACK_VALID` → § Acceptance on its body; `TURN_ENDED_*` → as
+- `finished`: validate `<agent-response>` (§ Acceptance). A message that is not a handoff is a
+  missing handoff, not progress to wait for.
+- `[epistex-delivery]` (kit plugin): a Peer turn end relayed as a message, also when `finished`
+  never arrived. Handle each `delivery-id` once; a delivery and a `finished` for the same turn
+  are one event. `HANDBACK_VALID` → § Acceptance on its body; `TURN_ENDED_*` → as
   `errored`/missing handoff, cessation gate applies. Delivery is neither acceptance nor authority.
-- `BLOCKED` with `WAITING_CI`: retain candidate/job identity; on the named CI completion event,
-  assign a fresh round. No event route → `BLOCKED`, not a timer or blind resend.
 - `needs permission`: relay agent/request IDs to Supervisor or Human; never answer yourself.
 - `errored`, `was canceled`, `was closed`, `is unavailable`: not done; cessation gate applies.
 - `host unreachable`, `host removed`: status unknown, notifications will not resume → `BLOCKED`.

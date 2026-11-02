@@ -98,7 +98,8 @@ Its outbox is a delivery receipt store outside Git; it holds no authority or dec
    plugin process starts (memoised, no timer). Watched Peers are those with a stored cursor: a Peer
    the plugin never saw is not read, so a fresh install does not replay old handbacks the Lead
    already handled through `notifyOnFinish`. A Peer whose turn ended while the plugin was down and
-   that the plugin had never seen is covered only by the prompt workaround for #6346.
+   that the plugin had never seen is not replayed: only the native notification covers that turn,
+   and the Lead treats a Peer without a handoff as a missing handoff (Monitoring rules).
 
 ## Security and operational caveats
 
@@ -154,8 +155,8 @@ Side observations, not plugin faults: `paseo ls`/`inspect` show `labels: null` f
 with `--label paseo.parent-agent-id=…` although the plugin receives the parent correctly; after
 the restart the Lead timeline shows a Paseo-generated `[Message received] <title>` line for Peer B.
 Scope of the evidence: one host, one Lead, two Peers, five scenarios; it proves the delivery path
-on 0.14.0, not the prompt workaround's removal (that is a separate rollout decision). The run
-below adds the real role prompts to that evidence.
+on 0.14.0. The run below adds the real role prompts to that evidence; on both, the Human decided
+the prompt workaround's removal (decision 5 below).
 
 ## Live run with real seats (2026-11-02)
 
@@ -193,11 +194,18 @@ Decided by the Human (2026-11-02):
 
 1. Parser: **ported to TypeScript** (`server/handoff.ts`) with the shared fixture suite; the Python
    `--parse-only --json` output is the parity oracle.
+2. Root (UI-opened) Peers: **out of scope**; the plugin keeps ignoring agents without a parent
+   (no Lead to deliver to).
+3. Outbox retention after the Lead is archived: **keep for audit**; no compaction. The receipts
+   stay under `${PASEO_HOME:-~/.paseo}/epistex-delivery/` until the Human deletes them.
 4. Send policy when the Lead is busy (see difference 2): **event-gated send plus `steer`** for the
    residual race (`sourceAgentId: <peerId>`, `activeTurnBehavior: "steer"`, `messageId:
    <delivery-id>`), the same path as native `notifyOnFinish`.
+5. Prompt workaround for #6346 (bounded rounds, `BLOCKED`/`WAITING_CI` handoffs on a CI route,
+   Lead escalation of interim messages): **removed from `agents/LEAD.md` and `agents/PEER.md`**
+   after the fault-injection pass and the real-seat run above. The #3256 handling (stale
+   foreground turn, Human-run reload) stays. A host without the plugin has no mitigation for
+   #6346; `setup/setup-seats.sh --check` prints a note. Running seats keep their old injected
+   instructions until a separate authorized transition.
 
-Still open:
-
-2. Root (UI-opened) Peers: in scope or not? (Current design: ignored.)
-3. Outbox retention after the Lead is archived: compact, or keep for audit?
+No open questions remain.

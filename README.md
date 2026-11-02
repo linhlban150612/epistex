@@ -123,24 +123,22 @@ recovery checks.
   archived agents stay out of `list_agents`. A `send_agent_prompt` receipt only proves the prompt
   was queued.
 - Temporary SLP workaround (observed on Paseo 0.14.0): [#3256](https://github.com/getpaseo/paseo/issues/3256)
-  tracks stale ACP foreground turns after forced cancellation;
-  [#6346](https://github.com/getpaseo/paseo/issues/6346) tracks one-shot finish notifications that miss
-  later autonomous/background completions. Assign bounded rounds, do short authorized local checks
-  within the turn, and route heavy checks to authorized CI. A pending check is a six-cell
-  `BLOCKED` handoff with `WAITING_CI`, frozen candidate, job/request identity and completion-event
-  owner, not a promise to report in another autonomous turn. On that CI event, the Lead assigns
-  a fresh round after handback. No event route means `BLOCKED`, not polling or an implicit CI trigger.
-  Stale-turn errors stop resends immediately; Human-confirmed, cessation-gated recovery reloads
-  only the affected seat before considering replacement. This is a prompt/workflow mitigation,
-  not an ACP runtime fix or a guarantee of delivery. #6346 is mitigated by the
-  [delivery plugin](docs/setup/delivery-plugin.md) when it is installed: it relays the Peer's last
-  message of a missed turn-end to the Lead as a `[epistex-delivery]` message with a `delivery-id`
-  (at-least-once; the Lead handles each ID once). A five-scenario live fault-injection pass and a
-  live run with the real Lead and Peer prompts on Paseo 0.14.0 (2026-11-02, one host) are
-  recorded in that doc; the prompt workaround stays as the fallback until a wider rollout.
+  tracks stale ACP foreground turns after forced cancellation. Stale-turn errors stop resends
+  immediately; Human-confirmed, cessation-gated recovery reloads only the affected seat before
+  considering replacement. This is a prompt/workflow mitigation, not an ACP runtime fix.
   See [Lead monitoring](agents/LEAD.md#monitoring),
   the [seat-recovery skill](.agents/skills/seat-recovery/SKILL.md)
   and [Supervisor recovery](agents/SUPERVISOR.md#escalation-and-context-reset).
+- [#6346](https://github.com/getpaseo/paseo/issues/6346) (one-shot finish notifications that miss
+  later autonomous/background completions) is mitigated by the
+  [delivery plugin](docs/setup/delivery-plugin.md): it relays the Peer's last message of each
+  turn end to the Lead as a `[epistex-delivery]` message with a `delivery-id` (at-least-once; the
+  Lead handles each ID once, and a delivery plus a `finished` for the same turn count as one
+  event). A five-scenario live fault-injection pass and a live run with the real Lead and Peer
+  prompts on Paseo 0.14.0 (2026-11-02, one host) are recorded in that doc. The earlier prompt
+  workaround (bounded rounds, `BLOCKED`/`WAITING_CI` handoffs on a CI route, escalation of
+  interim messages) was removed from the role prompts on 2026-11-02 by Human decision. A host
+  without the plugin has no mitigation for #6346; `setup/setup-seats.sh --check` reports that.
   Existing sessions retain their old injected instructions on load/resume; these edits do not
   update running seats. Rollout to them needs a separate authorized transition, not a live resend.
 - Agent tree and idle release (Paseo 0.14.0, read from its source, not yet verified live): an agent

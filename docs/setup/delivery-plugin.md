@@ -1,6 +1,6 @@
 # Epistex delivery plugin (Paseo 0.14.0)
 
-Status: **Step 4 (scaffold + shared parser + outbox + turn_ended delivery).** The facts below were read from the installed Paseo
+Status: **Step 5 (scaffold + shared parser + outbox + turn_ended delivery + reconcile).** The facts below were read from the installed Paseo
 0.14.0 build (`$(npm root -g)/@getpaseo/cli/node_modules/@getpaseo/{plugin,server,client,protocol}`)
 and from the live daemon on this host. `plugins/epistex-delivery/` holds the manifest (pin
 `0.14.0`), the entry and a fail-closed version guard: without `server.on` or when
@@ -19,8 +19,12 @@ timeline read `after` the stored cursor (tail when stale, `hasNewer` followed), 
 `assistant_message` (preferring the ended `turnId`) is classified, the record is appended and
 fsynced, the cursor advanced, then sent with `{sourceAgentId: peer, activeTurnBehavior: "steer",
 messageId: delivery-id}` only while the Lead is `idle`/`error`. Root agents and children of
-non-Lead parents are ignored. Reconcile on start (Step 5) is not implemented yet. Not installed in
-`~/.paseo/config.json`.
+non-Lead parents are ignored. A `completed` turn with no new assistant message after the cursor
+is logged and not delivered (its message, if any, was delivered already; a replayed hook lands
+here); `failed`/`canceled` turns without a message become `TURN_ENDED_NO_MESSAGE`. Reconcile
+(difference 6) runs once per plugin process on the first `agent.turn_ended` event: every Peer
+with a stored cursor that is not `running` is read `after` its cursor and recorded, then every
+Lead with `pending` records is flushed. Not installed in `~/.paseo/config.json`.
 
 ## Purpose
 
@@ -83,7 +87,14 @@ Its outbox is a delivery receipt store outside Git; it holds no authority or dec
    reload loses in-flight handlers, so reconcile on start (timeline `after` cursor for every
    watched Peer) is required, not optional.
 5. **Agent records are stored per cwd under `~/.paseo/agents/<cwd-slug>/<id>.json`.** The plugin
-   reads agents through `paseo.agents.list()`, never from these files.
+   reads agents through `paseo.agents.ref(id).refresh()`, never from these files.
+6. **`contribute(server)` receives no `PaseoApi`.** `plugin-process.js` passes only `handle`,
+   `registerProvider`, `registerUsageSource`, `registerSettings`, `on`, `before`; `paseo` arrives in
+   the hook context. "Reconcile on start" therefore runs on the **first lifecycle event** after the
+   plugin process starts (memoised, no timer). Watched Peers are those with a stored cursor: a Peer
+   the plugin never saw is not read, so a fresh install does not replay old handbacks the Lead
+   already handled through `notifyOnFinish`. A Peer whose turn ended while the plugin was down and
+   that the plugin had never seen is covered only by the prompt workaround for #6346.
 
 ## Security and operational caveats
 

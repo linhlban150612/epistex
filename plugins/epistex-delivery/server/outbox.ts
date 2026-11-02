@@ -149,6 +149,18 @@ export class Outbox {
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 
+  /** Peers with a stored cursor: the ones the plugin has already delivered for. */
+  watchedPeers(): string[] {
+    return Object.keys(this.cursors).sort();
+  }
+
+  /** The newest record for a Peer, which names the Lead it reports to. */
+  latestFor(peerAgentId: string): DeliveryRecord | undefined {
+    return this.records()
+      .filter((record) => record.peerAgentId === peerAgentId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  }
+
   /** The newest record for a Peer turn, used to recognise a replayed hook. */
   forTurn(peerAgentId: string, turnId: string): DeliveryRecord | undefined {
     return this.records()

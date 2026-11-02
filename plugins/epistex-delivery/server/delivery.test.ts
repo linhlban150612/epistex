@@ -174,24 +174,105 @@ test("busy Lead: record stays pending; the Lead's own turn_ended flushes it in c
 });
 
 test("a replayed hook for the same message adds no record and no second send", async () => {
-  await scratch(async (delivery, outbox) => {
+  await scratch(async (delivery, outbox, lines) => {
     const page: TimelinePage = { epoch: "e1", entries: [assistant(VALID, 5, { messageId: "m5" })] };
     const fake = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [page] });
     await delivery.onTurnEnded(peerTurn(), fake.paseo);
-    // Second event: the cursor now points past the message, so `after` returns nothing new.
-    const empty: TimelinePage = { epoch: "e1", entries: [] };
-    const replay = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [empty] });
+    // Replay after the cursor moved: `after` returns nothing and the turn is already recorded.
+    const replay = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [{ epoch: "e1", entries: [] }] });
     await delivery.onTurnEnded(peerTurn(), replay.paseo);
     assert.deepEqual(replay.refetches.map((r) => r.options), [{ direction: "after", cursor: { epoch: "e1", seq: 5 }, limit: 200 }]);
-    // Nothing after the cursor: that is a NO_MESSAGE turn for a *different* identity, so one new record…
-    assert.equal(outbox.records().length, 2);
-    // …but the same page served again (daemon replayed the hook before the cursor moved) is a no-op.
+    assert.ok(lines.some((l) => /turn t1 of peer-1 already recorded; replay ignored/.test(l)));
+    // Replay before the cursor moved: the same page yields the same delivery-id.
     const again = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [page] });
     await outbox.setCursor("peer-1", { epoch: "e1", seq: 0 });
     await delivery.onTurnEnded(peerTurn(), again.paseo);
-    assert.equal(outbox.records().length, 2);
-    assert.equal(again.sent.length, 0);
-    assert.equal(replay.sent.length, 1);
+    assert.equal(outbox.records().length, 1);
+    assert.equal(replay.sent.length + again.sent.length, 0);
+    assert.ok(lines.some((l) => /already recorded for peer-1; replay/.test(l)));
+  });
+});
+
+test("a completed turn with no new assistant message is logged, not delivered; a failed one is", async () => {
+  await scratch(async (delivery, outbox, lines) => {
+    const fake = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [{ epoch: "e1", entries: [{ item: { type: "tool_call" }, turnId: "t1", seqEnd: 2 }] }] });
+    await delivery.onTurnEnded(peerTurn(), fake.paseo);
+    assert.equal(outbox.records().length, 0);
+    assert.deepEqual(outbox.cursor("peer-1"), { epoch: "e1", seq: 2 }, "cursor still advances past the tool call");
+    assert.ok(lines.some((l) => /turn t1 of peer-1 completed without a new assistant message/.test(l)));
+    await delivery.onTurnEnded(peerTurn({ turnId: "t2", outcome: { kind: "canceled", reason: "daemon restart" } }), fake.paseo);
+    assert.equal(outbox.records()[0]?.kind, "TURN_ENDED_NO_MESSAGE");
+    assert.deepEqual(outbox.records()[0]?.reasons, ["turn canceled: daemon restart; no assistant message after cursor"]);
+  });
+});
+
+test("the same turnId reopened with a different last message yields two distinct deliveries", async () => {
+  await scratch(async (delivery, outbox) => {
+    const second = VALID.replace("Round: 1", "Round: 2");
+    const fake = fakePaseo(
+      { "lead-1": leadIdle },
+      { "peer-1": [{ epoch: "e1", entries: [assistant(VALID, 1, { messageId: "a" })] }, { epoch: "e1", entries: [assistant(second, 2, { messageId: "b" })] }] },
+    );
+    await delivery.onTurnEnded(peerTurn(), fake.paseo);
+    await delivery.onTurnEnded(peerTurn(), fake.paseo);
+    const ids = outbox.records().map((r) => r.deliveryId);
+    assert.equal(ids.length, 2);
+    assert.notEqual(ids[0], ids[1]);
+    assert.deepEqual(outbox.records().map((r) => r.round), ["1", "2"]);
+    assert.equal(fake.sent.length, 2);
+  });
+});
+
+test("reconcile on the first event: watched peers are caught up, pending records resent, unseen peers untouched", async () => {
+  await scratch(async (first, outbox) => {
+    // Session 1: peer-1 delivered; peer-2 recorded but the Lead was busy, so it stays pending.
+    const session1 = fakePaseo(
+      { "lead-1": leadIdle },
+      { "peer-1": [{ epoch: "e1", entries: [assistant(VALID, 1, { messageId: "a" })] }], "peer-2": [{ epoch: "e2", entries: [assistant(VALID, 1, { messageId: "b" })] }] },
+    );
+    await first.onTurnEnded(peerTurn(), session1.paseo);
+    session1.agents["lead-1"] = leadRunning;
+    await first.onTurnEnded(peerTurn({ agent: { ...peerTurn().agent, id: "peer-2" } }), session1.paseo);
+    assert.equal(outbox.pendingFor("lead-1").length, 1);
+
+    // Session 2: new plugin process, same outbox. peer-1 finished another turn while the plugin was
+    // down; peer-2 is mid-turn; peer-9 was never seen; lead-1 is idle again.
+    const lines: string[] = [];
+    const log: Logger = { info: (m) => lines.push(`info ${m}`), error: (m) => lines.push(`error ${m}`) };
+    const second = new Delivery({ outbox: new Outbox(outbox.directory), log, now: () => "2026-11-02T01:00:00.000Z" });
+    const session2 = fakePaseo(
+      {
+        "lead-1": leadIdle,
+        "peer-1": { id: "peer-1", provider: "codex-peer", status: "idle" },
+        "peer-2": { id: "peer-2", provider: "codex-peer", status: "running" },
+        "peer-9": { id: "peer-9", provider: "codex-peer", status: "idle" },
+      },
+      {
+        "peer-1": [{ epoch: "e1", entries: [assistant(VALID.replace("Round: 1", "Round: 2"), 7, { messageId: "c", turnId: "t7" })] }],
+        "peer-9": [{ epoch: "e9", entries: [assistant(VALID, 1, { messageId: "z" })] }],
+      },
+    );
+    // The triggering event is an unrelated root agent; reconcile still runs first.
+    await second.onTurnEnded(peerTurn({ agent: { ...peerTurn().agent, id: "root", parentAgentId: null } }), session2.paseo);
+
+    assert.deepEqual(session2.refetches.map((r) => [r.agentId, r.options]), [["peer-1", { direction: "after", cursor: { epoch: "e1", seq: 1 }, limit: 200 }]]);
+    assert.deepEqual(
+      session2.sent.map((s) => [s.options.sourceAgentId, /^kind: (\S+)/m.exec(s.text)?.[1], /round: (\S+)/.exec(s.text)?.[1]]),
+      [["peer-2", "HANDBACK_VALID", "1"], ["peer-1", "HANDBACK_VALID", "2"]],
+      "pending peer-2 record first (older), then the caught-up peer-1 turn",
+    );
+    const reloaded = new Outbox(outbox.directory);
+    await reloaded.load();
+    assert.equal(reloaded.records().length, 3);
+    assert.equal(reloaded.pendingFor("lead-1").length, 0);
+    assert.equal(reloaded.latestFor("peer-1")?.turnId, "t7", "turnId taken from the timeline entry when the hook has none");
+    assert.deepEqual(reloaded.cursor("peer-1"), { epoch: "e1", seq: 7 });
+    assert.equal(reloaded.cursor("peer-9"), null);
+    assert.ok(lines.some((l) => /reconciled 2 watched peer\(s\), 1 lead\(s\) with pending deliveries/.test(l)));
+
+    // Reconcile is once per process: a later event does not repeat it.
+    await second.onTurnEnded(peerTurn({ agent: { ...peerTurn().agent, id: "root", parentAgentId: null } }), session2.paseo);
+    assert.equal(session2.refetches.length, 1);
   });
 });
 

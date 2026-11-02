@@ -8,6 +8,7 @@ import type { Logger, TurnEndedEvent } from "./plugin.ts";
 export const LEAD_PROVIDER = /^[a-z]+-lead(--.*)?$/;
 const PAGE_LIMIT = 200;
 const MAX_PAGES = 20;
+const NO_HOOK_AGENT: TurnEndedEvent["agent"] = { id: "", workspaceId: null, parentAgentId: null, provider: "", cwd: "", title: null };
 
 // The slice of PaseoApi (0.14.0) the plugin uses, typed structurally so tests can supply a fake.
 export interface TimelineEntry {
@@ -71,6 +72,7 @@ export class Delivery {
   private readonly log: Logger;
   private readonly now: () => string;
   private loaded: Promise<void> | null = null;
+  private reconciled: Promise<void> | null = null;
 
   constructor(options: DeliveryOptions) {
     this.outbox = options.outbox;
@@ -86,8 +88,32 @@ export class Delivery {
     return this.loaded;
   }
 
+  /**
+   * Catch up after a plugin or daemon restart. `contribute()` receives no PaseoApi, so this runs
+   * on the first lifecycle event instead of at start (still event-gated, never on a timer).
+   * Watched Peers are those with a stored cursor; a Peer the plugin never saw is left alone so
+   * a fresh install does not replay old handbacks the Lead already handled natively.
+   */
+  reconcile(paseo: DeliveryPaseo): Promise<void> {
+    this.reconciled ??= this.ready().then(async () => {
+      const leads = new Set<string>();
+      for (const peerAgentId of this.outbox.watchedPeers()) {
+        const latest = this.outbox.latestFor(peerAgentId);
+        if (!latest) continue;
+        const peer = (await paseo.agents.ref(peerAgentId).refresh())?.agent;
+        if (!peer || peer.status === "running" || peer.status === "initializing") continue;
+        const synthetic: TurnEndedEvent = { agent: { ...NO_HOOK_AGENT, id: peerAgentId, parentAgentId: latest.leadAgentId, provider: peer.provider }, turnId: null, outcome: { kind: "completed" }, timeline: [] };
+        await this.recordTurn(synthetic, latest.leadAgentId, paseo);
+      }
+      for (const record of this.outbox.records()) if (record.state === "pending") leads.add(record.leadAgentId);
+      for (const leadAgentId of leads) await this.flush(leadAgentId, paseo);
+      this.log.info(`reconciled ${this.outbox.watchedPeers().length} watched peer(s), ${leads.size} lead(s) with pending deliveries`);
+    });
+    return this.reconciled;
+  }
+
   async onTurnEnded(event: TurnEndedEvent, paseo: DeliveryPaseo): Promise<void> {
-    await this.ready();
+    await this.reconcile(paseo);
     const { agent } = event;
     if (LEAD_PROVIDER.test(agent.provider)) {
       await this.flush(agent.id, paseo);
@@ -117,6 +143,16 @@ export class Delivery {
     let body = "";
     let lastMessageId: string;
     if (!last) {
+      if (event.turnId && this.outbox.forTurn(peerAgentId, event.turnId)) {
+        this.log.info(`turn ${event.turnId} of ${peerAgentId} already recorded; replay ignored`);
+        return;
+      }
+      if (event.outcome.kind === "completed") {
+        // Nothing new after the cursor: the turn's message (if any) was delivered already.
+        this.log.info(`turn ${event.turnId ?? "?"} of ${peerAgentId} completed without a new assistant message; nothing to deliver`);
+        if (cursor) await this.outbox.setCursor(peerAgentId, cursor);
+        return;
+      }
       kind = "TURN_ENDED_NO_MESSAGE";
       reasons = [`${describeOutcome(event.outcome)}; no assistant message after cursor`];
       lastMessageId = `turn:${event.turnId ?? "?"}:${event.outcome.kind}`;
@@ -139,7 +175,7 @@ export class Delivery {
         peerAgentId,
         leadAgentId,
         kind,
-        turnId: event.turnId,
+        turnId: event.turnId ?? last?.turnId ?? null,
         taskId,
         round,
         candidate,

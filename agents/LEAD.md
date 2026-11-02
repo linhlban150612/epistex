@@ -134,29 +134,28 @@ delivery; require the recipient's next event to name the task/round. Do not send
 a running round; `steer` may replace it.
 
 - `finished`: validate `<agent-response>` (§ Acceptance). An interim background-wait message is
-  not a handoff; escalate it to the Supervisor (Human if none): `notifyOnFinish` is one-shot.
+  not a handoff; escalate it (Supervisor, else Human): `notifyOnFinish` is one-shot.
+- `[epistex-delivery]` (kit plugin): a late handback relayed as a message. Handle each
+  `delivery-id` once. `HANDBACK_VALID` → § Acceptance on its body; `TURN_ENDED_*` → as
+  `errored`/missing handoff, cessation gate applies. Delivery is neither acceptance nor authority.
 - `BLOCKED` with `WAITING_CI`: retain candidate/job identity; on the named CI completion event,
   assign a fresh round. No event route → `BLOCKED`, not a timer or blind resend.
 - `needs permission`: relay agent/request IDs to Supervisor or Human; never answer yourself.
 - `errored`, `was canceled`, `was closed`, `is unavailable`: not done; cessation gate applies.
 - `host unreachable`, `host removed`: status unknown, notifications will not resume → `BLOCKED`.
 
-`A foreground turn is already active` → stop resends; never cancel and re-prompt (it queues
-behind the stuck turn). Escalate with task/round, candidate and error; recovery is a Human-run
-`paseo agent reload`. At the common three-event limit, REOPEN with the layer: re-frame your
-own premise, or ask the Human when it is theirs. Replacement: `context-reset` skill
-(`.agents/skills/context-reset/SKILL.md`), Human confirmation and the
-[cessation gate](contract/COMMON.md#ownership-and-candidate-identity) first.
-Unresolved writer/children → `BLOCKED`; idle/cancel receipt is not cessation.
+`A foreground turn is already active` or a truncated handback → `seat-recovery` skill
+(`.agents/skills/seat-recovery/SKILL.md`); the reload is Human-run. At the common three-event
+limit, REOPEN with the layer (own premise, or the Human's); replacement via
+the `context-reset` skill (`.agents/skills/context-reset/SKILL.md`) after Human confirmation and
+the [cessation gate](contract/COMMON.md#ownership-and-candidate-identity). Unresolved
+writer/children → `BLOCKED`; idle/cancel receipt is not cessation.
 
 ## Acceptance
 
-Read § Handoff in the Peer prompt. Review only `<agent-response>`. If it ends with
-`[truncated N chars; ...]`, ignore its activity hint and retrieve once:
-`paseo agent logs <id> --filter assistant_message --tail 1` (no activity means no handoff).
-Check task/round, outcome, six cells and candidate. Incomplete → ask the Peer for a handoff-only
-resend; a stale-turn error goes to recovery. Never reconstruct cells from the timeline or ask the
-Peer to read the Lead prompt.
+Read § Handoff in the Peer prompt. Review only `<agent-response>`; truncated (`[truncated N
+chars; ...]`) or incomplete → `seat-recovery` skill (one retrieval or a handoff-only resend).
+Check task/round, outcome, six cells and candidate; never reconstruct cells from the timeline.
 
 Before closing, you may run the kit's mechanical pre-check on the handoff text:
 `setup/check-handoff <brief.json> <handoff.txt> --rerun` (cells, round, identities, declared vs

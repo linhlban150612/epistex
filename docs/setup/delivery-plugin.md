@@ -1,7 +1,7 @@
 # Epistex delivery plugin (Paseo 0.14.0)
 
-Status: **Step 6 (scaffold + shared parser + outbox + turn_ended delivery + reconcile + setup-seats pin
-check and install/remove flags).** The facts below were read from the installed Paseo
+Status: **Step 7 (scaffold + shared parser + outbox + turn_ended delivery + reconcile + setup-seats pin
+check and install/remove flags + Lead prompt/README wiring; not yet installed or run live).** The facts below were read from the installed Paseo
 0.14.0 build (`$(npm root -g)/@getpaseo/cli/node_modules/@getpaseo/{plugin,server,client,protocol}`)
 and from the live daemon on this host. `plugins/epistex-delivery/` holds the manifest (pin
 `0.14.0`), the entry and a fail-closed version guard: without `server.on` or when

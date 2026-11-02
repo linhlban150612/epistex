@@ -65,7 +65,10 @@ This table summarizes the role contracts; the [common contract](agents/contract/
 role prompts own the rules (candidate identity, cessation gate, event-driven work). The project's
 `WORKSPACE_PROTOCOL.md` owns Human-authorized provider/profile selection
 (see the [Routing template](examples/WORKSPACE_PROTOCOL.md#routing)). There is no coordination desk,
-registry, ledger, patrol, timer, recurring schedule, or heartbeat.
+registry, ledger, patrol, timer, recurring schedule, or heartbeat. The optional
+[delivery plugin](docs/setup/delivery-plugin.md) keeps a *delivery receipt store* outside Git
+(`${PASEO_HOME:-~/.paseo}/epistex-delivery/`): which Peer turn-end was relayed to which Lead, and
+when. It holds no authority or decisions and is not a trust boundary.
 
 ## Codex runtime and resume
 
@@ -83,7 +86,8 @@ Runtime layout, resume selection, environment variables and Seatworks compatibil
 | `setup/codex-room` | Select runtime/resume and generate Codex config |
 | `setup/setup-seats.sh`, `setup/normalize-profiles.jq`, `examples/paseo-providers.json` | Seat checker, profile normalizer and provider catalog |
 | `setup/check-handoff`, `setup/fail-on-base` | Mechanical gates for handoffs and reproducible-bug fixes |
-| `.agents/skills/*/SKILL.md` | Lead skills: Dual-Lane review, context reset, rework escalation, handling reopen/dependency requests; installed per project by `setup-seats.sh --project` |
+| `.agents/skills/*/SKILL.md` | Lead skills: Dual-Lane review, context reset, seat recovery, rework escalation, handling reopen/dependency requests; installed per project by `setup-seats.sh --project` |
+| `plugins/epistex-delivery/`, `docs/setup/delivery-plugin.md` | Paseo 0.14.0 server plugin that relays a Peer's end-of-turn handback to its Lead when the finish notification is missed; installed through `setup-seats.sh --install-plugin` after Human approval |
 | `.pi/settings.json`, `.omp/config.yml` | Checkout-scoped Pi/OMP compaction settings |
 | `examples/AGENTS_MD_SNIPPET.md`, `examples/WORKSPACE_PROTOCOL.md`, `examples/LEAD_INITIAL_PROMPT.md`, `examples/target-repo/` | Contract, policy, Lead startup and verify templates for target repos |
 | `eval/` | Peer behavior scenarios run against real agents; results stay outside Git |
@@ -128,7 +132,12 @@ recovery checks.
   a fresh round after handback. No event route means `BLOCKED`, not polling or an implicit CI trigger.
   Stale-turn errors stop resends immediately; Human-confirmed, cessation-gated recovery reloads
   only the affected seat before considering replacement. This is a prompt/workflow mitigation,
-  not an ACP runtime fix or a guarantee of delivery. See [Lead monitoring](agents/LEAD.md#monitoring)
+  not an ACP runtime fix or a guarantee of delivery. #6346 is mitigated by the
+  [delivery plugin](docs/setup/delivery-plugin.md) when it is installed: it relays the Peer's last
+  message of a missed turn-end to the Lead as a `[epistex-delivery]` message with a `delivery-id`
+  (at-least-once; the Lead handles each ID once). The prompt workaround stays as the fallback
+  until eval shows the plugin works live. See [Lead monitoring](agents/LEAD.md#monitoring),
+  the [seat-recovery skill](.agents/skills/seat-recovery/SKILL.md)
   and [Supervisor recovery](agents/SUPERVISOR.md#escalation-and-context-reset).
   Existing sessions retain their old injected instructions on load/resume; these edits do not
   update running seats. Rollout to them needs a separate authorized transition, not a live resend.

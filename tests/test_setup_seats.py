@@ -501,6 +501,10 @@ class SetupSeatsTest(unittest.TestCase):
             result = self.check_config({**self.data, **installed})
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertNotIn("delivery plugin", result.stdout + result.stderr)
+            resumed = {**self.data, **installed, "agents": {**self.data.get("agents", {}), "resumeOnStartup": True}}
+            result = self.check_config(resumed)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("agents.resumeOnStartup must stay off", result.stderr)
 
         link = pathlib.Path(self.temporary.name) / "plugin-link"
         link.symlink_to(plugin_dir)
@@ -520,18 +524,25 @@ class SetupSeatsTest(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(message, result.stderr)
 
-        with self.subTest("daemon version off the pin"):
-            self.env["FAKE_PASEO_VERSION"] = "0.15.0"
-            result = self.check_config({**self.data, **installed})
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("pinned to Paseo 0.14.0 but paseo is 0.15.0", result.stderr)
-            self.assertNotIn("pinned to Paseo", self.check_config(bare).stderr, "not installed: version is not gated")
+        for version in ("0.15.0", "0.15.0-beta.2", "0.14.9"):
+            with self.subTest("daemon version inside the range", version=version):
+                self.env["FAKE_PASEO_VERSION"] = version
+                result = self.check_config({**self.data, **installed})
+                self.assertEqual(result.returncode, 0, result.stderr)
+        for version in ("0.16.0", "0.16.0-beta.1", "0.13.9", "1.0.0", "unknown"):
+            with self.subTest("daemon version outside the range", version=version):
+                self.env["FAKE_PASEO_VERSION"] = version
+                result = self.check_config({**self.data, **installed})
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(f"requires Paseo >=0.14.0 <0.16 but paseo is {version}", result.stderr)
+        self.assertNotIn("requires Paseo", self.check_config(bare).stderr, "not installed: version is not gated")
+        self.env["FAKE_PASEO_VERSION"] = "0.14.0"
 
         with self.subTest("paseo absent leaves the pin pending"):
             paseo.unlink()
             result = self.check_config({**self.data, **installed})
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("pin 0.14.0 not checked against the daemon (pending)", result.stdout)
+            self.assertIn("range >=0.14.0 <0.16 not checked against the daemon (pending)", result.stdout)
             paseo.write_text("#!/usr/bin/env bash\n"
                              f"printf '%s\\n' \"$*\" >> {calls}\n"
                              "[[ \"$1\" == --version ]] && printf '%s\\n' \"$FAKE_PASEO_VERSION\"\nexit 0\n")
@@ -540,10 +551,10 @@ class SetupSeatsTest(unittest.TestCase):
         with self.subTest("manifest and guard must share the pin"):
             manifest = plugin_dir / "paseo-plugin.json"
             original = manifest.read_text()
-            manifest.write_text(original.replace('"paseo": "0.14.0"', '"paseo": "0.15.0"'))
+            manifest.write_text(original.replace('"paseo": ">=0.14.0 <0.16"', '"paseo": ">=0.14.0"'))
             result = self.check_config(self.data)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("must pin Paseo 0.14.0", result.stderr)
+            self.assertIn("must require Paseo >=0.14.0 <0.16", result.stderr)
             manifest.write_text(original)
 
         self.config.write_text(json.dumps(bare))
@@ -551,10 +562,10 @@ class SetupSeatsTest(unittest.TestCase):
         with self.subTest("--install-plugin refuses --check, a wrong daemon and pluginsEnabled off"):
             self.assertEqual(self.run_check("--check", "--install-plugin").returncode, 2)
             self.assertEqual(self.run_check("--install-plugin", "--remove-plugin").returncode, 2)
-            self.env["FAKE_PASEO_VERSION"] = "0.15.0"
+            self.env["FAKE_PASEO_VERSION"] = "0.16.0"
             result = self.run_check("--install-plugin")
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("paseo is 0.15.0; not installing", result.stderr)
+            self.assertIn("paseo is 0.16.0; not installing", result.stderr)
             self.env["FAKE_PASEO_VERSION"] = "0.14.0"
             result = self.run_check("--install-plugin")
             self.assertNotEqual(result.returncode, 0)

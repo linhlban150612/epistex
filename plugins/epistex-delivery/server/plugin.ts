@@ -18,8 +18,8 @@ export interface ContributeOptions {
 }
 
 export const PLUGIN_ID = "epistex-delivery";
-/** The Paseo build the plugin was verified against. `paseo-plugin.json` carries the same pin. */
-export const PASEO_VERSION = "0.14.0";
+/** The Paseo releases the plugin was verified on. `paseo-plugin.json` carries the same range. */
+export const PASEO_RANGE = ">=0.14.0 <0.16";
 
 export const consoleLogger: Logger = {
   info: (message) => console.log(`[${PLUGIN_ID}] ${message}`),
@@ -29,7 +29,7 @@ export const consoleLogger: Logger = {
 const noop = () => {};
 
 /**
- * Register the delivery hook. Fail closed: when the server context lacks the 0.14.0 lifecycle
+ * Register the delivery hook. Fail closed: when the server context lacks the 0.14/0.15 lifecycle
  * API (`server.on`) or rejects the `agent.turn_ended` hook, log the reason, register nothing and
  * return a no-op cleanup. The plugin then stays loaded but inert; it never guesses another API.
  */
@@ -37,7 +37,7 @@ export function contribute(server: unknown, options: ContributeOptions = {}): ()
   const log = options.log ?? consoleLogger;
   const onTurnEnded = options.onTurnEnded ?? (async () => {});
   if (typeof server !== "object" || server === null || typeof (server as PluginServerContext).on !== "function") {
-    log.error(`server context has no on(); built for Paseo ${PASEO_VERSION}; nothing registered`);
+    log.error(`server context has no on(); built for Paseo ${PASEO_RANGE}; nothing registered`);
     return noop;
   }
   const context = server as PluginServerContext;
@@ -58,7 +58,7 @@ export function contribute(server: unknown, options: ContributeOptions = {}): ()
     log.error("server.on did not return an unsubscribe function; nothing registered");
     return noop;
   }
-  log.info(`registered agent.turn_ended (Paseo ${PASEO_VERSION})`);
+  log.info(`registered agent.turn_ended (Paseo ${PASEO_RANGE})`);
   return () => {
     (unsubscribe as () => void)();
   };

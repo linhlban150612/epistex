@@ -9,7 +9,9 @@ errs=0
 project=
 plugin_action=
 plugin_dir="$kit/plugins/epistex-delivery"
-plugin_pin=0.14.0
+plugin_range='>=0.14.0 <0.16'
+plugin_min=0.14.0
+plugin_below=0.16.0
 plugin_installed=0
 fail() { printf '  ! %s\n' "$*" >&2; errs=$((errs + 1)); }
 usage() { printf 'usage: %s [--check] [--project <path>] [--install-plugin | --remove-plugin]\n' "$0" >&2; exit 2; }
@@ -103,12 +105,19 @@ for name in codex-room role-agent kiro-acp claude-sdk devin-acp copilot-acp curs
   [[ -x "$wrapper" ]] || fail "$wrapper is not executable"
 done
 
-# The delivery plugin is built against one Paseo build; manifest, guard and this checker share the pin.
+# The delivery plugin is verified on the Paseo releases in one range; manifest, guard and this checker share it.
+# A prerelease counts as its stable core (as Paseo itself checks requirements.paseo): 0.15.0-beta.1 is 0.15.0.
+paseo_in_range() {
+  local core=${1%%[-+]*}
+  [[ "$core" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
+  printf '%s\n%s\n' "$plugin_min" "$core" | sort -V -C || return 1
+  [[ "$core" != "$plugin_below" ]] && printf '%s\n%s\n' "$core" "$plugin_below" | sort -V -C
+}
 if [[ ! -f "$plugin_dir/paseo-plugin.json" || ! -f "$plugin_dir/index.server.ts" || ! -f "$plugin_dir/server/plugin.ts" ]]; then
   fail "delivery plugin: missing files under $plugin_dir"
-elif ! jq -e --arg pin "$plugin_pin" '.id == "epistex-delivery" and .requirements.paseo == $pin' "$plugin_dir/paseo-plugin.json" >/dev/null 2>&1 ||
-  ! grep -Fq "PASEO_VERSION = \"$plugin_pin\"" "$plugin_dir/server/plugin.ts"; then
-  fail "delivery plugin: paseo-plugin.json and server/plugin.ts must pin Paseo $plugin_pin"
+elif ! jq -e --arg range "$plugin_range" '.id == "epistex-delivery" and .requirements.paseo == $range' "$plugin_dir/paseo-plugin.json" >/dev/null 2>&1 ||
+  ! grep -Fq "PASEO_RANGE = \"$plugin_range\"" "$plugin_dir/server/plugin.ts"; then
+  fail "delivery plugin: paseo-plugin.json and server/plugin.ts must require Paseo $plugin_range"
 fi
 paseo_version=
 if command -v paseo >/dev/null; then
@@ -479,6 +488,10 @@ PY
          else ($p | has("thinkingOptionId")) end)
       )] | length == 0
   ' "$paseo_config" >/dev/null || fail 'daemon.agentProfiles: invalid seat, model or thinking option (or malformed mode/features settings)'
+  # Paseo 0.15+ can resume agents cut by a daemon restart (default off). The Lead rules treat a cut Peer
+  # as `was closed` and reassign its round; a resumed Peer would keep writing it. Human decision: keep it off.
+  jq -e '.agents.resumeOnStartup != true' "$paseo_config" >/dev/null ||
+    fail 'agents.resumeOnStartup must stay off: a resumed Peer keeps writing a round the Lead reassigns'
   if jq -e '.plugins["epistex-delivery"] | type == "object"' "$paseo_config" >/dev/null; then
     plugin_installed=1
     installed_path=$(jq -r '.plugins["epistex-delivery"] | select(.source == "directory") | .path // empty' "$paseo_config")
@@ -488,9 +501,9 @@ PY
     jq -e '.plugins["epistex-delivery"].enabled != false' "$paseo_config" >/dev/null || fail 'delivery plugin: disabled in config (paseo plugin enable epistex-delivery)'
     jq -e '.pluginsEnabled == true' "$paseo_config" >/dev/null || fail 'delivery plugin: installed but pluginsEnabled is not true; the Human sets it in config.json'
     if [[ -z "$paseo_version" ]]; then
-      printf '  note: paseo not on PATH; delivery plugin pin %s not checked against the daemon (pending)\n' "$plugin_pin"
-    elif [[ "$paseo_version" != "$plugin_pin" ]]; then
-      fail "delivery plugin: pinned to Paseo $plugin_pin but paseo is $paseo_version; match the pin"
+      printf '  note: paseo not on PATH; delivery plugin range %s not checked against the daemon (pending)\n' "$plugin_range"
+    elif ! paseo_in_range "$paseo_version"; then
+      fail "delivery plugin: requires Paseo $plugin_range but paseo is $paseo_version"
     fi
   elif [[ -z "$plugin_action" ]]; then
     fail "delivery plugin: not installed; it is required (missed finish notifications, #6346). After Human approval run $0 --install-plugin"
@@ -501,7 +514,7 @@ fi
 case "$plugin_action" in
   install)
     [[ -n "$paseo_version" ]] || fail 'delivery plugin: paseo not on PATH; install needs the CLI and a running daemon'
-    [[ -z "$paseo_version" || "$paseo_version" == "$plugin_pin" ]] || fail "delivery plugin: pinned to Paseo $plugin_pin but paseo is $paseo_version; not installing"
+    [[ -z "$paseo_version" ]] || paseo_in_range "$paseo_version" || fail "delivery plugin: requires Paseo $plugin_range but paseo is $paseo_version; not installing"
     jq -e '.pluginsEnabled == true' "$paseo_config" >/dev/null || fail 'delivery plugin: set "pluginsEnabled": true in config.json first (Human-approved change); not installing'
     if (( errs == 0 )); then
       if (( plugin_installed )); then

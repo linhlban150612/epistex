@@ -1,12 +1,12 @@
-# Epistex delivery plugin (Paseo 0.14.0)
+# Epistex delivery plugin (Paseo >=0.14.0 <0.16)
 
-Status: **Step 8 (installed on this host and verified live, 2026-11-02; five fault-injection
-scenarios passed, see [Live fault-injection results](#live-fault-injection-results-2026-11-02),
-and one run with the real role prompts, see
-[Live run with real seats](#live-run-with-real-seats-2026-11-02)).** The facts below were read from the installed Paseo
+Status: **installed on this host and verified live on 0.14.0 (2026-11-02) and 0.15.0 (2026-11-03);
+see [Live evidence](#live-evidence).** The facts below were read from the installed Paseo
 0.14.0 build (`$(npm root -g)/@getpaseo/cli/node_modules/@getpaseo/{plugin,server,client,protocol}`)
-and from the live daemon on this host. `plugins/epistex-delivery/` holds the manifest (pin
-`0.14.0`), the entry and a fail-closed version guard: without `server.on` or when
+and from the live daemon on this host. 0.15.0 was rechecked from its SDK: `server.on("agent.turn_ended")` is kept (deprecated in favour
+of `addHook("agent.turn.after")`, removal after 2027-04-30) and the `refresh`, `timeline.refetch` and
+`send` shapes are unchanged. `plugins/epistex-delivery/` holds the manifest (range
+`>=0.14.0 <0.16`), the entry and a fail-closed version guard: without `server.on` or when
 `agent.turn_ended` cannot be registered, the plugin logs the reason and registers nothing. Paseo's
 own `compileDirectoryPlugin` + `evaluateBundle` (0.14.0) load the bundle. `server/handoff.ts`
 ports `parse_handoff`/`classify_handoff` from `setup/check-handoff`; `check-handoff --parse-only
@@ -121,8 +121,8 @@ Its outbox is a delivery receipt store outside Git; it holds no authority or dec
 bash <KIT>/setup/setup-seats.sh --install-plugin   # runs: paseo plugin install <KIT>/plugins/epistex-delivery
 paseo reload                                       # the daemon keeps pluginsEnabled in memory; see below
 paseo plugin ls --json                             # STATUS must be "running", not "disabled"
-paseo plugin logs epistex-delivery                 # expect: registered agent.turn_ended (Paseo 0.14.0)
-bash <KIT>/setup/setup-seats.sh --check            # pin, path, pluginsEnabled and daemon version
+paseo plugin logs epistex-delivery                 # expect: registered agent.turn_ended (Paseo >=0.14.0 <0.16)
+bash <KIT>/setup/setup-seats.sh --check            # range, path, pluginsEnabled and daemon version
 ```
 
 Observed on install: the running daemon had read `pluginsEnabled: false` at start, so right after
@@ -130,97 +130,33 @@ Observed on install: the running daemon had read `pluginsEnabled: false` at star
 re-read the global switch and the plugin went `running` with no daemon restart. `paseo reload` prints
 a hint to run `paseo daemon restart` for plugin sources; it was not needed.
 
-`setup-seats.sh` shares the `0.14.0` pin with `paseo-plugin.json` and `server/plugin.ts` and fails when
-they drift. It refuses to install under `--check`, when `paseo --version` is not the pin, or when
+`setup-seats.sh` shares the `>=0.14.0 <0.16` range with `paseo-plugin.json` and `server/plugin.ts` and
+fails when they drift. A prerelease counts as its stable core, as in Paseo's own check. It refuses to
+install under `--check`, when `paseo --version` is outside the range, or when
 `pluginsEnabled` is not `true`; it never edits `config.json` itself (the daemon does, through the
 CLI). With the plugin installed, `--check` fails when the entry is not a `directory` source at the kit
-path, points through a symlink, is disabled, `pluginsEnabled` is off, or the daemon version differs from
-the pin; without `paseo` on PATH the version check is reported as pending. `--remove-plugin` removes the
+path, points through a symlink, is disabled, `pluginsEnabled` is off, or the daemon version is outside
+the range; without `paseo` on PATH the version check is reported as pending. `--check` also fails
+when `agents.resumeOnStartup` (Paseo 0.15+, default off) is on (decision 7); it never changes it. `--remove-plugin` removes the
 config entry and keeps the receipts under `${PASEO_HOME:-~/.paseo}/epistex-delivery/`.
 
-## Live fault-injection results (2026-11-02)
+## Live evidence
 
-Paseo 0.14.0, daemon on `127.0.0.1:6767`, plugin installed as above. Harness: one Lead
-(`droid-lead`, id `71feea91…`, prompt: reply only `ACK <delivery-id> <kind>`) and two Peers
-(`droid-peer`, A `69625e7a…`, B `d2c01db3…`) created with `paseo run --label
-paseo.parent-agent-id=<lead>`; each Peer echoed `tests/fixtures/handoffs/valid.txt` with its own
-Task/Round. Receipts: `~/.paseo/epistex-delivery/71feea91-….jsonl` and `cursors.json`. The eval
-workspace was archived afterwards; the receipts were kept (open question 3).
+The run logs are kept outside the tracked docs, in the local `eval/results/delivery-plugin-live-runs.md`.
+The conclusions:
 
-| Scenario | Injected fault | Observed | Result |
-| --- | --- | --- | --- |
-| A. Smoke | none | Peer A turn end → `recorded HANDBACK_VALID 10e86e3f…`, `sent`; Lead received the §4.4 message and ACKed the id. Outbox and cursor file created. | pass |
-| B. Lead busy | Lead in a long turn when Peer A ended | Record `bc145291…` stayed `pending` ("lead is running; 1 delivery(ies) stay pending"); no steer into the running turn. When the Lead went idle (its turn was stopped), the record was `sent` and ACKed. | pass |
-| C. Missed turns + reconcile | `paseo plugin disable`, round 2 for A and B (plugin silent), `paseo plugin enable`, ping Lead | First event after enable reconciled 2 watched Peers in order (`5ee2305a…`, `3c3a456e…`): `recorded` + `sent`; Lead ACKed both ids. | pass |
-| D. Crash between fsync and send | Record `c0ffee…` injected as `pending` in the jsonl, Peer A mid-turn, `paseo daemon restart`, ping Lead | Cursor stale → tail read; A and B deduped ("already recorded; replay"); `c0ffee…` `sent` exactly once; Lead ACKed. Peer A came back `idle`, its cut turn produced no message. | pass |
-| E. Peer cut mid-turn | `paseo agent stop` on Peer B during a long turn | `TURN_ENDED_NO_MESSAGE 42b417d0…` with reasons "turn canceled: Interrupted; no assistant message after cursor"; Lead ACKed; agent count unchanged (no writer created). | pass |
-
-Side observations, not plugin faults: `paseo ls`/`inspect` show `labels: null` for Peers created
-with `--label paseo.parent-agent-id=…` although the plugin receives the parent correctly; after
-the restart the Lead timeline shows a Paseo-generated `[Message received] <title>` line for Peer B.
-Scope of the evidence: one host, one Lead, two Peers, five scenarios; it proves the delivery path
-on 0.14.0. The run below adds the real role prompts to that evidence; on both, the Human decided
-the prompt workaround's removal (decision 5 below).
-
-## Live run with real seats (2026-11-02)
-
-Same host and plugin. Lead `droid-lead/gpt-6.1-sol` (thinking `low`, mode `auto-high`, id
-`9788612c…`) started with the `examples/LEAD_INITIAL_PROMPT.md` template on a scratch clone of a
-Java repository (`./verify quick` exit 0 at the baseline). Peers were created by the Lead itself:
-`droid-peer/deepseek-v4.1-flash-1017`, effort `low`. Task: unit tests for `DataUtil.parseToLong`,
-owned scope `src/test/java/com/smac/utils/**`, commit required. Receipts:
-`~/.paseo/epistex-delivery/9788612c-….jsonl` (five records, all `sent`), `cursors.json`.
-
-| Step | Peer | Observed | Result |
-| --- | --- | --- | --- |
-| Task 1, round 1 | `2b19cfaf…` | Peer committed `83f14f2` (7 tests pass). The Lead received both the native `[Agent finished]` and `[epistex-delivery] TURN_ENDED_INVALID_HANDOFF bb3d762b…` (reason: missing cell `Ownership`; the Peer wrote "Cessation and ownership"). The Lead handled them as one turn (§4.6): asked for a handoff-only resend, received `HANDBACK_VALID 3c4e5586…`, accepted `83f14f2`, archived the Peer. No duplicate round was assigned. | pass |
-| Task 2, round 1 | `7a9a3402…` | Peer committed `744d975` (9 tests pass). Same sequence: `TURN_ENDED_INVALID_HANDOFF 332e4375…` (task/round header missing) → resend → `HANDBACK_VALID a7050d02…` → accepted; Peer left idle on request. | pass |
-| Duplicate handback | `7a9a3402…` | The Peer was told directly to repeat its last handoff verbatim. The plugin recorded a new delivery `529368e3…` (new `lastMessageId`, so a new delivery-id, as designed). The Lead received it and took no action: no new round, no second acceptance, no reply. | pass |
-
-Observations, not plugin faults:
-
-- The Lead's first turn stalled for about 8 minutes after a `Glob` call (Droid session log
-  without new messages, status `running`). `paseo agent stop` followed by an `interrupt` prompt
-  made it continue and create the Peer. Backend (Droid / `gpt-6.1-sol`) behaviour; cause not
-  identified.
-- Both Peers produced the handoff cells with wrong labels or without the `Task ID | Round`
-  header on the first try, so the plugin classified the real turn end as
-  `TURN_ENDED_INVALID_HANDOFF` and the Lead had to request a resend. That is the §4.3 contract,
-  not a parser fault; the resend was valid both times.
-- The #6346 case itself (a background completion whose `notifyOnFinish` never arrives) did not
-  occur in this run: every turn end produced the native notification and the plugin delivery.
-  The run therefore proves the duplicate path (native plus plugin, same turn, handled once), not
-  the missing-notification path, which the fault-injection scenarios C and D cover.
-
-## Live run 2 after the cleanup (2026-11-02)
-
-Same setup on a fresh clone (`eval/live-delivery-20261102-225410`, baseline `736f30c`, kit
-installed with `setup-seats.sh --project`, plugin installed as `--install-plugin` default). Lead
-`droid-lead/gpt-6.1-sol` (`485b657b…`), Peer created by the Lead:
-`droid-peer/deepseek-v4.1-flash-1017`, effort `low` (`0b5b2224…`). Task `INT-TESTS`: unit tests for
-`DataUtil.safeToInt`/`parseToInt`, commit required. Receipts: `~/.paseo/epistex-delivery/485b657b-….jsonl`.
-
-| Step | Observed | Result |
-| --- | --- | --- |
-| Reconcile with stale cursors | The first event after the plugin reload read the four watched Peers of the earlier runs; each timeline read failed with `Working directory does not exist` (their clones were deleted). Each Peer was skipped with a logged error, `reconciled 4 watched peer(s)`, and the live event was still processed. | pass (after the fix below) |
-| Round 1 | Peer committed `f4c7066` (15 tests pass), wrote a valid handoff, then ended the turn with a `TodoWrite` call and the text "the handoff above stands". Plugin: `TURN_ENDED_INVALID_HANDOFF b7f09c47…` (header and all cells missing in the last message). Lead asked for a handoff-only resend; plugin: `HANDBACK_VALID 54fca5c4…` (`INT-TESTS`, round 1, candidate `736f30c..f4c7066`). Lead reran `./verify quick` (exit 0), accepted the commit, archived the Peer. One round, no duplicate assignment. | pass |
-
-Plugin fault found and fixed in this run: `reconcile()` let a failed timeline read of one watched
-Peer throw out of the `agent.turn_ended` handler, so two Lead turn ends were dropped and, because the
-rejected promise was cached, every later event failed too. `server/delivery.ts` now skips that Peer
-(`reconcile: peer <id> skipped: <error>`) and, if reconcile still fails, clears the cached promise,
-logs and handles the live event anyway. Regression test: "reconcile skips a watched peer whose
-timeline read fails and still delivers the live event".
-
-Observation, not a plugin fault: the Peer's Paseo record carries `config.modeId: auto-high`, yet
-its Droid session stopped on an `edit` permission request until the Human ran
-`paseo agent mode <peer> auto-high` and `paseo permit allow`. The Lead correctly refused to approve
-it. Cause not identified (Droid ACP mode application at session start); watch for it on
-`droid-peer` seats.
+- **Paseo 0.14.0 (2026-11-02):** five fault-injection scenarios passed (smoke, busy Lead, missed turns
+  plus reconcile, crash between fsync and send, Peer cut mid-turn). Two runs with real role prompts
+  passed: native `finished` plus plugin delivery for the same turn were handled once. Run 2 found the
+  reconcile fault (fixed: a failing Peer is skipped, and the cached catch-up is retried).
+- **Paseo 0.15.0 (2026-11-03):** the plugin loads with the range, the hook fires, the five dead Peers of
+  the earlier runs are unwatched after one attempt, and a handoff followed by a tool call and filler
+  text is delivered as `HANDBACK_VALID` with `trailing_text_after_handoff`.
+- **Not covered live:** a real missed `notifyOnFinish` (#6346) on a background completion; one host only.
 
 ## Decisions and open questions
 
-Decided by the Human (2026-11-02):
+Decided by the Human (2026-11-02; items 6 and 7 on 2026-11-03):
 
 1. Parser: **ported to TypeScript** (`server/handoff.ts`) with the shared fixture suite; the Python
    `--parse-only --json` output is the parity oracle.
@@ -238,4 +174,17 @@ Decided by the Human (2026-11-02):
    it has no mitigation for #6346, and `setup/setup-seats.sh --check` fails until it is installed.
    Running seats keep their old injected instructions until a separate authorized transition.
 
-No open questions remain.
+6. Paseo requirement (2026-11-03): **`>=0.14.0 <0.16`** instead of `0.14.0` exactly, after the 0.15.0
+   SDK check and live run. 0.16 needs a new check (the deprecated `server.on` is removed after
+   2027-04-30; `addHook("agent.turn.after")` replaces it).
+7. `agents.resumeOnStartup` (2026-11-03): **keep off**. When on, a Peer cut by a daemon restart gets
+   "Resume working." and keeps writing its round, while the Lead treats it as `was closed` and
+   reassigns the round. `setup-seats.sh --check` fails when it is on.
+
+Open:
+
+- `droid-peer` seats stopped on an `edit` permission request in live run 2. Likely cause is in the kit,
+  not Paseo: all 23 `droid-peer` profiles have no `modeId` (the `droid-lead` ones carry `auto-high`), and
+  the profile notes tell the Lead to omit absent settings, so the Peer starts in Droid's default mode.
+  On 0.15.0 a `droid-peer` created with `--mode auto-high` edited a file without a permission request.
+  Giving Peers `auto-high` is a launch-policy change for the Human.

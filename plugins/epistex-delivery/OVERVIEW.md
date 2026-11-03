@@ -9,7 +9,7 @@ valid handoff the last message is classified), writes a receipt to
 `${PASEO_HOME:-~/.paseo}/epistex-delivery/`, and sends a `[epistex-delivery]` message to the Lead.
 Delivery is at least once; the Lead processes each `delivery-id` once.
 
-Requirements: Paseo 0.14.0 exactly. The plugin refuses to register anything when the daemon does
+Requirements: Paseo `>=0.14.0 <0.16`. The plugin refuses to register anything when the daemon does
 not expose the lifecycle API it was built against.
 
 Limits: the plugin only delivers. It never creates, cancels, archives, reloads or re-modes agents,

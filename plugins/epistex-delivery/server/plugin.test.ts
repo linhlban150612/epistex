@@ -71,7 +71,7 @@ test("compatible server: hook registered, handler errors logged, cleanup unsubsc
   await handler!({ ...event, turnId: "boom" }, {});
   assert.deepEqual(seen, ["peer-1", "peer-1"]);
   assert.deepEqual(lines, [
-    "info registered agent.turn_ended (Paseo 0.14.0)",
+    "info registered agent.turn_ended (Paseo >=0.14.0 <0.16)",
     "error agent.turn_ended handler failed for peer-1: handler boom",
   ]);
   cleanup();

@@ -3,8 +3,9 @@ Peer. It exists because Paseo's one-shot `notifyOnFinish` notification can be mi
 (getpaseo/paseo#6346), which leaves a Lead waiting for a handback that already happened.
 
 How it works: on every `agent.turn_ended` event for an agent whose `paseo.parent-agent-id` label
-points at a Lead seat, the plugin reads the Peer's timeline, classifies the last assistant message
-with the same handoff parser as `setup/check-handoff`, writes a receipt to
+points at a Lead seat, the plugin reads the Peer's timeline, delivers the turn's last valid handoff
+(the same parser as `setup/check-handoff`; text after it is attached as a warning, and without a
+valid handoff the last message is classified), writes a receipt to
 `${PASEO_HOME:-~/.paseo}/epistex-delivery/`, and sends a `[epistex-delivery]` message to the Lead.
 Delivery is at least once; the Lead processes each `delivery-id` once.
 

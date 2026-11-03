@@ -18,8 +18,10 @@ line for the same `deliveryId`, folded on load), `cursors.json` written temp fil
 A torn last line is skipped with a warning. `server/delivery.ts` is the `agent.turn_ended`
 handler wired in `index.server.ts`: a Lead seat's own turn end (provider `^[a-z]+-lead(--.*)?$`)
 flushes that Lead's `pending` records; a child whose parent (`refresh()`) is a Lead seat has its
-timeline read `after` the stored cursor (tail when stale, `hasNewer` followed), the last
-`assistant_message` (preferring the ended `turnId`) is classified, the record is appended and
+timeline read `after` the stored cursor (tail when stale, `hasNewer` followed), and the last
+`assistant_message` (preferring the ended `turnId`) that is a valid handoff is delivered; assistant
+text after it in the turn travels as `trailing` with `warning: trailing_text_after_handoff`, and
+without a valid handoff the last message is classified as before. The record is appended and
 fsynced, the cursor advanced, then sent with `{sourceAgentId: peer, activeTurnBehavior: "steer",
 messageId: delivery-id}` only while the Lead is `idle`/`error`. Root agents and children of
 non-Lead parents are ignored. A `completed` turn with no new assistant message after the cursor
@@ -27,7 +29,9 @@ is logged and not delivered (its message, if any, was delivered already; a repla
 here); `failed`/`canceled` turns without a message become `TURN_ENDED_NO_MESSAGE`. Reconcile
 (difference 6) runs once per plugin process on the first `agent.turn_ended` event: every Peer
 with a stored cursor that is not `running` is read `after` its cursor and recorded, then every
-Lead with `pending` records is flushed. Installed in `~/.paseo/config.json` on this host as a
+Lead with `pending` records is flushed. A Peer that is gone, archived or `closed` gets that one
+attempt and is then unwatched (its cursor removed, receipts kept), so a dead Peer is not read on
+every later start. Installed in `~/.paseo/config.json` on this host as a
 `directory` source at the kit path (`pluginsEnabled: true`, Human-approved 2026-11-02).
 
 ## Purpose

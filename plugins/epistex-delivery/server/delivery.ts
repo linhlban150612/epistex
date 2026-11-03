@@ -10,7 +10,7 @@ const PAGE_LIMIT = 200;
 const MAX_PAGES = 20;
 const NO_HOOK_AGENT: TurnEndedEvent["agent"] = { id: "", workspaceId: null, parentAgentId: null, provider: "", cwd: "", title: null };
 
-// The slice of PaseoApi (0.14.0) the plugin uses, typed structurally so tests can supply a fake.
+// The slice of PaseoApi (0.14.0, unchanged in 0.15.0) the plugin uses, typed structurally so tests can supply a fake.
 export interface TimelineEntry {
   item: { type: string; text?: string; messageId?: string };
   turnId?: string | null;
@@ -57,7 +57,10 @@ export function formatDelivery(record: DeliveryRecord): string {
     `peer: ${record.peerAgentId}  task: ${record.taskId ?? "?"}  round: ${record.round ?? "?"}`,
   ];
   if (record.kind !== "HANDBACK_VALID") lines.push(`reasons: ${record.reasons.join("; ")}`);
+  const trailing = record.trailing ?? [];
+  if (trailing.length) lines.push(`warning: trailing_text_after_handoff (${trailing.length} message(s))`);
   lines.push("---", record.body);
+  if (trailing.length) lines.push("--- trailing text after handoff ---", ...trailing);
   return lines.join("\n");
 }
 
@@ -93,6 +96,8 @@ export class Delivery {
    * on the first lifecycle event instead of at start (still event-gated, never on a timer).
    * Watched Peers are those with a stored cursor; a Peer the plugin never saw is left alone so
    * a fresh install does not replay old handbacks the Lead already handled natively.
+   * A Peer that is gone, archived or closed gets one catch-up attempt and is then unwatched, so a
+   * dead Peer (e.g. its cwd was deleted) is not read again on every later plugin start.
    */
   reconcile(paseo: DeliveryPaseo): Promise<void> {
     this.reconciled ??= this.ready().then(async () => {
@@ -100,8 +105,10 @@ export class Delivery {
       for (const peerAgentId of this.outbox.watchedPeers()) {
         const latest = this.outbox.latestFor(peerAgentId);
         if (!latest) continue;
+        let finished = false;
         try {
           const peer = (await paseo.agents.ref(peerAgentId).refresh())?.agent;
+          finished = !peer || !!peer.archivedAt || peer.status === "closed";
           if (!peer || peer.status === "running" || peer.status === "initializing") continue;
           const synthetic: TurnEndedEvent = { agent: { ...NO_HOOK_AGENT, id: peerAgentId, parentAgentId: latest.leadAgentId, provider: peer.provider }, turnId: null, outcome: { kind: "completed" }, timeline: [] };
           await this.recordTurn(synthetic, latest.leadAgentId, paseo);
@@ -109,6 +116,11 @@ export class Delivery {
           // A Peer whose cwd is gone (deleted scratch clone) makes the timeline read fail; one
           // such Peer must not stop the catch-up of the others or the delivery of live events.
           this.log.error(`reconcile: peer ${peerAgentId} skipped: ${error instanceof Error ? error.message : String(error)}`);
+        } finally {
+          if (finished) {
+            await this.outbox.unwatch(peerAgentId);
+            this.log.info(`reconcile: peer ${peerAgentId} is gone, archived or closed; unwatched`);
+          }
         }
       }
       for (const record of this.outbox.records()) if (record.state === "pending") leads.add(record.leadAgentId);
@@ -143,7 +155,19 @@ export class Delivery {
     const { page, entries } = await this.readAfterCursor(peerAgentId, paseo);
     const assistant = entries.filter((entry) => entry.item.type === "assistant_message");
     const inTurn = event.turnId ? assistant.filter((entry) => entry.turnId === event.turnId) : [];
-    const last = (inTurn.length ? inTurn : assistant).at(-1);
+    const candidates = inTurn.length ? inTurn : assistant;
+    // Deliver the turn's last valid handoff, not only its last message: a Peer that writes a valid
+    // handoff and then a filler line ("the handoff above stands") must not cost a resend round.
+    // The text after it travels with the delivery as a warning for the Lead to read.
+    let handoffAt = candidates.length - 1;
+    for (let index = candidates.length - 1; index >= 0; index -= 1) {
+      if (classifyHandoff(candidates[index].item.text ?? "").valid) {
+        handoffAt = index;
+        break;
+      }
+    }
+    const last = candidates[handoffAt];
+    const trailing = candidates.slice(handoffAt + 1).map((entry) => entry.item.text ?? "");
     const end = entries.at(-1);
     const cursor: OutboxCursor | null = end ? { epoch: page.epoch, seq: end.seqEnd } : this.outbox.cursor(peerAgentId);
 
@@ -195,6 +219,7 @@ export class Delivery {
         cursor,
         reasons,
         body,
+        ...(trailing.length ? { trailing } : {}),
         state: "pending",
         createdAt: this.now(),
       });

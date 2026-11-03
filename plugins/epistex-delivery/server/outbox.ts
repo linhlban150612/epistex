@@ -26,6 +26,8 @@ export interface DeliveryRecord {
   cursor: OutboxCursor | null;
   reasons: string[];
   body: string;
+  /** Assistant text the Peer wrote after the delivered handoff in the same turn (warning, not failure). */
+  trailing?: string[];
   state: "pending" | "sent";
   createdAt: string;
   sentAt?: string;
@@ -190,9 +192,19 @@ export class Outbox {
     return this.cursors[peerAgentId] ?? null;
   }
 
-  /** Replace cursors.json atomically: write a temp file, fsync, rename, fsync the directory. */
   async setCursor(peerAgentId: string, cursor: OutboxCursor): Promise<void> {
-    const next = { ...this.cursors, [peerAgentId]: cursor };
+    await this.writeCursors({ ...this.cursors, [peerAgentId]: cursor });
+  }
+
+  /** Stop watching a Peer: drop its cursor so reconcile no longer reads it. Receipts are kept. */
+  async unwatch(peerAgentId: string): Promise<void> {
+    if (!(peerAgentId in this.cursors)) return;
+    const { [peerAgentId]: _dropped, ...next } = this.cursors;
+    await this.writeCursors(next);
+  }
+
+  /** Replace cursors.json atomically: write a temp file, fsync, rename, fsync the directory. */
+  private async writeCursors(next: Record<string, OutboxCursor>): Promise<void> {
     await mkdir(this.directory, { recursive: true });
     const temp = `${this.cursorsPath()}.${process.pid}.tmp`;
     const handle = await open(temp, "w");

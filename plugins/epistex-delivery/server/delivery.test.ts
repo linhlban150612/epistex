@@ -314,7 +314,7 @@ test("reconcile skips a watched peer whose timeline read fails and still deliver
       "the caught-up peer-2 turn, then the live peer-3 turn; peer-1 is skipped, not fatal",
     );
     assert.ok(lines.some((l) => /^error reconcile: peer peer-1 skipped: Invalid params: Working directory does not exist/.test(l)));
-    assert.ok(lines.some((l) => /reconciled 2 watched peer\(s\), 1 lead\(s\)/.test(l)), "reconcile completed despite the failing peer");
+    assert.ok(lines.some((l) => /reconciled 1 watched peer\(s\), 1 lead\(s\)/.test(l)), "reconcile completed despite the failing peer");
 
     // Reconcile completed, so a later event does not repeat it.
     const refetches = session2.refetches.length;

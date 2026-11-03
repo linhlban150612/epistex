@@ -458,11 +458,13 @@ PY
            else $efforts[$model.id] | sort end) and
         [.thinkingOptions[] | select(.isDefault == true) | .id] == ["low"])
     ' "$paseo_config" >/dev/null || fail 'droid-peer: wrong launcher, tools, env or model/effort'
+    # auto-high: lower Droid modes stop a non-interactive Peer on its first edit permission request.
     for effort in low medium; do
       jq -e --arg effort "$effort" '
         [.daemon.agentProfiles[]? | select(.id == ("droid-peer--gpt-6-luna--" + $effort))] |
-        length == 1 and all(.[]; .provider == "droid-peer" and .model == "gpt-6-luna" and .thinkingOptionId == $effort)
-      ' "$paseo_config" >/dev/null || fail "droid-peer: missing or wrong GPT-6 Luna $effort profile"
+        length == 1 and all(.[]; .provider == "droid-peer" and .model == "gpt-6-luna" and .thinkingOptionId == $effort and
+          .modeId == "auto-high")
+      ' "$paseo_config" >/dev/null || fail "droid-peer: missing or wrong GPT-6 Luna $effort profile (modeId must be auto-high)"
     done
     jq -e --argjson efforts "$droid_efforts" '
       . as $config |
@@ -471,8 +473,8 @@ PY
           [$config.daemon.agentProfiles[]? |
             select(.id == ("droid-peer--" + ($entry.key | gsub("\\.";"-")) + "--" + $effort))] |
           length == 1 and all(.[]; .provider == "droid-peer" and
-            .model == $entry.key and .thinkingOptionId == $effort)))
-    ' "$paseo_config" >/dev/null || fail 'droid-peer: missing or wrong supported model/effort profile'
+            .model == $entry.key and .thinkingOptionId == $effort and .modeId == "auto-high")))
+    ' "$paseo_config" >/dev/null || fail 'droid-peer: missing or wrong supported model/effort profile (modeId must be auto-high)'
   fi
   jq -e '
     [.daemon.agentProfiles[]? as $p |

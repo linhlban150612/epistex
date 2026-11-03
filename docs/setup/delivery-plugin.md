@@ -181,10 +181,10 @@ Decided by the Human (2026-11-02; items 6 and 7 on 2026-11-03):
    "Resume working." and keeps writing its round, while the Lead treats it as `was closed` and
    reassigns the round. `setup-seats.sh --check` fails when it is on.
 
-Open:
+Resolved (2026-11-03): the `droid-peer` stop on an `edit` permission request in live run 2 came from the
+kit, not Paseo. The 23 `droid-peer` profiles had no `modeId`, and the profile notes tell the Lead to omit
+absent settings, so the Peer started in Droid's `normal` mode. The profiles now carry `modeId: "auto-high"`
+and `--check` requires it ([Droid seats](droid.md)). Verified with a real Lead launch on 0.15.0 (see the
+live-run log).
 
-- `droid-peer` seats stopped on an `edit` permission request in live run 2. Likely cause is in the kit,
-  not Paseo: all 23 `droid-peer` profiles have no `modeId` (the `droid-lead` ones carry `auto-high`), and
-  the profile notes tell the Lead to omit absent settings, so the Peer starts in Droid's default mode.
-  On 0.15.0 a `droid-peer` created with `--mode auto-high` edited a file without a permission request.
-  Giving Peers `auto-high` is a launch-policy change for the Human.
+No open questions remain.

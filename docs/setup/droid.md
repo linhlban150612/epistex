@@ -38,8 +38,10 @@ Merge the `droid-peer` entry and its `droid-peer--*` profiles from
 
 Luna retains its six thinking options. Each additional model exposes only its requested supported
 low/medium or low/high choices, not every upstream effort. The checker requires every `droid-peer` profile to
-carry a valid `thinkingOptionId`. The orchestrator must copy provider, model and `thinkingOptionId`
-into `create_agent`.
+carry a valid `thinkingOptionId` and `modeId: "auto-high"`. The orchestrator must copy provider, model,
+`thinkingOptionId` and `modeId` into `create_agent`. Without `auto-high` a Peer starts in Droid's
+`normal` mode and stops on its first `edit` permission request (seen in a live delivery run,
+2026-11-02); with it the edit runs without a request (verified on Paseo 0.15.0, 2026-11-03).
 
 `setup-seats.sh --check` validates the seat and profile only when `droid-peer` is enabled, so
 configs without Droid still pass.

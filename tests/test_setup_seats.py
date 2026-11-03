@@ -273,6 +273,10 @@ class SetupSeatsTest(unittest.TestCase):
              "droid-peer: missing or wrong GPT-6 Luna low profile"),
             ("droid supported profile missing", lambda d: drop(d, "droid-peer--kimi-k3--high"),
              "droid-peer: missing or wrong supported model/effort profile"),
+            ("droid peer default mode", lambda d: profile(d, "droid-peer--gpt-6-luna--low").pop("modeId"),
+             "droid-peer: missing or wrong GPT-6 Luna low profile (modeId must be auto-high)"),
+            ("droid peer lower mode", lambda d: profile(d, "droid-peer--kimi-k3--high").__setitem__("modeId", "auto-medium"),
+             "droid-peer: missing or wrong supported model/effort profile (modeId must be auto-high)"),
             ("droid profile wrong effort", lambda d: profile(d, "droid-peer--claude-sonnet-5-5--medium").__setitem__(
                 "thinkingOptionId", "low"), "droid-peer: missing or wrong supported model/effort profile"),
             ("droid profile on plain provider", lambda d: profile(d, "droid-peer--gpt-6-luna--low").__setitem__(

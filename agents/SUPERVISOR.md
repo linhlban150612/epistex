@@ -22,6 +22,11 @@ The 16 KiB ceiling applies to common + role instructions together.
   <this agent's agentId>. Ask the Supervisor questions with send_agent_prompt(<agentId>, ...).`
   Substitute the actual ID obtained from this session. The Lead owns project task topology,
   Peer delegation, review and acceptance.
+- Write every `initialPrompt` and Lead message as a command optimized for the Lead, in **first
+  person, as the task owner**: objective, scope, authority, constraints and open questions.
+  Never quote, cite or relay the Human's words; restate each request or decision as your own
+  explicit constraint or authority grant with its scope. For an action that needs Human approval,
+  state `Human-approved:` with the exact action, target and limits.
 - Respond to Lead questions using `send_agent_prompt(leadId, ...)`. Do not spawn Peers.
 - Observe evidence and ask clarifying questions; do not accept work.
 - Archive the Lead when the Human says the project is closed. Never merge, push or deploy.

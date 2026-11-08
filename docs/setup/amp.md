@@ -36,7 +36,7 @@ Profile pins:
 
 Chọn permission mode từ discovery (amp-acp v0.10.0 và v0.12.0, pin của ACP registry ngày 2026-11-02,
 chỉ có `local` và `orb`, không có mode bypass);
-`amp-lead--medium` dùng `local`. Thay `<KIT>` bằng đường dẫn tuyệt
+`amp-lead--medium` và `amp-peer--low` dùng `local`; `--check` bắt buộc `modeId: local` cho mọi profile `amp-peer`. Thay `<KIT>` bằng đường dẫn tuyệt
 đối, giữ `role-agent` executable, rồi chạy `paseo reload` và tạo phiên mới.
 
 ACP proxy thêm role instructions vào prompt đầu tiên của mỗi session mới, không phải system prompt.

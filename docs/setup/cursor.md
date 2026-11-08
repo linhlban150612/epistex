@@ -11,6 +11,7 @@ Dùng các bước chung trong [SETUP.md](../../SETUP.md), gồm mục
 | `thinkingOptions` | Không có; launcher chuyển model ID thành tham số ACP |
 | Fast / context | `fast=false`; `context=256k` cho cả hai profile |
 | Profile pin | `cursor-peer--grok-4-7-low`; `cursor-peer--grok-4-7-medium` |
+| `modeId` | `agent` trên mọi profile (`plan`/`ask` không ghi file); `--check` bắt buộc |
 
 `role-agent <role> cursor` chuyển sang `setup/cursor-acp <role>` bằng `os.execv`; launcher chạy
 `cursor-agent acp`. Hai ID trên là ID của seat, không phải ID gửi trực tiếp cho Cursor ACP.

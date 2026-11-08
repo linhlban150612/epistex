@@ -41,7 +41,8 @@ Orchestrator copy `provider`, `model`, `thinkingOptionId` vào `create_agent`, d
 workspace. Truyền `modeId` tường minh bằng mode cố định của seat (`epistex_peer`, `epistex_lead`,
 `epistex_supervisor`); mọi mode switch khác bị từ chối. Live (CLI 2.34.0, Paseo 0.13.0): `kiro-lead`
 tạo `kiro-peer` không có `modeId` thì lỗi vì mode không kế thừa được từ session Lead; có
-`modeId: epistex_peer` thì thành công.
+`modeId: epistex_peer` thì thành công. Vì vậy mọi profile `kiro-peer` có `modeId: epistex_peer`;
+`setup-seats.sh --check` từ chối giá trị khác.
 Sau merge, chạy `setup/setup-seats.sh`, checker theo [SETUP.md](../../SETUP.md), rồi
 `paseo reload` và tạo phiên mới. Static checker không chứng minh live launch.
 

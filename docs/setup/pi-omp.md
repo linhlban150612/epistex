@@ -34,6 +34,9 @@ Kiểm phiên thực tế: heading từ active instructions phải là `# Peer �
 discovery nếu có. Không đọc file role để thay bằng chứng injection. Diagnostic không thay thế
 live launch.
 
+Mọi profile `omp-peer` có `modeId: full` (Full Access; Write Approval và Always Ask dừng Peer non-interactive ở permission request);
+`--check` bắt buộc. `pi-peer` không có mode.
+
 Mỗi seat có 12 profile. Profile model pins (profile effort options are `low` except where indicated):
 
 | Seat | Model IDs | Effort pins |

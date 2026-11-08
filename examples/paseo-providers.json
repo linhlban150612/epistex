@@ -1938,6 +1938,7 @@
         "provider": "kiro-peer",
         "model": "claude-opus-5.5",
         "thinkingOptionId": "low",
+        "modeId": "epistex_peer",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -1946,6 +1947,7 @@
         "provider": "kiro-peer",
         "model": "claude-opus-5.5",
         "thinkingOptionId": "medium",
+        "modeId": "epistex_peer",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -1954,6 +1956,7 @@
         "provider": "kiro-peer",
         "model": "claude-sonnet-5.5",
         "thinkingOptionId": "low",
+        "modeId": "epistex_peer",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -1962,6 +1965,7 @@
         "provider": "kiro-peer",
         "model": "claude-sonnet-5.5",
         "thinkingOptionId": "medium",
+        "modeId": "epistex_peer",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -2373,6 +2377,7 @@
         "provider": "omp-peer",
         "model": "openrouter/deepseek/deepseek-v4.1-flash-1017",
         "thinkingOptionId": "low",
+        "modeId": "full",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -2381,6 +2386,7 @@
         "provider": "omp-peer",
         "model": "openai-codex/gpt-6-luna",
         "thinkingOptionId": "low",
+        "modeId": "full",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -2389,6 +2395,7 @@
         "provider": "omp-peer",
         "model": "openai-codex/gpt-6-luna",
         "thinkingOptionId": "medium",
+        "modeId": "full",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -2397,6 +2404,7 @@
         "provider": "omp-peer",
         "model": "openrouter/moonshotai/kimi-k3",
         "thinkingOptionId": "low",
+        "modeId": "full",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -2405,6 +2413,7 @@
         "provider": "omp-peer",
         "model": "openrouter/z-ai/glm-5.3-flash",
         "thinkingOptionId": "low",
+        "modeId": "full",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -2413,6 +2422,7 @@
         "provider": "omp-peer",
         "model": "openrouter/z-ai/glm-5.3",
         "thinkingOptionId": "low",
+        "modeId": "full",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -2421,6 +2431,7 @@
         "provider": "omp-peer",
         "model": "openrouter/z-ai/glm-5.3",
         "thinkingOptionId": "high",
+        "modeId": "full",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: high. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -2429,6 +2440,7 @@
         "provider": "omp-peer",
         "model": "openrouter/anthropic/claude-haiku-5.5",
         "thinkingOptionId": "low",
+        "modeId": "full",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -2437,6 +2449,7 @@
         "provider": "omp-peer",
         "model": "openrouter/anthropic/claude-haiku-5.5",
         "thinkingOptionId": "medium",
+        "modeId": "full",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -2796,6 +2809,7 @@
         "name": "amp-peer · low",
         "provider": "amp-peer",
         "model": "low",
+        "modeId": "local",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -2863,6 +2877,7 @@
         "provider": "omp-peer",
         "model": "xai-oauth/grok-4.7",
         "thinkingOptionId": "low",
+        "modeId": "full",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -2871,6 +2886,7 @@
         "provider": "omp-peer",
         "model": "xai-oauth/grok-4.7",
         "thinkingOptionId": "medium",
+        "modeId": "full",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -2878,6 +2894,7 @@
         "name": "cursor-peer · grok-4.7-low",
         "provider": "cursor-peer",
         "model": "grok-4.7-low",
+        "modeId": "agent",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -2885,6 +2902,7 @@
         "name": "cursor-peer · grok-4.7-medium",
         "provider": "cursor-peer",
         "model": "grok-4.7-medium",
+        "modeId": "agent",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -2901,6 +2919,7 @@
         "provider": "omp-peer",
         "model": "huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017",
         "thinkingOptionId": "low",
+        "modeId": "full",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       }
     ]

@@ -199,6 +199,14 @@ class SetupSeatsTest(unittest.TestCase):
              "codex-peer: wrong wrapper"),
             ("claude peer acceptEdits", lambda d: profile(d, "claude-peer--claude-opus-5-5--medium").__setitem__(
                 "modeId", "acceptEdits"), "claude-peer: every profile needs modeId bypassPermissions"),
+            ("omp peer write approval", lambda d: profile(d, "omp-peer--xai-oauth-grok-4-7--low").__setitem__(
+                "modeId", "write"), "omp-peer: every profile needs modeId full"),
+            ("cursor peer without mode", lambda d: profile(d, "cursor-peer--grok-4-7-medium").pop("modeId"),
+             "cursor-peer: every profile needs modeId agent"),
+            ("amp peer orb mode", lambda d: profile(d, "amp-peer--low").__setitem__("modeId", "orb"),
+             "amp-peer: every profile needs modeId local"),
+            ("kiro peer without mode", lambda d: profile(d, "kiro-peer--claude-opus-5-5--low").pop("modeId"),
+             "kiro-peer: every profile needs modeId epistex_peer"),
             # Pi and OMP seats
             ("OMP Luna effort default", lambda d: model(d, "omp-peer", "openai-codex/gpt-6-luna")["thinkingOptions"][0]
              .__setitem__("isDefault", False), "omp-peer: wrong GPT-6 Luna"),

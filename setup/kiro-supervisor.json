@@ -21,7 +21,8 @@
     "@paseo/archive_agent",
     "@paseo/list_pending_permissions",
     "@paseo/respond_to_permission",
-    "@paseo/set_agent_mode"
+    "@paseo/set_agent_mode",
+    "@paseo/list_hosts"
   ],
   "permissions": {
     "rules": [
@@ -62,7 +63,8 @@
           "paseo/archive_agent",
           "paseo/list_pending_permissions",
           "paseo/respond_to_permission",
-          "paseo/set_agent_mode"
+          "paseo/set_agent_mode",
+          "paseo/list_hosts"
         ],
         "effect": "allow"
       }

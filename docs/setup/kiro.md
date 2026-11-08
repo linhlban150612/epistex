@@ -97,7 +97,7 @@ chỉ thấy `tool_load`/`tool_call`, và catalog của `tool_load` chỉ gồm 
 `disabledTools` không chặn được nó; launch thường không có `speak` trong catalog Lead/Supervisor. Nếu
 `@paseo/speak` xuất hiện thành tag, seat fail closed; đổi allowlist cần Human quyết định.
 
-Seat `kiro-supervisor`: `role-agent supervisor kiro`, `setup/kiro-supervisor.json`, installed agent `~/.kiro/agents/epistex_supervisor.json`, Supervisor Paseo tool policy ([SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)); agent file chỉ chọn 15 tool `@paseo/<tool>`, không có `list_hosts`.
+Seat `kiro-supervisor`: `role-agent supervisor kiro`, `setup/kiro-supervisor.json`, installed agent `~/.kiro/agents/epistex_supervisor.json`, Supervisor Paseo tool policy (16 tool, [SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)). Live (CLI 3.1.0, Paseo 0.15.3): `kiro-supervisor` Sonnet/low thấy đúng 16 tool Paseo và gọi `list_hosts` không bị hỏi quyền.
 
 ## Model/effort qua standard config options
 
@@ -168,7 +168,7 @@ liệt kê tools thực sự thấy và in `pwd`; không coi đọc lại file p
 Peer phải nhận `# Peer — independent co-worker`, project CWD, không Paseo/subagent tools.
 Trạng thái live: trên CLI 2.33.1, Paseo 0.12.0, bốn profile `kiro-peer` và `kiro-lead`/`kiro-supervisor`
 Sonnet/low launch với đúng mode/model/effort, nhận `# Common contract` cộng heading role, CWD là project;
-Peer chỉ có native tools; catalog Lead có đúng 11 tool `paseo::*`, Supervisor có đúng 15, không có `speak`;
+Peer chỉ có native tools; catalog Lead có đúng 11 tool `paseo::*`, không có `speak`;
 Lead gọi `list_workspaces` không bị hỏi quyền. Trên CLI 2.34.0, Paseo 0.13.0, `kiro-peer` launch lại đúng
 role/CWD/tools, và `kiro-lead` tạo `kiro-peer` qua `create_agent` rồi nhận notification `finished` có
 `<agent-response>`. Hành vi notification khi daemon restart: [README](../../README.md#cautions-and-known-limitations).

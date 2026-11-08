@@ -17,10 +17,8 @@ provider does not inject the common contract and the selected role prompt
 2. Authenticate Droid before launching a seat: use Factory's login flow (shared by all seats), or
    give each seat its own key (see [Per-seat API keys](#per-seat-api-keys)). Credentials stay in
    Droid's user state or in the Paseo config, never in this repository.
-3. Droid 0.247.0 reports `auto` ("Auto Model") with reasoning `none` only, and `gpt-6-luna`
-   ("GPT-6 Luna") with `none`, `low`, `medium`, `high`, `xhigh`, `max`, upstream default `medium`
-   (observed on 0.241.1; `~/.factory/settings.json` `reasoningEffort` overrides it). The seat
-   keeps Paseo's `off` id for Droid's `none`. The seat's model list contains exactly the models in the table below.
+3. Droid 0.247.0 reports `auto` ("Auto Model") with reasoning `none` only; the seat does not offer
+   it. The seat's model list contains exactly the models in the table below.
 
 ## Configure Paseo
 
@@ -32,12 +30,10 @@ Merge the `droid-peer` entry and its `droid-peer--*` profiles from
 | Provider | `droid-peer`, extends `acp` |
 | Command | `["<KIT>/setup/role-agent","peer","droid"]` |
 | Paseo tools | Disabled |
-| Default model | `gpt-6-luna`, default effort `low` (the seat default; upstream defaults to `medium`) |
-| Luna profiles | `droid-peer--gpt-6-luna--low`; `droid-peer--gpt-6-luna--medium` |
-| Additional models/profiles | Eleven models, 21 supported profiles listed below; each defaults to `low` |
+| Default model | `claude-haiku-5-5`, default effort `low` |
+| Models/profiles | Nine models, 17 supported profiles listed below; each defaults to `low` |
 
-Luna retains its six thinking options. Each additional model exposes only its requested supported
-low/medium or low/high choices, not every upstream effort. The checker requires every `droid-peer` profile to
+Each model exposes only its requested supported low/medium or low/high choices, not every upstream effort. The checker requires every `droid-peer` profile to
 carry a valid `thinkingOptionId` and `modeId: "auto-high"`. The orchestrator must copy provider, model,
 `thinkingOptionId` and `modeId` into `create_agent`. Without `auto-high` a Peer starts in Droid's
 `normal` mode and stops on its first `edit` permission request (seen in a live delivery run,
@@ -92,23 +88,22 @@ execution, authentication for inference, or Paseo integration. No model prompt w
 | `claude-sonnet-5-5` | off, low, medium, high, xhigh, max | low, medium |
 | `claude-haiku-5-5` | off, low, medium, high, xhigh, max | low, medium |
 | `gpt-6.1-sol` | low, medium, high, xhigh, max | low, medium |
-| `glm-5.3-flash` | low, high, max | low, high |
 | `glm-5.3` | low, high, max | low, high |
 | `kimi-k3` | off, low, high, max | low, high |
-| `deepseek-v4.1-flash` | off, low, high, max | low, high |
 | `deepseek-v4.1-flash-1017` | off, low, high, max | low (requested: low only) |
 
 Profile IDs follow `droid-peer--<model-id-with-dots-replaced-by-hyphens>--<effort>`, for example
-`droid-peer--gpt-6-1-sol--medium`; the profile's `model` stays `gpt-6.1-sol`. There are 23 Droid
-profiles total: two existing Luna profiles plus 21 additions. The checker requires all supported
-profiles and rejects missing models/choices, mismatched provider/model/effort, and fabricated medium
-options or profiles for the four low/high models.
+`droid-peer--gpt-6-1-sol--medium`; the profile's `model` stays `gpt-6.1-sol`. There are 17 Droid
+profiles total. The checker requires all supported profiles and rejects missing or extra models,
+missing choices, mismatched provider/model/effort, and fabricated medium options or profiles for the
+low/high models.
 
-For `glm-5.3-flash`, `glm-5.3`, `kimi-k3` and `deepseek-v4.1-flash` only `low` and `high` are
-offered because medium is not advertised for those models.
+For `glm-5.3` and `kimi-k3` only `low` and `high` are offered because medium is not advertised for
+those models. `gpt-6-luna`, `glm-5.3-flash` and `deepseek-v4.1-flash` were removed from the seat on
+2026-11-07 by operator request.
 
 Paseo's `factory-droid` metadata advertises generic thinking options across models; it is not the
-per-model capability source. Likewise, `droid exec --list-tools` exiting 0 with medium for the four
+per-model capability source. Likewise, `droid exec --list-tools` exiting 0 with medium for the
 low/high models does not prove runtime medium support.
 
 ## Known limitations
@@ -120,7 +115,8 @@ low/high models does not prove runtime medium support.
   seat can still start processes through `Execute`.
 - Static checks do not prove authentication, the `acp` output mode, effort mapping or runtime
   integration. The operator merges/reloads the config and performs an actual Paseo launch.
-  Last verified on 1.0.0 (2026-10-30): `droid-peer` (`gpt-6-luna`, `low`), `droid-lead`
+  Last `droid-peer` launch: Droid 1.4.1 (2026-11-07), `claude-haiku-5-5`, `low`, `auto-high`.
+  Verified on 1.0.0 (2026-10-30): `droid-peer` (`gpt-6-luna`, `low`), `droid-lead`
   (`claude-opus-5-5`, `low`, `auto-high`) and `droid-supervisor` (`claude-sonnet-5-5`, `low`,
   `auto-high`) completed a Paseo prompt with the guard hook; earlier on 0.247.0 (2026-10-22).
 

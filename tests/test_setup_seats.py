@@ -248,12 +248,14 @@ class SetupSeatsTest(unittest.TestCase):
                 "command", ["droid", "exec", "--output-format", "acp"]), "droid-peer: wrong launcher, tools, env or model/effort"),
             ("droid peer with lead role", lambda d: seat(d, "droid-peer").__setitem__(
                 "command", [kit + "/role-agent", "lead", "droid"]), "droid-peer: wrong launcher, tools, env or model/effort"),
-            ("droid Luna not default", lambda d: model(d, "droid-peer", "gpt-6-luna").__setitem__("isDefault", False),
+            ("droid Haiku not default", default_model("droid-peer", "claude-sonnet-5-5"),
              "droid-peer: wrong launcher, tools, env or model/effort"),
+            ("droid removed model kept", lambda d: seat(d, "droid-peer")["models"].append(
+                dict(model(d, "droid-peer", "glm-5.3"), id="glm-5.3-flash")), "droid-peer: wrong launcher, tools, env or model/effort"),
             ("droid model missing", lambda d: seat(d, "droid-peer")["models"].remove(
                 model(d, "droid-peer", "gemini-4-argon")), "droid-peer: wrong launcher, tools, env or model/effort"),
-            ("droid effort missing", lambda d: model(d, "droid-peer", "glm-5.3-flash").__setitem__(
-                "thinkingOptions", [o for o in model(d, "droid-peer", "glm-5.3-flash")["thinkingOptions"] if o["id"] != "high"]),
+            ("droid effort missing", lambda d: model(d, "droid-peer", "glm-5.3").__setitem__(
+                "thinkingOptions", [o for o in model(d, "droid-peer", "glm-5.3")["thinkingOptions"] if o["id"] != "high"]),
              "droid-peer: wrong launcher, tools, env or model/effort"),
             ("droid fabricated medium", fabricated_medium, "droid-peer: wrong launcher, tools, env or model/effort"),
             ("droid 1017 fabricated high", fabricated_high_1017, "droid-peer: wrong launcher, tools, env or model/effort"),
@@ -269,17 +271,15 @@ class SetupSeatsTest(unittest.TestCase):
              "droid-supervisor: paseoTools.disabledTools must exactly match"),
             ("droid supervisor permission mode", lambda d: profile(d, "droid-supervisor--gpt-6-1-sol--low").__setitem__(
                 "modeId", "auto-medium"), "droid-supervisor: missing or wrong gpt-6.1-sol low profile"),
-            ("droid Luna profile missing", lambda d: drop(d, "droid-peer--gpt-6-luna--low"),
-             "droid-peer: missing or wrong GPT-6 Luna low profile"),
             ("droid supported profile missing", lambda d: drop(d, "droid-peer--kimi-k3--high"),
              "droid-peer: missing or wrong supported model/effort profile"),
-            ("droid peer default mode", lambda d: profile(d, "droid-peer--gpt-6-luna--low").pop("modeId"),
-             "droid-peer: missing or wrong GPT-6 Luna low profile (modeId must be auto-high)"),
+            ("droid peer default mode", lambda d: profile(d, "droid-peer--claude-haiku-5-5--low").pop("modeId"),
+             "droid-peer: missing or wrong supported model/effort profile (modeId must be auto-high)"),
             ("droid peer lower mode", lambda d: profile(d, "droid-peer--kimi-k3--high").__setitem__("modeId", "auto-medium"),
              "droid-peer: missing or wrong supported model/effort profile (modeId must be auto-high)"),
             ("droid profile wrong effort", lambda d: profile(d, "droid-peer--claude-sonnet-5-5--medium").__setitem__(
                 "thinkingOptionId", "low"), "droid-peer: missing or wrong supported model/effort profile"),
-            ("droid profile on plain provider", lambda d: profile(d, "droid-peer--gpt-6-luna--low").__setitem__(
+            ("droid profile on plain provider", lambda d: profile(d, "droid-peer--claude-haiku-5-5--low").__setitem__(
                 "provider", "factory-droid"), profiles_error),
             # Generic profile validation
             ("profile model not on seat", lambda d: d["daemon"]["agentProfiles"][0].__setitem__("model", "not-on-seat"),
@@ -288,7 +288,7 @@ class SetupSeatsTest(unittest.TestCase):
                 "thinkingOptionId", "missing"), profiles_error),
             ("profile thinking option without options", lambda d: profile(d, "amp-peer--low").__setitem__(
                 "thinkingOptionId", "low"), profiles_error),
-            ("profile missing required thinking option", lambda d: profile(d, "droid-peer--gpt-6-luna--medium").pop(
+            ("profile missing required thinking option", lambda d: profile(d, "droid-peer--claude-haiku-5-5--medium").pop(
                 "thinkingOptionId"), profiles_error),
             ("profile on foreign seat", lambda d: d["daemon"]["agentProfiles"][0].__setitem__(
                 "provider", "not-an-epistex-seat"), profiles_error),

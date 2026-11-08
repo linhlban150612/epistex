@@ -440,8 +440,7 @@ PY
       "gemini-4-argon":["low","medium"], "gemini-3.8-flash":["low","medium"],
       "claude-opus-5-5":["low","medium"], "claude-sonnet-5-5":["low","medium"],
       "claude-haiku-5-5":["low","medium"], "gpt-6.1-sol":["low","medium"],
-      "glm-5.3-flash":["low","high"], "glm-5.3":["low","high"],
-      "kimi-k3":["low","high"], "deepseek-v4.1-flash":["low","high"],
+      "glm-5.3":["low","high"], "kimi-k3":["low","high"],
       "deepseek-v4.1-flash-1017":["low"]
     }'
     jq -e --arg command "$kit/setup/role-agent" --argjson efforts "$droid_efforts" '
@@ -449,23 +448,13 @@ PY
       .extends == "acp" and .label == "Factory Droid Peer Seat" and
       .command == [$command,"peer","droid"] and
       .paseoTools.enabled == false and ('"$droid_env"') and
-      ([.models[].id] | sort) == ((["gpt-6-luna"] + ($efforts | keys)) | sort) and
-      [.models[] | select(.isDefault == true) | .id] == ["gpt-6-luna"] and
+      ([.models[].id] | sort) == ($efforts | keys) and
+      [.models[] | select(.isDefault == true) | .id] == ["claude-haiku-5-5"] and
       all(.models[]; . as $model |
-        .isDefault == (.id == "gpt-6-luna") and
-        ([.thinkingOptions[].id] | sort) ==
-          (if .id == "gpt-6-luna" then ["off","low","medium","high","xhigh","max"] | sort
-           else $efforts[$model.id] | sort end) and
+        ([.thinkingOptions[].id] | sort) == ($efforts[$model.id] | sort) and
         [.thinkingOptions[] | select(.isDefault == true) | .id] == ["low"])
     ' "$paseo_config" >/dev/null || fail 'droid-peer: wrong launcher, tools, env or model/effort'
     # auto-high: lower Droid modes stop a non-interactive Peer on its first edit permission request.
-    for effort in low medium; do
-      jq -e --arg effort "$effort" '
-        [.daemon.agentProfiles[]? | select(.id == ("droid-peer--gpt-6-luna--" + $effort))] |
-        length == 1 and all(.[]; .provider == "droid-peer" and .model == "gpt-6-luna" and .thinkingOptionId == $effort and
-          .modeId == "auto-high")
-      ' "$paseo_config" >/dev/null || fail "droid-peer: missing or wrong GPT-6 Luna $effort profile (modeId must be auto-high)"
-    done
     jq -e --argjson efforts "$droid_efforts" '
       . as $config |
       all($efforts | to_entries[]; . as $entry |

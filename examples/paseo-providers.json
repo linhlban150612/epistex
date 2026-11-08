@@ -1779,43 +1779,6 @@
         },
         "models": [
           {
-            "id": "gpt-6-luna",
-            "label": "GPT-6 Luna",
-            "isDefault": true,
-            "thinkingOptions": [
-              {
-                "id": "off",
-                "label": "Off",
-                "isDefault": false
-              },
-              {
-                "id": "low",
-                "label": "Low",
-                "isDefault": true
-              },
-              {
-                "id": "medium",
-                "label": "Medium",
-                "isDefault": false
-              },
-              {
-                "id": "high",
-                "label": "High",
-                "isDefault": false
-              },
-              {
-                "id": "xhigh",
-                "label": "XHigh",
-                "isDefault": false
-              },
-              {
-                "id": "max",
-                "label": "Max",
-                "isDefault": false
-              }
-            ]
-          },
-          {
             "id": "gemini-4-argon",
             "label": "Gemini 4 Argon",
             "isDefault": false,
@@ -1886,7 +1849,7 @@
           {
             "id": "claude-haiku-5-5",
             "label": "Claude Haiku 5.5",
-            "isDefault": false,
+            "isDefault": true,
             "thinkingOptions": [
               {
                 "id": "low",
@@ -1918,23 +1881,6 @@
             ]
           },
           {
-            "id": "glm-5.3-flash",
-            "label": "GLM 5.3 Flash",
-            "isDefault": false,
-            "thinkingOptions": [
-              {
-                "id": "low",
-                "label": "Low",
-                "isDefault": true
-              },
-              {
-                "id": "high",
-                "label": "High",
-                "isDefault": false
-              }
-            ]
-          },
-          {
             "id": "glm-5.3",
             "label": "GLM 5.3",
             "isDefault": false,
@@ -1954,23 +1900,6 @@
           {
             "id": "kimi-k3",
             "label": "Kimi K3",
-            "isDefault": false,
-            "thinkingOptions": [
-              {
-                "id": "low",
-                "label": "Low",
-                "isDefault": true
-              },
-              {
-                "id": "high",
-                "label": "High",
-                "isDefault": false
-              }
-            ]
-          },
-          {
-            "id": "deepseek-v4.1-flash",
-            "label": "DeepSeek V4.1 Flash",
             "isDefault": false,
             "thinkingOptions": [
               {
@@ -2066,24 +1995,6 @@
         "model": "claude-sonnet-5.5",
         "thinkingOptionId": "medium",
         "notes": "Lead: frame scope, coordinate Peers, review evidence and accept work. Do not write project artifacts. Do not automatically create Peers on the Lead's backend provider; use Human-authorized alternatives or report BLOCKED. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
-      },
-      {
-        "id": "droid-peer--gpt-6-luna--low",
-        "name": "droid-peer · gpt-6-luna · low",
-        "provider": "droid-peer",
-        "model": "gpt-6-luna",
-        "thinkingOptionId": "low",
-        "modeId": "auto-high",
-        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
-      },
-      {
-        "id": "droid-peer--gpt-6-luna--medium",
-        "name": "droid-peer · gpt-6-luna · medium",
-        "provider": "droid-peer",
-        "model": "gpt-6-luna",
-        "thinkingOptionId": "medium",
-        "modeId": "auto-high",
-        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
         "id": "droid-peer--gemini-4-argon--low",
@@ -2194,24 +2105,6 @@
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
-        "id": "droid-peer--glm-5-3-flash--low",
-        "name": "droid-peer · glm-5.3-flash · low",
-        "provider": "droid-peer",
-        "model": "glm-5.3-flash",
-        "thinkingOptionId": "low",
-        "modeId": "auto-high",
-        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
-      },
-      {
-        "id": "droid-peer--glm-5-3-flash--high",
-        "name": "droid-peer · glm-5.3-flash · high",
-        "provider": "droid-peer",
-        "model": "glm-5.3-flash",
-        "thinkingOptionId": "high",
-        "modeId": "auto-high",
-        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: high. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
-      },
-      {
         "id": "droid-peer--glm-5-3--low",
         "name": "droid-peer · glm-5.3 · low",
         "provider": "droid-peer",
@@ -2243,24 +2136,6 @@
         "name": "droid-peer · kimi-k3 · high",
         "provider": "droid-peer",
         "model": "kimi-k3",
-        "thinkingOptionId": "high",
-        "modeId": "auto-high",
-        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: high. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
-      },
-      {
-        "id": "droid-peer--deepseek-v4-1-flash--low",
-        "name": "droid-peer · deepseek-v4.1-flash · low",
-        "provider": "droid-peer",
-        "model": "deepseek-v4.1-flash",
-        "thinkingOptionId": "low",
-        "modeId": "auto-high",
-        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
-      },
-      {
-        "id": "droid-peer--deepseek-v4-1-flash--high",
-        "name": "droid-peer · deepseek-v4.1-flash · high",
-        "provider": "droid-peer",
-        "model": "deepseek-v4.1-flash",
         "thinkingOptionId": "high",
         "modeId": "auto-high",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: high. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."

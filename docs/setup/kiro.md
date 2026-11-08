@@ -39,9 +39,8 @@ Default model của `kiro-peer` và `kiro-supervisor` là `claude-sonnet-5.5` (e
 
 Orchestrator copy `provider`, `model`, `thinkingOptionId` vào `create_agent`, dùng project
 workspace. Truyền `modeId` tường minh bằng mode cố định của seat (`epistex_peer`, `epistex_lead`,
-`epistex_supervisor`); mọi mode switch khác bị từ chối. Live (CLI 2.34.0, Paseo 0.13.0): `kiro-lead`
-tạo `kiro-peer` không có `modeId` thì lỗi vì mode không kế thừa được từ session Lead; có
-`modeId: epistex_peer` thì thành công. Vì vậy mọi profile có mode cố định của seat: `kiro-peer` `epistex_peer`, `kiro-lead`
+`epistex_supervisor`); mọi mode switch khác bị từ chối. Paseo không kế thừa mode của Lead
+([SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)), nên mọi profile có mode cố định của seat: `kiro-peer` `epistex_peer`, `kiro-lead`
 `epistex_lead`, `kiro-supervisor` `epistex_supervisor`; `setup-seats.sh --check` từ chối giá trị khác.
 Sau merge, chạy `setup/setup-seats.sh`, checker theo [SETUP.md](../../SETUP.md), rồi
 `paseo reload` và tạo phiên mới. Static checker không chứng minh live launch.
@@ -94,11 +93,11 @@ và, với session có Paseo, đủ 11 tag `@paseo/<tool>`. `_kiro/mcp/status` l
 30 s) rồi mới kết luận. Tag lạ (kể cả `subagent`, bare `kill_agent`, `@paseo/<tool bị chặn>`, server
 khác) hoặc thiếu tool Paseo làm session thất bại thay vì expose. V3 tải MCP tool theo yêu cầu: model
 chỉ thấy `tool_load`/`tool_call`, và catalog của `tool_load` chỉ gồm tool được chọn trong `tools`.
-`speak` (live 2026-10-23, Paseo 0.12.0): server chỉ đăng ký `speak` khi bật voice tools, và khi đó
+`speak` (live, Paseo 0.12.0): server chỉ đăng ký `speak` khi bật voice tools, và khi đó
 `disabledTools` không chặn được nó; launch thường không có `speak` trong catalog Lead/Supervisor. Nếu
 `@paseo/speak` xuất hiện thành tag, seat fail closed; đổi allowlist cần Human quyết định.
 
-Seat `kiro-supervisor`: `role-agent supervisor kiro`, `setup/kiro-supervisor.json`, installed agent `~/.kiro/agents/epistex_supervisor.json`, Supervisor Paseo tool policy (15 tool, [SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)).
+Seat `kiro-supervisor`: `role-agent supervisor kiro`, `setup/kiro-supervisor.json`, installed agent `~/.kiro/agents/epistex_supervisor.json`, Supervisor Paseo tool policy ([SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)); agent file chỉ chọn 15 tool `@paseo/<tool>`, không có `list_hosts`.
 
 ## Model/effort qua standard config options
 

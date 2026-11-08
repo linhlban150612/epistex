@@ -10,7 +10,7 @@ with the Lead.
 |---|---|---|---|---|
 | Codex 0.161.0, all roles | `model_auto_compact_token_limit=100000` in generated room TOML | Project/role runtime only | 100,000 | Configured in sync; CLI update blocked by the no-`~/.codex`-writes constraint |
 | Claude 2.1.294, all enabled Claude seats (Supervisor, Lead, Peer) | `CLAUDE_CODE_AUTO_COMPACT_WINDOW=100000` | Epistex role-provider env | 100k window; backend buffer may trigger earlier | Configured in example for Peer/Supervisor and applied live on all three Claude seats; Paseo launch probe on 2.1.294 showed the env value `100000` in the Claude process |
-| Pi 1.1.0, Peer | `.pi/settings.json`, per-model `reserveTokens` | Checkout | 100,000 for the five sourced pins below | Configured; Haiku window unknown — skipped (default compaction) |
+| Pi 1.1.0, Peer | `.pi/settings.json`, per-model `reserveTokens` | Checkout | 100,000 for the six sourced pins below | Configured; Haiku window unknown — skipped (default compaction) |
 | OMP 18.8.4, Peer | `.omp/config.yml`, `compaction.enabled=true`, `thresholdTokens=100000` | Checkout | 100,000 (clamped below model window) | Configured; ensure the `omp` on Paseo's PATH is 18.8.4 or newer (`omp --version`) |
 | Copilot 1.0.93, Peer | No verified threshold variable in installed binary/help | — | Backend default; no project setting | Re-checked 2026-10-17: `copilot --help` shows only `--context <tier>` (default/long_context), which is a window tier, not a threshold |
 | Amp 0.0.1791432144, Supervisor/Lead/Peer | No exposed threshold in settings reference | — | Backend default; no project setting | Re-checked 2026-10-17: `amp --help` shows no compaction option |

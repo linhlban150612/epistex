@@ -39,5 +39,5 @@ The official server advertises `mcpCapabilities` `http` and `sse`; Paseo forward
 
 The server reads its settings from `~/.gemini/antigravity-acp/settings.json`. This is private runtime state and must remain outside the repository.
 
-- The server advertises `loadSession`, `session/list` and `session/resume`. Cancelling a running prompt through Paseo returns the agent to idle; session resume through Paseo was verified live on 2026-10-30 (Paseo 0.14.0, `agy-peer` gemini-3.8-flash-low): after a daemon restart, the server transcript shows the next prompt with only the cwd line and no second role copy, and `pwd` reports the session cwd.
+- The server advertises `loadSession`, `session/list` and `session/resume`. Cancelling a running prompt through Paseo returns the agent to idle; session resume through Paseo was verified live (Paseo 0.14.0, `agy-peer` gemini-3.8-flash-low): after a daemon restart, the server transcript shows the next prompt with only the cwd line and no second role copy, and `pwd` reports the session cwd.
 - The role configuration is an example only. The operator merges/reloads it and performs an actual Paseo launch; static checks do not establish that authentication or runtime integration works.

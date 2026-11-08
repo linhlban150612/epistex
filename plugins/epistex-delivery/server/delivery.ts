@@ -13,7 +13,7 @@ const PAGE_LIMIT = 200;
 const MAX_PAGES = 20;
 const NO_HOOK_AGENT: TurnEndedEvent["agent"] = { id: "", workspaceId: null, parentAgentId: null, provider: "", cwd: "", title: null };
 
-// The slice of PaseoApi (0.14.0, unchanged in 0.15.3) the plugin uses, typed structurally so tests can supply a fake.
+// The slice of PaseoApi (Paseo >=0.15.0 <0.16) the plugin uses, typed structurally so tests can supply a fake.
 export interface TimelineEntry {
   item: { type: string; text?: string; messageId?: string };
   turnId?: string | null;

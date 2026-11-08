@@ -80,6 +80,6 @@ candidate needs `full-access` (no sandbox); the Human decides this per project i
 
 | Seat | Launcher args | Model | Thinking/profile pins |
 |---|---|---|---|
-| `codex-supervisor` | `codex-room supervisor` | `gpt-6-astra` | low, medium |
+| `codex-supervisor` | `codex-room supervisor` | `gpt-6-astra` (default), `gpt-6.1-sol` | low (default), medium |
 
 Do not pin the Supervisor CWD through env: its workspace `~/work/SUPERVISOR` stays empty and the prompt confirms the CWD itself.

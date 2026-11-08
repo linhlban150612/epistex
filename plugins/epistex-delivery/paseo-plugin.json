@@ -1,6 +1,6 @@
 {
   "id": "epistex-delivery",
   "name": "Epistex delivery",
-  "description": "Delivers a Peer's end-of-turn handback to its Lead when Paseo's one-shot finish notification is missed (getpaseo/paseo#6346). Adds delivery only; no agent lifecycle, permissions, timers or schedules.",
+  "description": "The only report channel from a Peer to its Lead: delivers each end-of-turn handback and relays permission requests. Adds delivery only; no agent lifecycle, permission answers, timers or schedules.",
   "requirements": { "paseo": ">=0.15.0 <0.16" }
 }

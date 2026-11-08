@@ -10,10 +10,8 @@ provider does not inject the common contract and the selected role prompt
 
 1. Install Factory Droid and ensure the `droid` binary is on the PATH inherited by Paseo.
    `role-agent peer droid` runs `droid exec --output-format acp --settings <guard file>`. Verified
-   versions: 0.247.0, 1.0.0 and 1.1.0 (`droid update --version 1.1.0`, the ACP registry pin on
-   2026-11-02). The registry entry launches `--output-format acp-daemon`; the seat keeps `acp`,
-   which 1.1.0 still supports (`droid-peer`, `droid-lead` and `droid-supervisor` reach
-   `session/new` through Paseo on 1.1.0).
+   versions: 1.0.0, 1.1.0 and 1.4.1. The ACP registry entry launches `--output-format acp-daemon`;
+   the seat keeps `acp`, which those versions support.
 2. Authenticate Droid before launching a seat: use Factory's login flow (shared by all seats), or
    give each seat its own key (see [Per-seat API keys](#per-seat-api-keys)). Credentials stay in
    Droid's user state or in the Paseo config, never in this repository.
@@ -36,8 +34,8 @@ Merge the `droid-peer` entry and its `droid-peer--*` profiles from
 Each model exposes only its requested supported low/medium or low/high choices, not every upstream effort. The checker requires every `droid-peer` profile to
 carry a valid `thinkingOptionId` and `modeId: "auto-high"`. The orchestrator must copy provider, model,
 `thinkingOptionId` and `modeId` into `create_agent`. Without `auto-high` a Peer starts in Droid's
-`normal` mode and stops on its first `edit` permission request (seen in a live delivery run,
-2026-11-02); with it the edit runs without a request (verified on Paseo 0.15.0, 2026-11-03).
+`normal` mode and stops on its first `edit` permission request; with it the edit runs without a
+request (both verified live).
 
 `setup-seats.sh --check` validates the seat and profile only when `droid-peer` is enabled, so
 configs without Droid still pass.
@@ -65,16 +63,14 @@ Why a hook: Droid 1.0.0 ACP accepts `--remove-tools`/`--only-tools` silently and
 ACP has no tool config option. Paseo MCP calls inside Script stay allowed: Opus 5.5 runs in Droid's
 `script_only` mode, where Paseo tools are callable only inside a Script.
 
-Live probe (2026-10-30, Droid 1.0.0, through Paseo): `droid-peer` (`gpt-6-luna`), `droid-lead`
-(`claude-opus-5-5`) and `droid-supervisor` (`claude-sonnet-5-5`) each got
+Live probe (Droid 1.0.0, through Paseo): `droid-peer`, `droid-lead` and `droid-supervisor` each got
 `Epistex seat policy denies Task` for a `Task` call. Lead and Supervisor completed
 `list_workspaces`, and Peer completed `Glob`. A direct ACP probe also rejected `Loop` inside a
 Script.
 
 ## Additional model capabilities and profiles
 
-The capability source is a direct ACP inventory of Droid 0.241.1, re-checked unchanged on 0.247.0
-(2026-10-22) and, for `deepseek-v4.1-flash-1017`, on 1.1.0 (2026-11-02): start
+The capability source is a direct ACP inventory (last checked on Droid 1.1.0): start
 `droid exec --output-format acp`, initialize a session without a prompt, select each
 model using `session/set_config_option` with `configId=model`, then inspect the returned
 `reasoning_effort` select. This verifies advertised per-model choices, not successful model
@@ -99,8 +95,7 @@ missing choices, mismatched provider/model/effort, and fabricated medium options
 low/high models.
 
 For `glm-5.3` and `kimi-k3` only `low` and `high` are offered because medium is not advertised for
-those models. `gpt-6-luna`, `glm-5.3-flash` and `deepseek-v4.1-flash` were removed from the seat on
-2026-11-07 by operator request.
+those models.
 
 Paseo's `factory-droid` metadata advertises generic thinking options across models; it is not the
 per-model capability source. Likewise, `droid exec --list-tools` exiting 0 with medium for the
@@ -115,16 +110,15 @@ low/high models does not prove runtime medium support.
   seat can still start processes through `Execute`.
 - Static checks do not prove authentication, the `acp` output mode, effort mapping or runtime
   integration. The operator merges/reloads the config and performs an actual Paseo launch.
-  Last `droid-peer` launch: Droid 1.4.1 (2026-11-07), `claude-haiku-5-5`, `low`, `auto-high`.
-  Verified on 1.0.0 (2026-10-30): `droid-peer` (`gpt-6-luna`, `low`), `droid-lead`
-  (`claude-opus-5-5`, `low`, `auto-high`) and `droid-supervisor` (`claude-sonnet-5-5`, `low`,
-  `auto-high`) completed a Paseo prompt with the guard hook; earlier on 0.247.0 (2026-10-22).
+  Last verified launches: `droid-peer` on Droid 1.4.1 (`claude-haiku-5-5`, `low`, `auto-high`);
+  `droid-lead` (`claude-opus-5-5`) and `droid-supervisor` (`claude-sonnet-5-5`) on 1.0.0 (`low`,
+  `auto-high`), completing a Paseo prompt with the guard hook.
 
 
 ## droid-lead
 
 Provider `droid-lead`, command `["<KIT>/setup/role-agent","lead","droid"]`, Lead Paseo tool policy
-per SETUP.md (50-entry deny-list). Models `claude-opus-5-5`, `claude-sonnet-5-5`, `gpt-6.1-sol`,
+per SETUP.md (51-entry deny-list). Models `claude-opus-5-5`, `claude-sonnet-5-5`, `gpt-6.1-sol`,
 `gemini-4-argon` with low/medium effort. Profiles carry `modeId: "auto-high"` (all operations are
 auto-approved, so Lead never waits for permission). Droid's advertised modes: `normal`, `spec`, `auto-low`,
 `auto-medium`, `auto-high`.
@@ -134,7 +128,7 @@ auto-approved, so Lead never waits for permission). Droid's advertised modes: `n
 Provider `droid-supervisor`, command `["<KIT>/setup/role-agent","supervisor","droid"]`, Supervisor
 Paseo tool policy per SETUP.md (46-entry deny-list). Same four models and low/medium efforts as
 `droid-lead`; default `claude-sonnet-5-5`, `low`. Profiles `droid-supervisor--<model>--<effort>`
-carry `modeId: "auto-high"`. Live probe on Droid 0.251.0 (2026-10-29): in `normal`, `auto-low` and
+carry `modeId: "auto-high"`. Live probe (Droid 0.251.0): in `normal`, `auto-low` and
 `auto-medium` the seat stopped on a permission request for the Paseo MCP call `list_workspaces`; in
 `auto-high` it completed the call and showed the common contract as its first role-instruction line.
 
@@ -181,7 +175,7 @@ when you no longer need its session history. `~/.factory` is not changed.
 
 Notes:
 
-- Live probe (2026-10-29, Droid 0.251.0): all three seats completed a Paseo prompt; Lead and
+- Live probe (Droid 0.251.0): all three seats completed a Paseo prompt; Lead and
   Supervisor called `list_workspaces`. Sessions went to each seat's dir; no `auth*` file was created.
   The agent's file tool resolved `~/` to the real home and shell `$HOME` stayed unchanged.
 - `FACTORY_HOME_OVERRIDE` is not in Factory's docs (found in the 0.251.0 binary). Re-check it after

@@ -66,7 +66,7 @@ This table summarizes the role contracts; the [common contract](agents/contract/
 role prompts own the rules (candidate identity, cessation gate, event-driven work). The project's
 `WORKSPACE_PROTOCOL.md` owns Human-authorized provider/profile selection
 (see the [Routing template](examples/WORKSPACE_PROTOCOL.md#routing)). There is no coordination desk,
-registry, ledger, patrol, timer, recurring schedule, or heartbeat. The optional
+registry, ledger, patrol, timer, recurring schedule, or heartbeat. The required
 [delivery plugin](docs/setup/delivery-plugin.md) keeps a *delivery receipt store* outside Git
 (`${PASEO_HOME:-~/.paseo}/epistex-delivery/`): which Peer turn-end was relayed to which Lead, and
 when. It holds no authority or decisions and is not a trust boundary.
@@ -117,14 +117,11 @@ recovery checks.
   the source: that is a trade-off change for the Human to decide, not a fix.
 
 - Paseo is the sole agent control plane and owns lifecycle and topology. Inspect live state before
-  operating. Paseo `>=0.15.0 <0.16` is required: the mandatory delivery plugin is verified on that range, and
-  daemons before 0.13.0 could lose finish notifications across a restart, which the no-polling
-  rule cannot recover from. Verified live on 0.13.0: a `finished`
-  notification queued before a daemon restart is still delivered to the Lead afterwards; a Peer cut
-  mid-turn by the restart yields `was closed`, not `finished`, and its round must be reassigned;
-  archived agents stay out of `list_agents`. A `send_agent_prompt` receipt only proves the prompt
-  was queued.
-- Temporary SLP workaround (observed on Paseo 0.14.0): [#3256](https://github.com/getpaseo/paseo/issues/3256)
+  operating. Paseo `>=0.15.0 <0.16` is required: the mandatory delivery plugin is verified on that
+  range. A Peer cut mid-turn by a daemon restart yields `was closed`, not `finished`, and its round
+  must be reassigned; archived agents stay out of `list_agents`. A `send_agent_prompt` receipt only
+  proves the prompt was queued.
+- Temporary SLP workaround: [#3256](https://github.com/getpaseo/paseo/issues/3256)
   tracks stale ACP foreground turns after forced cancellation. Stale-turn errors stop resends
   immediately; Human-confirmed, cessation-gated recovery reloads only the affected seat before
   considering replacement. This is a prompt/workflow mitigation, not an ACP runtime fix.
@@ -135,14 +132,13 @@ recovery checks.
   later autonomous/background completions) is mitigated by the required
   [delivery plugin](docs/setup/delivery-plugin.md), which relays each Peer turn end to the Lead as
   a `[epistex-delivery]` message; the Lead rules are in [Lead monitoring](agents/LEAD.md#monitoring),
-  the live evidence and the removal of the earlier prompt workaround (2026-11-02) in that doc.
+  the live evidence in that doc.
   Existing sessions retain their old injected instructions on load/resume; these edits do not
   update running seats. Rollout to them needs a separate authorized transition, not a live resend.
-- Agent tree and idle release (Paseo 0.14.0, read from its source): an agent created through Paseo
+- Agent tree and idle release (read from Paseo's source): an agent created through Paseo
   MCP `create_agent` is a child of the calling agent (label `paseo.parent-agent-id`), unless the
-  hidden legacy `relationship: {kind: "detached"}` is used. The parent label was verified live on
-  2026-11-02 (the delivery plugin resolved Lead-created Peers to their Lead); idle release is not
-  yet verified live.
+  hidden legacy `relationship: {kind: "detached"}` is used. The parent label is verified live (the
+  delivery plugin resolves Lead-created Peers to their Lead); idle release is not yet verified live.
   A Lead created by the Supervisor is therefore its child, and Peers created by a Lead are the
   Lead's children. An agent the Human opens from the UI or CLI is a root. No Paseo config sets or
   enforces this tree. With the global `agents.idleRuntimeCleanup`

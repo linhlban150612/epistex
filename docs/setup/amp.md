@@ -34,7 +34,7 @@ Profile pins:
 | `amp-peer` | `low` | `amp-peer--low` | Không có |
 | `amp-supervisor` | `medium`, `high` | `amp-supervisor--medium`, `amp-supervisor--high` | Không có |
 
-Chọn permission mode từ discovery (amp-acp v0.10.0 và v0.12.0, pin của ACP registry ngày 2026-11-02,
+Chọn permission mode từ discovery (amp-acp v0.10.0 và v0.12.0, pin của ACP registry,
 chỉ có `local` và `orb`, không có mode bypass);
 `amp-lead--medium` và `amp-peer--low` dùng `local`; `--check` bắt buộc `modeId: local` cho mọi profile `amp-peer`. Thay `<KIT>` bằng đường dẫn tuyệt
 đối, giữ `role-agent` executable, rồi chạy `paseo reload` và tạo phiên mới.
@@ -46,12 +46,11 @@ CWD thực tế và tool inventory: Lead phải gọi được một Paseo tool 
 Paseo tools. Không yêu cầu agent đọc file prompt rồi coi đó là proof injection.
 Lead điều phối bằng `amp-peer`, không dùng provider Amp gốc.
 
-Live resume (2026-10-30, Paseo 0.14.0, `amp-acp` 0.10.0): sau khi restart daemon, proxy mới gửi
+Live resume (Paseo 0.14.0, `amp-acp` 0.10.0): sau khi restart daemon, proxy mới gửi
 `session/load` cùng session ID, rồi prompt kế tiếp. Một wrapper ghi lại ACP request mà `amp-acp` nhận:
-code đã sửa gửi tổng cộng 1 bản role cho hai prompt (1 rồi 0); commit cha chưa sửa gửi 2 (1 rồi 1).
-Agent vẫn nhớ token từ turn đầu. Chưa kiểm `session/resume` và idle release thật sau 1 giờ.
+proxy gửi tổng cộng 1 bản role cho hai prompt (1 rồi 0). Agent vẫn nhớ token từ turn đầu. Chưa kiểm `session/resume` và idle release thật sau 1 giờ.
 
-Live E2E (2026-10-25, Amp `0.0.1792886472`, Paseo 0.13.0): `amp-peer` low launch qua Paseo, CWD là
+Live E2E (Amp `0.0.1792886472`, Paseo 0.13.0): `amp-peer` low launch qua Paseo, CWD là
 project, không thấy tool Paseo. Amp bọc prompt dưới heading `# Instructions` của riêng nó; heading role
 `# Peer — independent co-worker` vẫn đến nguyên vẹn. Catalog native có `Task`/`create_thread`
 (subagent của Amp); đây không phải Paseo MCP.

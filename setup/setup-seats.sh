@@ -9,8 +9,8 @@ errs=0
 project=
 plugin_action=
 plugin_dir="$kit/plugins/epistex-delivery"
-plugin_range='>=0.14.0 <0.16'
-plugin_min=0.14.0
+plugin_range='>=0.15.0 <0.16'
+plugin_min=0.15.0
 plugin_below=0.16.0
 plugin_installed=0
 fail() { printf '  ! %s\n' "$*" >&2; errs=$((errs + 1)); }

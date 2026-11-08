@@ -5,7 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { Delivery, formatDelivery, type AgentSnapshot, type DeliveryPaseo, type TimelineEntry, type TimelinePage } from "./delivery.ts";
 import { Outbox } from "./outbox.ts";
-import type { Logger, TurnEndedEvent } from "./plugin.ts";
+import type { Logger, PermissionEvent, TurnEndedEvent } from "./plugin.ts";
 
 const FIXTURES = path.resolve(import.meta.dirname, "../../../tests/fixtures/handoffs");
 const VALID = await readFile(path.join(FIXTURES, "valid.txt"), "utf8");
@@ -161,7 +161,7 @@ test("busy Lead: record stays pending; the Lead's own turn_ended flushes it in c
     await delivery.onTurnEnded(peerTurn({ agent: { ...peerTurn().agent, id: "peer-2" } }), fake.paseo);
     assert.equal(fake.sent.length, 0);
     assert.deepEqual(outbox.pendingFor("lead-1").map((r) => r.peerAgentId), ["peer-1", "peer-2"]);
-    assert.ok(lines.some((l) => /lead lead-1 is running; 1 delivery\(ies\) stay pending/.test(l)));
+    assert.ok(lines.some((l) => /recipient lead-1 is running; 1 delivery\(ies\) stay pending/.test(l)));
 
     fake.agents["lead-1"] = leadIdle;
     await delivery.onTurnEnded(
@@ -269,7 +269,7 @@ test("reconcile on the first event: watched peers are caught up, pending records
     assert.equal(reloaded.latestFor("peer-1")?.turnId, "t7", "turnId taken from the timeline entry when the hook has none");
     assert.deepEqual(reloaded.cursor("peer-1"), { epoch: "e1", seq: 7 });
     assert.equal(reloaded.cursor("peer-9"), null);
-    assert.ok(lines.some((l) => /reconciled 2 watched peer\(s\), 1 lead\(s\) with pending deliveries/.test(l)));
+    assert.ok(lines.some((l) => /reconciled 2 watched peer\(s\), 1 recipient\(s\) with pending deliveries/.test(l)));
 
     // Reconcile is once per process: a later event does not repeat it.
     await second.onTurnEnded(peerTurn({ agent: { ...peerTurn().agent, id: "root", parentAgentId: null } }), session2.paseo);
@@ -314,7 +314,7 @@ test("reconcile skips a watched peer whose timeline read fails and still deliver
       "the caught-up peer-2 turn, then the live peer-3 turn; peer-1 is skipped, not fatal",
     );
     assert.ok(lines.some((l) => /^error reconcile: peer peer-1 skipped: Invalid params: Working directory does not exist/.test(l)));
-    assert.ok(lines.some((l) => /reconciled 1 watched peer\(s\), 1 lead\(s\)/.test(l)), "reconcile completed despite the failing peer");
+    assert.ok(lines.some((l) => /reconciled 1 watched peer\(s\), 1 recipient\(s\)/.test(l)), "reconcile completed despite the failing peer");
 
     // Reconcile completed, so a later event does not repeat it.
     const refetches = session2.refetches.length;
@@ -369,5 +369,61 @@ test("a failing send leaves the record pending and durable for the next event", 
     await delivery.flush("lead-1", fake.paseo);
     assert.equal(fake.sent.length, 1);
     assert.equal(outbox.pendingFor("lead-1").length, 0);
+  });
+});
+
+function permission(requestId = "req-1"): PermissionEvent {
+  return {
+    agent: peerTurn().agent,
+    request: { id: requestId, provider: "codex-peer", name: "Bash", kind: "tool", input: { command: "git push" } },
+  } as PermissionEvent;
+}
+
+test("permission request: sent to the Lead's Supervisor with its IDs, recorded once, never answered", async () => {
+  await scratch(async (delivery, outbox, lines) => {
+    const lead: AgentSnapshot = { ...leadIdle, labels: { "paseo.parent-agent-id": "sup-1" } };
+    const fake = fakePaseo({ "lead-1": lead, "sup-1": { id: "sup-1", provider: "claude-supervisor", status: "running" } });
+    await delivery.onPermission(permission(), fake.paseo);
+    const [record] = outbox.records();
+    assert.equal(record.kind, "PERMISSION_REQUESTED");
+    assert.equal(record.leadAgentId, "lead-1", "the receipt stays in the owning Lead's file");
+    assert.equal(record.recipientAgentId, "sup-1");
+    assert.equal(fake.sent.length, 0, "a running Supervisor is not disturbed");
+    assert.ok(lines.some((l) => /recipient sup-1 is running; 1 delivery\(ies\) stay pending/.test(l)));
+
+    // A replayed hook adds nothing; the Supervisor's own turn end flushes the record.
+    await delivery.onPermission(permission(), fake.paseo);
+    assert.equal(outbox.records().length, 1);
+    fake.agents["sup-1"] = { id: "sup-1", provider: "claude-supervisor", status: "idle" };
+    await delivery.onTurnEnded(
+      peerTurn({ agent: { id: "sup-1", workspaceId: null, parentAgentId: null, provider: "claude-supervisor", cwd: "/s", title: null } }),
+      fake.paseo,
+    );
+    assert.equal(outbox.records().length, 1, "the Supervisor's own turn is never recorded");
+    assert.equal(fake.sent.length, 1);
+    assert.equal(fake.sent[0].agentId, "sup-1");
+    const body = JSON.stringify({ agentId: "peer-1", requestId: "req-1", request: permission().request }, null, 2);
+    assert.equal(
+      fake.sent[0].text,
+      ["[epistex-delivery]", `delivery-id: ${record.deliveryId}`, "kind: PERMISSION_REQUESTED", "peer: peer-1  task: ?  round: ?", "lead: lead-1", "---", body].join("\n"),
+    );
+    assert.equal(outbox.pendingFor("sup-1").length, 0);
+  });
+});
+
+test("permission request: goes to the Lead without a live Supervisor parent; ignored for non-Lead parents", async () => {
+  await scratch(async (delivery, outbox) => {
+    const fake = fakePaseo({
+      "lead-1": { ...leadIdle, labels: { "paseo.parent-agent-id": "other-1" } },
+      "other-1": { id: "other-1", provider: "codex-peer", status: "idle" },
+      "lead-2": { id: "lead-2", provider: "amp-lead", status: "idle", labels: { "paseo.parent-agent-id": "sup-gone" } },
+      "sup-gone": { id: "sup-gone", provider: "codex-supervisor", status: "idle", archivedAt: "2026-11-01T00:00:00Z" },
+      "sup-1": { id: "sup-1", provider: "codex-supervisor", status: "idle" },
+    });
+    await delivery.onPermission(permission("a"), fake.paseo);
+    await delivery.onPermission({ ...permission("b"), agent: { ...peerTurn().agent, id: "peer-2", parentAgentId: "lead-2" } }, fake.paseo);
+    await delivery.onPermission({ ...permission("c"), agent: { ...peerTurn().agent, parentAgentId: "sup-1" } }, fake.paseo);
+    assert.deepEqual(fake.sent.map((s) => s.agentId), ["lead-1", "lead-2"]);
+    assert.deepEqual(outbox.records().map((r) => r.recipientAgentId), [undefined, undefined]);
   });
 });

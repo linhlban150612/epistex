@@ -1,6 +1,6 @@
 ---
 name: seat-recovery
-description: Lead procedure for a Peer whose turn is stuck or whose handback did not arrive whole. Use on `A foreground turn is already active`, on a truncated `<agent-response>`, or when a `[epistex-delivery]` message reports `TURN_ENDED_*` and the handoff must be retrieved or the seat reloaded without polling or a blind resend.
+description: Lead procedure for a Peer whose turn is stuck or whose handback did not arrive whole. Use on `A foreground turn is already active`, on an incomplete handback, or when a `[epistex-delivery]` message reports `TURN_ENDED_*` and the handoff must be retrieved or the seat reloaded without polling or a blind resend.
 ---
 
 # Seat recovery
@@ -8,10 +8,9 @@ description: Lead procedure for a Peer whose turn is stuck or whose handback did
 Recovery changes no task, round, baseline, frozen candidate or authority. It is bounded, event-driven
 and Human-run where it touches the seat.
 
-## Truncated handback
+## Incomplete handback
 
-If `<agent-response>` ends with `[truncated N chars; ...]`, ignore its activity hint and retrieve
-the handoff once:
+If the delivery body is cut off or misses cells, retrieve the handoff once:
 
 ```bash
 paseo agent logs <agentId> --filter assistant_message --tail 1
@@ -36,7 +35,7 @@ prompt. A stale-turn error on that resend goes to the stuck-turn procedure below
 
 A `[epistex-delivery]` message with `kind: TURN_ENDED_NO_MESSAGE` or
 `TURN_ENDED_INVALID_HANDOFF` is a delivery from the kit's plugin, not a handoff and not acceptance.
-Treat it as `errored` / missing handoff: handle the `delivery-id` once, apply the truncated
+Treat it as `errored` / missing handoff: handle the `delivery-id` once, apply the incomplete
 handback retrieval if a body is present, otherwise follow the Monitoring rules for `errored`.
 The [cessation gate](../../../agents/contract/COMMON.md#ownership-and-candidate-identity) applies
 before any replacement.

@@ -66,7 +66,7 @@ Lead runs without approval waits: Lead profiles use a bypass mode (`claude-lead`
 Codex Peer profiles use `modeId: auto-review` ([why](docs/setup/codex-runtime.md#peer-sandbox-and-worktrees)); `setup-seats.sh --check` rejects `codex-peer` profiles without it. Claude Peer profiles use `modeId: bypassPermissions`: `acceptEdits` stops a non-interactive Peer on its first Bash permission request; `--check` rejects other modes.
 Groups blocked for Lead: 11 schedule/heartbeat, 22 browser, 5 terminal, 13 workspace/agent/provider/host;
 for Supervisor the workspace/agent/provider group is down to 8 (see the list in the
-[provider example](examples/paseo-providers.json)). Paseo `>=0.14.0 <0.16` is required: the mandatory [delivery plugin](docs/setup/delivery-plugin.md) is verified on that range (reason: [known limitations](README.md#cautions-and-known-limitations)); the daemon and CLI must be the same version. The 0.15.0 tool catalog was rechecked: unchanged.
+[provider example](examples/paseo-providers.json)). Paseo `>=0.15.0 <0.16` is required: the mandatory [delivery plugin](docs/setup/delivery-plugin.md) is verified on that range (reason: [known limitations](README.md#cautions-and-known-limitations)); the daemon and CLI must be the same version. The 0.15.0 tool catalog was rechecked: unchanged.
 `speak` cannot be blocked and is outside the catalog. A test pins the 62-name catalog to force a review
 when Paseo is upgraded. The `--check` script confirms the exact deny-list on every enabled provider.
 
@@ -165,7 +165,7 @@ wrong model, effort or tool permission, or if a prompt or template names a skill
 location; if you use `CODEX_BIN`, set the same value for the checker and the providers. A passing result
 does not prove auth, the daemon, model availability or a successful launch: those are steps 2 and 8.
 
-The [delivery plugin](docs/setup/delivery-plugin.md) is required and verified on Paseo `>=0.14.0 <0.16`: `--check` fails
+The [delivery plugin](docs/setup/delivery-plugin.md) is required and verified on Paseo `>=0.15.0 <0.16`: `--check` fails
 when it is not installed from the kit path, when the range does not match, `pluginsEnabled` is off or the daemon version is
 outside the range. `--check` also fails when `agents.resumeOnStartup` (0.15+) is on; keep it off.
 Install is a Human-approved change to the live config: set `"pluginsEnabled": true` in `config.json`, run

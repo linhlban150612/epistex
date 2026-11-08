@@ -8,5 +8,6 @@ export default function (server: PluginServerContext) {
   return contribute(server, {
     log: consoleLogger,
     onTurnEnded: (event, context) => delivery.onTurnEnded(event, context.paseo as unknown as DeliveryPaseo),
+    onPermission: (event, context) => delivery.onPermission(event, context.paseo as unknown as DeliveryPaseo),
   });
 }

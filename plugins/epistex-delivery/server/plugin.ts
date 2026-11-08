@@ -1,10 +1,12 @@
 // Plugin entry logic. Kept apart from index.server.ts so `node --test` can load it without the
 // host-provided `@getpaseo/plugin` package.
 import type { PluginServerContext } from "@getpaseo/plugin/server";
-import type { PluginHookContext, PluginLifecycleEvents } from "@getpaseo/plugin/server";
+import type { PluginHookContext, PluginHookPayload } from "@getpaseo/plugin/server";
 
-export type TurnEndedEvent = PluginLifecycleEvents["agent.turn_ended"];
+export type TurnEndedEvent = PluginHookPayload<"agent.turn.after">;
 export type TurnEndedHandler = (event: TurnEndedEvent, context: PluginHookContext) => Promise<void>;
+export type PermissionEvent = PluginHookPayload<"agent.permission.before">;
+export type PermissionHandler = (event: PermissionEvent, context: PluginHookContext) => Promise<void>;
 
 export interface Logger {
   info(message: string): void;
@@ -13,13 +15,15 @@ export interface Logger {
 
 export interface ContributeOptions {
   log?: Logger;
-  /** Handler for every `agent.turn_ended` event. Later steps supply the delivery handler. */
+  /** Handler for every `agent.turn.after` hook. Later steps supply the delivery handler. */
   onTurnEnded?: TurnEndedHandler;
+  /** Handler for every `agent.permission.before` hook. */
+  onPermission?: PermissionHandler;
 }
 
 export const PLUGIN_ID = "epistex-delivery";
 /** The Paseo releases the plugin was verified on. `paseo-plugin.json` carries the same range. */
-export const PASEO_RANGE = ">=0.14.0 <0.16";
+export const PASEO_RANGE = ">=0.15.0 <0.16";
 
 export const consoleLogger: Logger = {
   info: (message) => console.log(`[${PLUGIN_ID}] ${message}`),
@@ -28,40 +32,54 @@ export const consoleLogger: Logger = {
 
 const noop = () => {};
 
+/** The hooks the plugin needs, all or none: the Lead relies on both once native notifications are off. */
+export const HOOKS = ["agent.turn.after", "agent.permission.before"] as const;
+
 /**
- * Register the delivery hook. Fail closed: when the server context lacks the 0.14/0.15 lifecycle
- * API (`server.on`) or rejects the `agent.turn_ended` hook, log the reason, register nothing and
- * return a no-op cleanup. The plugin then stays loaded but inert; it never guesses another API.
+ * Register the delivery hooks. Fail closed: when the server context lacks the 0.15 lifecycle API
+ * (`server.addHook`) or rejects one of the hooks, log the reason, unregister what was registered
+ * and return a no-op cleanup. The plugin then stays loaded but inert; it never guesses another API.
  */
 export function contribute(server: unknown, options: ContributeOptions = {}): () => void {
   const log = options.log ?? consoleLogger;
   const onTurnEnded = options.onTurnEnded ?? (async () => {});
-  if (typeof server !== "object" || server === null || typeof (server as PluginServerContext).on !== "function") {
-    log.error(`server context has no on(); built for Paseo ${PASEO_RANGE}; nothing registered`);
+  const onPermission = options.onPermission ?? (async () => {});
+  if (typeof server !== "object" || server === null || typeof (server as PluginServerContext).addHook !== "function") {
+    log.error(`server context has no addHook(); built for Paseo ${PASEO_RANGE}; nothing registered`);
     return noop;
   }
   const context = server as PluginServerContext;
-  let unsubscribe: unknown;
-  try {
-    unsubscribe = context.on("agent.turn_ended", async (event, hookContext) => {
+  const guard = <Event extends { agent: { id: string } }>(name: string, handler: (event: Event, hookContext: PluginHookContext) => Promise<void>) =>
+    async (event: Event, hookContext: PluginHookContext) => {
       try {
-        await onTurnEnded(event, hookContext);
+        await handler(event, hookContext);
       } catch (error) {
-        log.error(`agent.turn_ended handler failed for ${event.agent.id}: ${describe(error)}`);
+        log.error(`${name} handler failed for ${event.agent.id}: ${describe(error)}`);
       }
-    });
-  } catch (error) {
-    log.error(`cannot register agent.turn_ended: ${describe(error)}; nothing registered`);
-    return noop;
+    };
+  const unsubscribes: Array<() => void> = [];
+  const undo = () => unsubscribes.splice(0).reverse().forEach((unsubscribe) => unsubscribe());
+  for (const name of HOOKS) {
+    let unsubscribe: unknown;
+    try {
+      unsubscribe =
+        name === "agent.turn.after"
+          ? context.addHook(name, guard(name, onTurnEnded))
+          : context.addHook(name, guard(name, onPermission));
+    } catch (error) {
+      undo();
+      log.error(`cannot register ${name}: ${describe(error)}; nothing registered`);
+      return noop;
+    }
+    if (typeof unsubscribe !== "function") {
+      undo();
+      log.error("server.addHook did not return an unsubscribe function; nothing registered");
+      return noop;
+    }
+    unsubscribes.push(unsubscribe as () => void);
   }
-  if (typeof unsubscribe !== "function") {
-    log.error("server.on did not return an unsubscribe function; nothing registered");
-    return noop;
-  }
-  log.info(`registered agent.turn_ended (Paseo ${PASEO_RANGE})`);
-  return () => {
-    (unsubscribe as () => void)();
-  };
+  log.info(`registered ${HOOKS.join(", ")} (Paseo ${PASEO_RANGE})`);
+  return undo;
 }
 
 export function describe(error: unknown): string {

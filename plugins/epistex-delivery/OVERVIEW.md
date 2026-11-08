@@ -1,15 +1,23 @@
-Epistex delivery forwards a Peer's last message of a finished turn to the Lead that created the
-Peer. It exists because Paseo's one-shot `notifyOnFinish` notification can be missed
-(getpaseo/paseo#6346), which leaves a Lead waiting for a handback that already happened.
+Epistex delivery is the only channel from a Peer to the Lead that created it. The Lead calls
+`create_agent`/`send_agent_prompt` with `notifyOnFinish: false`: Paseo's one-shot notification can
+be missed (getpaseo/paseo#6346), cuts the message at 4000 characters, and would put every handback
+into the Lead's context a second time.
 
-How it works: on every `agent.turn_ended` event for an agent whose `paseo.parent-agent-id` label
-points at a Lead seat, the plugin reads the Peer's timeline, delivers the turn's last valid handoff
-(the same parser as `setup/check-handoff`; text after it is attached as a warning, and without a
-valid handoff the last message is classified), writes a receipt to
-`${PASEO_HOME:-~/.paseo}/epistex-delivery/`, and sends a `[epistex-delivery]` message to the Lead.
-Delivery is at least once; the Lead processes each `delivery-id` once.
+How it works:
 
-Requirements: Paseo `>=0.14.0 <0.16`. The plugin refuses to register anything when the daemon does
+- On every `agent.turn.after` hook for an agent whose `paseo.parent-agent-id` label points at a Lead
+  seat, the plugin reads the Peer's timeline, delivers the turn's last valid handoff in full (the
+  same parser as `setup/check-handoff`; text after it is attached as a warning, and without a valid
+  handoff the last message is classified), writes a receipt to
+  `${PASEO_HOME:-~/.paseo}/epistex-delivery/`, and sends a `[epistex-delivery]` message to the Lead.
+- On every `agent.permission.before` hook for such a Peer, the plugin sends a
+  `PERMISSION_REQUESTED` message with the Peer's `agentId` and `requestId` to the Lead's Supervisor
+  (the Lead's `paseo.parent-agent-id`, when it is a live Supervisor seat), otherwise to the Lead.
+
+A message waits in the receipt store while its recipient is mid-turn and is sent when that
+recipient's turn ends. Delivery is at least once; the recipient processes each `delivery-id` once.
+
+Requirements: Paseo `>=0.15.0 <0.16`. The plugin registers both hooks or none when the daemon does
 not expose the lifecycle API it was built against.
 
 Limits: the plugin only delivers. It never creates, cancels, archives, reloads or re-modes agents,

@@ -53,7 +53,7 @@ Supervisor opens a Lead in the project workspace and does not create a Peer.
 | Discovery | Supervisor uses Paseo `list_workspaces`, `list_agents`, `list_providers`, `list_models` |
 | Assignment | Supervisor opens a Human-authorized Lead with `create_agent(workspaceId=...)`; passes the Supervisor agentId in `initialPrompt` |
 | Implementation | Lead defines scope and creates a Peer through Paseo; Peer is the sole writer |
-| Handoff | Peer ends its turn with the six-cell [handoff](agents/PEER.md#handoff--always-return); Lead reads it from the `finished` notification ([Lead monitoring](agents/LEAD.md#monitoring)) |
+| Handoff | Peer ends its turn with the six-cell [handoff](agents/PEER.md#handoff--always-return); Lead reads it from the kit plugin's `[epistex-delivery]` message; native `notifyOnFinish` is off ([Lead monitoring](agents/LEAD.md#monitoring)) |
 | Review | Lead reads the exact candidate and evidence; complex/review tasks use the [Dual-Lane review skill](.agents/skills/dual-lane-review/SKILL.md) |
 | Rework | Same Peer, one next-round assignment after a validated handback ([Lead acceptance](agents/LEAD.md#acceptance)); `REOPEN_REQUEST`/`DEPENDENCY_REQUEST` follow [handling-reopen](.agents/skills/handling-reopen/SKILL.md) |
 | Intervention | Supervisor acts only on an event and tells the owning Lead ([Supervisor](agents/SUPERVISOR.md#intervening-on-events)) |
@@ -87,7 +87,7 @@ Runtime layout, resume selection, environment variables and Seatworks compatibil
 | `setup/setup-seats.sh`, `setup/normalize-profiles.jq`, `examples/paseo-providers.json` | Seat checker, profile normalizer and provider catalog |
 | `setup/check-handoff`, `setup/fail-on-base` | Mechanical gates for handoffs and reproducible-bug fixes |
 | `.agents/skills/*/SKILL.md` | Lead skills: Dual-Lane review, context reset, seat recovery, rework escalation, handling reopen/dependency requests; installed per project by `setup-seats.sh --project` |
-| `plugins/epistex-delivery/`, `docs/setup/delivery-plugin.md` | Required Paseo `>=0.14.0 <0.16` server plugin that relays a Peer's end-of-turn handback to its Lead; installed through `setup-seats.sh --install-plugin` after Human approval |
+| `plugins/epistex-delivery/`, `docs/setup/delivery-plugin.md` | Required Paseo `>=0.15.0 <0.16` server plugin that relays a Peer's end-of-turn handback to its Lead; installed through `setup-seats.sh --install-plugin` after Human approval |
 | `.pi/settings.json`, `.omp/config.yml` | Checkout-scoped Pi/OMP compaction settings |
 | `examples/AGENTS_MD_SNIPPET.md`, `examples/WORKSPACE_PROTOCOL.md`, `examples/LEAD_INITIAL_PROMPT.md`, `examples/target-repo/` | Contract, policy, Lead startup and verify templates for target repos |
 | `eval/` | Peer behavior scenarios run against real agents; results stay outside Git |
@@ -116,7 +116,7 @@ recovery checks.
   the source: that is a trade-off change for the Human to decide, not a fix.
 
 - Paseo is the sole agent control plane and owns lifecycle and topology. Inspect live state before
-  operating. Paseo `>=0.14.0 <0.16` is required: the mandatory delivery plugin is verified on that range, and
+  operating. Paseo `>=0.15.0 <0.16` is required: the mandatory delivery plugin is verified on that range, and
   daemons before 0.13.0 could lose finish notifications across a restart, which the no-polling
   rule cannot recover from. Verified live on 0.13.0: a `finished`
   notification queued before a daemon restart is still delivered to the Lead afterwards; a Peer cut

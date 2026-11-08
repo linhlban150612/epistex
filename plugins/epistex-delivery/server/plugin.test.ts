@@ -15,44 +15,50 @@ const event: TurnEndedEvent = {
   timeline: [],
 };
 
-test("server without on(): nothing registered, error logged", () => {
+test("0.14 server with only on(): nothing registered, error logged", () => {
   const { lines, log } = recorder();
-  const cleanup = contribute({ handle: () => {} }, { log });
+  let called = 0;
+  const cleanup = contribute({ on: () => { called += 1; return () => {}; } }, { log });
+  assert.equal(called, 0);
   assert.equal(typeof cleanup, "function");
   assert.equal(lines.length, 1);
-  assert.match(lines[0], /^error .*no on\(\).*nothing registered/);
+  assert.match(lines[0], /^error .*no addHook\(\).*nothing registered/);
 });
 
-test("server rejecting agent.turn_ended: nothing registered, error logged", () => {
+test("server rejecting agent.permission.before: the hook already added is removed, nothing registered", () => {
   const { lines, log } = recorder();
   const registered: string[] = [];
+  let unsubscribed = 0;
   const server = {
-    on: (name: string) => {
+    addHook: (name: string) => {
       registered.push(name);
-      throw new Error(`Unknown hook: ${name}`);
+      if (name === "agent.permission.before") throw new Error(`Unknown hook: ${name}`);
+      return () => {
+        unsubscribed += 1;
+      };
     },
   };
   contribute(server, { log });
-  assert.deepEqual(registered, ["agent.turn_ended"]);
+  assert.deepEqual(registered, ["agent.turn.after", "agent.permission.before"]);
+  assert.equal(unsubscribed, 1, "agent.turn.after must not stay registered alone");
   assert.equal(lines.length, 1);
-  assert.match(lines[0], /^error cannot register agent.turn_ended: Unknown hook: agent.turn_ended/);
+  assert.match(lines[0], /^error cannot register agent.permission.before: Unknown hook: agent.permission.before/);
 });
 
-test("server.on without unsubscribe: nothing registered, error logged", () => {
+test("server.addHook without unsubscribe: nothing registered, error logged", () => {
   const { lines, log } = recorder();
-  contribute({ on: () => undefined }, { log });
+  contribute({ addHook: () => undefined }, { log });
   assert.equal(lines.length, 1);
-  assert.match(lines[0], /^error server.on did not return an unsubscribe function/);
+  assert.match(lines[0], /^error server.addHook did not return an unsubscribe function/);
 });
 
-test("compatible server: hook registered, handler errors logged, cleanup unsubscribes", async () => {
+test("compatible server: both hooks registered and routed, handler errors logged, cleanup unsubscribes", async () => {
   const { lines, log } = recorder();
-  let handler: ((event: TurnEndedEvent, context: unknown) => Promise<void>) | null = null;
+  const handlers = new Map<string, (event: unknown, context: unknown) => Promise<void>>();
   let unsubscribed = 0;
   const server = {
-    on: (name: string, fn: typeof handler) => {
-      assert.equal(name, "agent.turn_ended");
-      handler = fn;
+    addHook: (name: string, fn: (event: unknown, context: unknown) => Promise<void>) => {
+      handlers.set(name, fn);
       return () => {
         unsubscribed += 1;
       };
@@ -62,18 +68,22 @@ test("compatible server: hook registered, handler errors logged, cleanup unsubsc
   const cleanup = contribute(server, {
     log,
     onTurnEnded: async (e) => {
-      seen.push(e.agent.id);
+      seen.push(`turn ${e.agent.id}`);
       if (e.turnId === "boom") throw new Error("handler boom");
     },
+    onPermission: async (e) => {
+      seen.push(`permission ${e.request.id}`);
+    },
   });
-  assert.ok(handler);
-  await handler!(event, {});
-  await handler!({ ...event, turnId: "boom" }, {});
-  assert.deepEqual(seen, ["peer-1", "peer-1"]);
+  assert.deepEqual([...handlers.keys()], ["agent.turn.after", "agent.permission.before"]);
+  await handlers.get("agent.turn.after")!(event, {});
+  await handlers.get("agent.turn.after")!({ ...event, turnId: "boom" }, {});
+  await handlers.get("agent.permission.before")!({ agent: event.agent, request: { id: "req-1" } }, {});
+  assert.deepEqual(seen, ["turn peer-1", "turn peer-1", "permission req-1"]);
   assert.deepEqual(lines, [
-    "info registered agent.turn_ended (Paseo >=0.14.0 <0.16)",
-    "error agent.turn_ended handler failed for peer-1: handler boom",
+    "info registered agent.turn.after, agent.permission.before (Paseo >=0.15.0 <0.16)",
+    "error agent.turn.after handler failed for peer-1: handler boom",
   ]);
   cleanup();
-  assert.equal(unsubscribed, 1);
+  assert.equal(unsubscribed, 2);
 });

@@ -1,13 +1,14 @@
-# Epistex delivery plugin (Paseo >=0.14.0 <0.16)
+# Epistex delivery plugin (Paseo >=0.15.0 <0.16)
 
-Status: **installed on this host and verified live on 0.14.0 (2026-11-02) and 0.15.0 (2026-11-03);
-see [Live evidence](#live-evidence).** The facts below were read from the installed Paseo
+Status: **installed on this host and verified live on 0.14.0 (2026-11-02), 0.15.0 (2026-11-03) and,
+after the move to `addHook`, 0.15.2 (2026-11-06) and, as the only report channel, 0.15.3 (2026-11-07); see [Live evidence](#live-evidence).** The facts below were read from the installed Paseo
 0.14.0 build (`$(npm root -g)/@getpaseo/cli/node_modules/@getpaseo/{plugin,server,client,protocol}`)
-and from the live daemon on this host. 0.15.0 was rechecked from its SDK: `server.on("agent.turn_ended")` is kept (deprecated in favour
-of `addHook("agent.turn.after")`, removal after 2027-04-30) and the `refresh`, `timeline.refetch` and
-`send` shapes are unchanged. `plugins/epistex-delivery/` holds the manifest (range
-`>=0.14.0 <0.16`), the entry and a fail-closed version guard: without `server.on` or when
-`agent.turn_ended` cannot be registered, the plugin logs the reason and registers nothing. Paseo's
+and from the live daemon on this host. 0.15.x was rechecked from its SDK: `addHook("agent.turn.after")`
+replaces the deprecated `server.on("agent.turn_ended")` (removal after 2027-04-30) with the same payload;
+`addHook` does not exist in 0.14.0. The `refresh`, `timeline.refetch` and `send` shapes are unchanged.
+`plugins/epistex-delivery/` holds the manifest (range `>=0.15.0 <0.16`), the entry and a fail-closed
+version guard: without `server.addHook` or when `agent.turn.after` cannot be registered, the plugin logs
+the reason and registers nothing. Paseo's
 own `compileDirectoryPlugin` + `evaluateBundle` (0.14.0) load the bundle. `server/handoff.ts`
 ports `parse_handoff`/`classify_handoff` from `setup/check-handoff`; `check-handoff --parse-only
 <file> --json` exposes the Python result and `tests/fixtures/handoffs/` is run through both
@@ -15,7 +16,7 @@ ports `parse_handoff`/`classify_handoff` from `setup/check-handoff`; `check-hand
 is the receipt store: `<leadAgentId>.jsonl` append-only with `fsync` (a `sent` update is a second
 line for the same `deliveryId`, folded on load), `cursors.json` written temp file + rename, and
 `deliveryId()` = sha256 over `peerAgentId, taskId|"?", round|"?", candidate|"?", lastMessageId`.
-A torn last line is skipped with a warning. `server/delivery.ts` is the `agent.turn_ended`
+A torn last line is skipped with a warning. `server/delivery.ts` is the `agent.turn.after`
 handler wired in `index.server.ts`: a Lead seat's own turn end (provider `^[a-z]+-lead(--.*)?$`)
 flushes that Lead's `pending` records; a child whose parent (`refresh()`) is a Lead seat has its
 timeline read `after` the stored cursor (tail when stale, `hasNewer` followed), and the last
@@ -27,7 +28,7 @@ messageId: delivery-id}` only while the Lead is `idle`/`error`. Root agents and 
 non-Lead parents are ignored. A `completed` turn with no new assistant message after the cursor
 is logged and not delivered (its message, if any, was delivered already; a replayed hook lands
 here); `failed`/`canceled` turns without a message become `TURN_ENDED_NO_MESSAGE`. Reconcile
-(difference 6) runs once per plugin process on the first `agent.turn_ended` event: every Peer
+(difference 6) runs once per plugin process on the first `agent.turn.after` hook: every Peer
 with a stored cursor that is not `running` is read `after` its cursor and recorded, then every
 Lead with `pending` records is flushed. A Peer that is gone, archived or `closed` gets that one
 attempt and is then unwatched (its cursor removed, receipts kept), so a dead Peer is not read on
@@ -36,8 +37,10 @@ every later start. Installed in `~/.paseo/config.json` on this host as a
 
 ## Purpose
 
-A Paseo **server plugin** that delivers a Peer's end-of-turn handback to its Lead when the one-shot
-`notifyOnFinish` notification is missed
+A Paseo **server plugin** that is the only report channel from a Peer to its Lead (decision 9):
+it delivers the end-of-turn handback, and it sends a Peer's permission request to the Lead's
+Supervisor (or to the Lead without one). It started as the fallback for a missed one-shot
+`notifyOnFinish` notification
 ([getpaseo/paseo#6346](https://github.com/getpaseo/paseo/issues/6346)). The plugin only adds
 delivery. It does not create, cancel, archive, reload or re-mode agents, does not answer
 permissions, does not accept work, and runs no timers, schedules, heartbeats or periodic scans.
@@ -48,8 +51,8 @@ Its outbox is a delivery receipt store outside Git; it holds no authority or dec
 | Topic | Verified result (0.14.0) | Source |
 |---|---|---|
 | Plugin entry | `index.server.ts`/`.tsx` (legacy `index.ts`), default export `contribute(server) => cleanup`. `cleanup` must be a function. | `server/dist/server/server/plugins/plugin-process.js` |
-| Server context | `server.on(name, handler)`, `server.before(...)`, `server.handle`, `server.registerSettings`, `registerProvider`, `registerUsageSource`. **No `addHook`.** | `plugin/dist/server/contracts.d.ts` |
-| Hook name | `"agent.turn_ended"`; also `agent.created/closed/archived`, `agent.turn_started`, `agent.permission_*`, `workspace.*`. | `plugin/dist/server/lifecycle.d.ts` |
+| Server context | `server.on(name, handler)`, `server.before(...)`, `server.handle`, `server.registerSettings`, `registerProvider`, `registerUsageSource`. **No `addHook`.** 0.15.0+ adds `server.addHook(name, handler)` and marks `on`/`before` deprecated (removal after 2027-04-30); the plugin uses `addHook` since 2026-11-06. | `plugin/dist/server/contracts.d.ts`, 0.15.2 `lifecycle.d.ts` |
+| Hook name | `"agent.turn_ended"` (0.15+: `"agent.turn.after"`, the legacy name is an alias); also `agent.created/closed/archived`, `agent.turn_started`, `agent.permission_*`, `workspace.*`. | `plugin/dist/server/lifecycle.d.ts` |
 | Hook payload | `{agent: {id, workspaceId, parentAgentId, provider, cwd, title}, turnId: string\|null, outcome: {kind:"completed"} \| {kind:"failed", error:{message, code?}} \| {kind:"canceled", reason}, timeline: []}`. `timeline` is deprecated and **always empty**. | `plugins/lifecycle/index.js`, `plugin-process-protocol.js` |
 | Hook emission | Emitted for every `turn_completed`/`turn_failed`/`turn_canceled` stream event, including background completions. `internal` agents emit nothing. | `plugins/lifecycle/index.js` (`publishAgentStream`) |
 | Hook durability | Notifications only. A throwing handler is logged (`console.error`), never replayed. `drainEvents()` waits for pending handlers only at shutdown. | `plugins/lifecycle/index.js` |
@@ -82,7 +85,7 @@ Its outbox is a delivery receipt store outside Git; it holds no authority or dec
    Lead. Adjustment (event-gated, no timers):
    - Send only when the Lead snapshot reports `status: "idle"` (or `error`).
    - If the Lead is `running`, keep the outbox record `pending`; the plugin also subscribes to
-     `agent.turn_ended` for Lead seats and flushes that Lead's `pending` records when its turn
+     `agent.turn.after` for Lead seats and flushes that Lead's `pending` records when its turn
      ends. Plugin start/reconnect replays `pending` records the same way.
    - For the residual race (Lead starts a turn between the status read and dispatch) use the
      same path as native `notifyOnFinish`: `sourceAgentId: <peerId>`, `activeTurnBehavior:
@@ -121,7 +124,7 @@ Its outbox is a delivery receipt store outside Git; it holds no authority or dec
 bash <KIT>/setup/setup-seats.sh --install-plugin   # runs: paseo plugin install <KIT>/plugins/epistex-delivery
 paseo reload                                       # the daemon keeps pluginsEnabled in memory; see below
 paseo plugin ls --json                             # STATUS must be "running", not "disabled"
-paseo plugin logs epistex-delivery                 # expect: registered agent.turn_ended (Paseo >=0.14.0 <0.16)
+paseo plugin logs epistex-delivery                 # expect: registered agent.turn.after, agent.permission.before (Paseo >=0.15.0 <0.16)
 bash <KIT>/setup/setup-seats.sh --check            # range, path, pluginsEnabled and daemon version
 ```
 
@@ -130,7 +133,7 @@ Observed on install: the running daemon had read `pluginsEnabled: false` at star
 re-read the global switch and the plugin went `running` with no daemon restart. `paseo reload` prints
 a hint to run `paseo daemon restart` for plugin sources; it was not needed.
 
-`setup-seats.sh` shares the `>=0.14.0 <0.16` range with `paseo-plugin.json` and `server/plugin.ts` and
+`setup-seats.sh` shares the `>=0.15.0 <0.16` range with `paseo-plugin.json` and `server/plugin.ts` and
 fails when they drift. A prerelease counts as its stable core, as in Paseo's own check. It refuses to
 install under `--check`, when `paseo --version` is outside the range, or when
 `pluginsEnabled` is not `true`; it never edits `config.json` itself (the daemon does, through the
@@ -152,11 +155,22 @@ The conclusions:
 - **Paseo 0.15.0 (2026-11-03):** the plugin loads with the range, the hook fires, the five dead Peers of
   the earlier runs are unwatched after one attempt, and a handoff followed by a tool call and filler
   text is delivered as `HANDBACK_VALID` with `trailing_text_after_handoff`.
+- **Paseo 0.15.2 (2026-11-06), after the move to `addHook("agent.turn.after")`:** `paseo plugin reload`
+  logged `registered agent.turn.after (Paseo >=0.15.0 <0.16)`; the Lead's own turn end ran reconcile, and
+  a `claude-peer` child labelled with the `claude-lead` parent echoed `valid.txt` and was delivered as
+  `HANDBACK_VALID` (`recorded`, `sent`); the Lead ACKed the delivery-id. Both agents were archived.
+- **Paseo 0.15.3 (2026-11-07), one report channel (decision 9):** `paseo plugin reload` logged
+  `registered agent.turn.after, agent.permission.before (Paseo >=0.15.0 <0.16)`. A `claude-lead`
+  labelled with a `claude-supervisor` parent created a `claude-peer` with `create_agent(...,
+  notifyOnFinish: false)`. The Peer's `Bash` permission was recorded and sent as
+  `PERMISSION_REQUESTED` to the Supervisor, which allowed it with `respond_to_permission` and ACKed
+  the delivery-id. The Peer then echoed `valid.txt`; the Lead got one `HANDBACK_VALID` and ACKed it.
+  The Lead timeline held the handoff once and no `<agent-response>`. The three agents were archived.
 - **Not covered live:** a real missed `notifyOnFinish` (#6346) on a background completion; one host only.
 
 ## Decisions and open questions
 
-Decided by the Human (2026-11-02; items 6 and 7 on 2026-11-03):
+Decided by the Human (2026-11-02; items 6 and 7 on 2026-11-03; item 8 on 2026-11-06; item 9 on 2026-11-07):
 
 1. Parser: **ported to TypeScript** (`server/handoff.ts`) with the shared fixture suite; the Python
    `--parse-only --json` output is the parity oracle.
@@ -174,12 +188,24 @@ Decided by the Human (2026-11-02; items 6 and 7 on 2026-11-03):
    it has no mitigation for #6346, and `setup/setup-seats.sh --check` fails until it is installed.
    Running seats keep their old injected instructions until a separate authorized transition.
 
-6. Paseo requirement (2026-11-03): **`>=0.14.0 <0.16`** instead of `0.14.0` exactly, after the 0.15.0
+6. Paseo requirement (2026-11-03; range superseded by item 8): **`>=0.14.0 <0.16`** instead of `0.14.0` exactly, after the 0.15.0
    SDK check and live run. 0.16 needs a new check (the deprecated `server.on` is removed after
    2027-04-30; `addHook("agent.turn.after")` replaces it).
 7. `agents.resumeOnStartup` (2026-11-03): **keep off**. When on, a Peer cut by a daemon restart gets
    "Resume working." and keeps writing its round, while the Lead treats it as `was closed` and
    reassigns the round. `setup-seats.sh --check` fails when it is on.
+8. Hook API (2026-11-06): **`addHook("agent.turn.after")`** replaces the deprecated
+   `server.on("agent.turn_ended")`, so the requirement is now **`>=0.15.0 <0.16`** (0.14 has no `addHook`)
+   and the dev dependency is `@getpaseo/plugin` 0.15.3, the daemon version on this host (2026-11-07).
+9. One report channel (2026-11-07): the Lead calls `create_agent`/`send_agent_prompt` for a Peer
+   with **`notifyOnFinish: false`**. Native notifications put every handback into the Lead's context
+   twice, cut it at 4000 characters, and can be missed (#6346). The plugin also registers
+   `agent.permission.before` (observe-only in Paseo: it cannot answer) and sends
+   `PERMISSION_REQUESTED` with the Peer's `agentId`/`requestId` to the Lead's `paseo.parent-agent-id`
+   when that is a live `*-supervisor` seat, otherwise to the Lead, which relays to the Human. The
+   message waits while the recipient is mid-turn and is flushed on its turn end, like a handback.
+   Both hooks register or neither. Not covered: native `host unreachable`/`host removed` (one host
+   only), and a Peer that ends without a turn end the plugin observes is a missing handoff.
 
 Resolved (2026-11-03): the `droid-peer` stop on an `edit` permission request in live run 2 came from the
 kit, not Paseo. The 23 `droid-peer` profiles had no `modeId`, and the profile notes tell the Lead to omit

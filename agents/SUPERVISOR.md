@@ -33,7 +33,10 @@ The 16 KiB ceiling applies to common + role instructions together.
 
 ## Intervening on events
 
-Act only when an event triggers it: a Paseo notification, a Lead question or a Human request.
+Act only when an event triggers it: a Paseo notification, a Lead question, a Human request or an
+`[epistex-delivery]` `PERMISSION_REQUESTED` message (kit plugin: a Lead's Peer waits on a
+permission; `peer` and `lead` name the agents, the body holds `agentId` and `requestId`).
+Handle each `delivery-id` once; it may be stale, so read the current request first.
 Never go looking for work: no sweeps of agents, no periodic checks. In response to that event:
 
 - `list_pending_permissions` — read what the named agent is waiting on.

@@ -11,12 +11,14 @@ export interface OutboxCursor {
   seq: number;
 }
 
-export type DeliveryKind = "HANDBACK_VALID" | "TURN_ENDED_INVALID_HANDOFF" | "TURN_ENDED_NO_MESSAGE";
+export type DeliveryKind = "HANDBACK_VALID" | "TURN_ENDED_INVALID_HANDOFF" | "TURN_ENDED_NO_MESSAGE" | "PERMISSION_REQUESTED";
 
 export interface DeliveryRecord {
   deliveryId: string;
   peerAgentId: string;
   leadAgentId: string;
+  /** Who receives the message when it is not the Lead: the Lead's Supervisor for a permission request. */
+  recipientAgentId?: string;
   kind: DeliveryKind;
   turnId: string | null;
   taskId: string | null;
@@ -58,6 +60,10 @@ export function deliveryId(parts: {
     hash.update("\u0000");
   }
   return hash.digest("hex");
+}
+
+export function recipientOf(record: DeliveryRecord): string {
+  return record.recipientAgentId ?? record.leadAgentId;
 }
 
 export function defaultOutboxDirectory(env: NodeJS.ProcessEnv = process.env): string {
@@ -145,9 +151,9 @@ export class Outbox {
     return this.byId.get(deliveryId);
   }
 
-  pendingFor(leadAgentId: string): DeliveryRecord[] {
+  pendingFor(recipientAgentId: string): DeliveryRecord[] {
     return this.records()
-      .filter((record) => record.leadAgentId === leadAgentId && record.state === "pending")
+      .filter((record) => recipientOf(record) === recipientAgentId && record.state === "pending")
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 

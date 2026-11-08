@@ -1,16 +1,19 @@
 // Turn-ended delivery: read the Peer's last assistant message, classify it with the shared parser,
 // record it in the outbox (fsync) and hand it to the Lead. Event-gated only: no timers, no polling.
 import { classifyHandoff } from "./handoff.ts";
-import { deliveryId, type DeliveryKind, type DeliveryRecord, type Outbox, type OutboxCursor } from "./outbox.ts";
-import type { Logger, TurnEndedEvent } from "./plugin.ts";
+import { deliveryId, recipientOf, type DeliveryKind, type DeliveryRecord, type Outbox, type OutboxCursor } from "./outbox.ts";
+import type { Logger, PermissionEvent, TurnEndedEvent } from "./plugin.ts";
 
 /** A Lead seat's agent-profile id, e.g. `codex-lead`, `droid-lead--gpt-6-1-sol--medium`. */
 export const LEAD_PROVIDER = /^[a-z]+-lead(--.*)?$/;
+/** A Supervisor seat's agent-profile id, e.g. `codex-supervisor`. */
+export const SUPERVISOR_PROVIDER = /^[a-z]+-supervisor(--.*)?$/;
+const PARENT_LABEL = "paseo.parent-agent-id";
 const PAGE_LIMIT = 200;
 const MAX_PAGES = 20;
 const NO_HOOK_AGENT: TurnEndedEvent["agent"] = { id: "", workspaceId: null, parentAgentId: null, provider: "", cwd: "", title: null };
 
-// The slice of PaseoApi (0.14.0, unchanged in 0.15.0) the plugin uses, typed structurally so tests can supply a fake.
+// The slice of PaseoApi (0.14.0, unchanged in 0.15.3) the plugin uses, typed structurally so tests can supply a fake.
 export interface TimelineEntry {
   item: { type: string; text?: string; messageId?: string };
   turnId?: string | null;
@@ -28,6 +31,7 @@ export interface AgentSnapshot {
   provider: string;
   status: string;
   archivedAt?: string | null;
+  labels?: Record<string, string>;
 }
 export interface AgentHandle {
   refresh(): Promise<{ agent: AgentSnapshot } | null>;
@@ -56,6 +60,10 @@ export function formatDelivery(record: DeliveryRecord): string {
     `kind: ${record.kind}`,
     `peer: ${record.peerAgentId}  task: ${record.taskId ?? "?"}  round: ${record.round ?? "?"}`,
   ];
+  if (record.kind === "PERMISSION_REQUESTED") {
+    lines.push(`lead: ${record.leadAgentId}`, "---", record.body);
+    return lines.join("\n");
+  }
   if (record.kind !== "HANDBACK_VALID") lines.push(`reasons: ${record.reasons.join("; ")}`);
   const trailing = record.trailing ?? [];
   if (trailing.length) lines.push(`warning: trailing_text_after_handoff (${trailing.length} message(s))`);
@@ -101,7 +109,7 @@ export class Delivery {
    */
   reconcile(paseo: DeliveryPaseo): Promise<void> {
     this.reconciled ??= this.ready().then(async () => {
-      const leads = new Set<string>();
+      const recipients = new Set<string>();
       for (const peerAgentId of this.outbox.watchedPeers()) {
         const latest = this.outbox.latestFor(peerAgentId);
         if (!latest) continue;
@@ -123,14 +131,14 @@ export class Delivery {
           }
         }
       }
-      for (const record of this.outbox.records()) if (record.state === "pending") leads.add(record.leadAgentId);
-      for (const leadAgentId of leads) await this.flush(leadAgentId, paseo);
-      this.log.info(`reconciled ${this.outbox.watchedPeers().length} watched peer(s), ${leads.size} lead(s) with pending deliveries`);
+      for (const record of this.outbox.records()) if (record.state === "pending") recipients.add(recipientOf(record));
+      for (const recipient of recipients) await this.flush(recipient, paseo);
+      this.log.info(`reconciled ${this.outbox.watchedPeers().length} watched peer(s), ${recipients.size} recipient(s) with pending deliveries`);
     });
     return this.reconciled;
   }
 
-  async onTurnEnded(event: TurnEndedEvent, paseo: DeliveryPaseo): Promise<void> {
+  private async catchUp(paseo: DeliveryPaseo): Promise<void> {
     try {
       await this.reconcile(paseo);
     } catch (error) {
@@ -138,16 +146,69 @@ export class Delivery {
       this.reconciled = null;
       this.log.error(`reconcile failed; will retry on the next event: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+
+  /** The Lead seat that created this agent, or null for a root agent or a non-Lead parent. */
+  private async leadOf(agent: TurnEndedEvent["agent"], paseo: DeliveryPaseo): Promise<AgentSnapshot | null> {
+    if (!agent.parentAgentId) return null;
+    const lead = (await paseo.agents.ref(agent.parentAgentId).refresh())?.agent;
+    return lead && LEAD_PROVIDER.test(lead.provider) ? lead : null;
+  }
+
+  async onTurnEnded(event: TurnEndedEvent, paseo: DeliveryPaseo): Promise<void> {
+    await this.catchUp(paseo);
     const { agent } = event;
-    if (LEAD_PROVIDER.test(agent.provider)) {
+    if (LEAD_PROVIDER.test(agent.provider) || SUPERVISOR_PROVIDER.test(agent.provider)) {
       await this.flush(agent.id, paseo);
       return;
     }
-    if (!agent.parentAgentId) return; // root agent: out of scope
-    const lead = (await paseo.agents.ref(agent.parentAgentId).refresh())?.agent;
-    if (!lead || !LEAD_PROVIDER.test(lead.provider)) return; // parent is not a Lead seat
-    await this.recordTurn(event, agent.parentAgentId, paseo);
-    await this.flush(agent.parentAgentId, paseo, lead);
+    const lead = await this.leadOf(agent, paseo);
+    if (!lead) return;
+    await this.recordTurn(event, lead.id, paseo);
+    await this.flush(lead.id, paseo, lead);
+  }
+
+  /**
+   * A Peer waits on a permission: send its agent and request IDs to the Lead's Supervisor, or to the
+   * Lead when it has no live Supervisor parent. The plugin never answers the request itself.
+   */
+  async onPermission(event: PermissionEvent, paseo: DeliveryPaseo): Promise<void> {
+    await this.catchUp(paseo);
+    const { agent, request } = event;
+    const lead = await this.leadOf(agent, paseo);
+    if (!lead) return;
+    let recipient = lead;
+    const supervisorId = lead.labels?.[PARENT_LABEL];
+    if (supervisorId) {
+      const supervisor = (await paseo.agents.ref(supervisorId).refresh())?.agent;
+      if (supervisor && SUPERVISOR_PROVIDER.test(supervisor.provider) && !supervisor.archivedAt && supervisor.status !== "closed") {
+        recipient = supervisor;
+      }
+    }
+    const id = deliveryId({ peerAgentId: agent.id, taskId: null, round: null, candidate: null, lastMessageId: `permission:${request.id}` });
+    if (this.outbox.get(id)) {
+      this.log.info(`permission ${request.id} of ${agent.id} already recorded; replay`);
+    } else {
+      await this.outbox.append({
+        deliveryId: id,
+        peerAgentId: agent.id,
+        leadAgentId: lead.id,
+        ...(recipient.id !== lead.id ? { recipientAgentId: recipient.id } : {}),
+        kind: "PERMISSION_REQUESTED",
+        turnId: null,
+        taskId: null,
+        round: null,
+        candidate: null,
+        messageId: null,
+        cursor: null,
+        reasons: [],
+        body: JSON.stringify({ agentId: agent.id, requestId: request.id, request }, null, 2),
+        state: "pending",
+        createdAt: this.now(),
+      });
+      this.log.info(`recorded PERMISSION_REQUESTED ${id.slice(0, 12)} from ${agent.id} for ${recipient.id}`);
+    }
+    await this.flush(recipient.id, paseo, recipient);
   }
 
   private async recordTurn(event: TurnEndedEvent, leadAgentId: string, paseo: DeliveryPaseo): Promise<void> {
@@ -249,18 +310,18 @@ export class Delivery {
     return { page, entries };
   }
 
-  /** Send every pending record for a Lead, but only while the Lead is not mid-turn. */
-  async flush(leadAgentId: string, paseo: DeliveryPaseo, snapshot?: AgentSnapshot): Promise<void> {
-    const pending = this.outbox.pendingFor(leadAgentId);
+  /** Send every pending record for a recipient (Lead or Supervisor), but only while it is not mid-turn. */
+  async flush(recipientAgentId: string, paseo: DeliveryPaseo, snapshot?: AgentSnapshot): Promise<void> {
+    const pending = this.outbox.pendingFor(recipientAgentId);
     if (!pending.length) return;
-    const handle = paseo.agents.ref(leadAgentId);
-    const lead = snapshot ?? (await handle.refresh())?.agent;
-    if (!lead) {
-      this.log.error(`lead ${leadAgentId} not found; ${pending.length} delivery(ies) stay pending`);
+    const handle = paseo.agents.ref(recipientAgentId);
+    const recipient = snapshot ?? (await handle.refresh())?.agent;
+    if (!recipient) {
+      this.log.error(`recipient ${recipientAgentId} not found; ${pending.length} delivery(ies) stay pending`);
       return;
     }
-    if (lead.status !== "idle" && lead.status !== "error") {
-      this.log.info(`lead ${leadAgentId} is ${lead.status}; ${pending.length} delivery(ies) stay pending`);
+    if (recipient.status !== "idle" && recipient.status !== "error") {
+      this.log.info(`recipient ${recipientAgentId} is ${recipient.status}; ${pending.length} delivery(ies) stay pending`);
       return;
     }
     for (const record of pending) {
@@ -271,11 +332,11 @@ export class Delivery {
           messageId: record.deliveryId,
         });
       } catch (error) {
-        this.log.error(`send of ${record.deliveryId.slice(0, 12)} to ${leadAgentId} failed: ${error instanceof Error ? error.message : String(error)}`);
+        this.log.error(`send of ${record.deliveryId.slice(0, 12)} to ${recipientAgentId} failed: ${error instanceof Error ? error.message : String(error)}`);
         return; // keep order; retry on the next lifecycle event or plugin start
       }
       await this.outbox.markSent(record.deliveryId, "accepted", this.now());
-      this.log.info(`sent ${record.kind} ${record.deliveryId.slice(0, 12)} to lead ${leadAgentId}`);
+      this.log.info(`sent ${record.kind} ${record.deliveryId.slice(0, 12)} to ${recipientAgentId}`);
     }
   }
 }

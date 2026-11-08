@@ -128,22 +128,20 @@ Peers must belong to different model families, so the lanes judge independently.
 
 ## Monitoring
 
-After create/send, end the turn and wait for notifications, not progress polls. `queued` is not
-delivery; require the recipient's next event to name the task/round. Do not send additions into
-a running round; `steer` may replace it.
+Call `create_agent` and `send_agent_prompt` for a Peer with `notifyOnFinish: false`: the kit
+plugin is the only report channel. Then end the turn and wait for its messages, not progress polls.
+`queued` is not delivery; require the recipient's next event to name the task/round. Do not send
+additions into a running round; `steer` may replace it.
 
-- `finished`: validate `<agent-response>` (§ Acceptance). A message that is not a handoff is a
-  missing handoff, not progress to wait for.
-- `[epistex-delivery]` (kit plugin): a Peer turn end relayed as a message, also when `finished`
-  never arrived. Handle each `delivery-id` once; a delivery and a `finished` for the same turn
-  are one event. `HANDBACK_VALID` → § Acceptance on its body (with `trailing_text_after_handoff`,
-  read the trailing text first; if it changes the handoff, it is a missing handoff); `TURN_ENDED_*` → as
-  `errored`/missing handoff, cessation gate applies. Delivery is neither acceptance nor authority.
-- `needs permission`: relay agent/request IDs to Supervisor or Human; never answer yourself.
-- `errored`, `was canceled`, `was closed`, `is unavailable`: not done; cessation gate applies.
-- `host unreachable`, `host removed`: status unknown, notifications will not resume → `BLOCKED`.
+- `[epistex-delivery]`: handle each `delivery-id` once. `HANDBACK_VALID` → § Acceptance on its
+  body (with `trailing_text_after_handoff`, read the trailing text first; if it changes the
+  handoff, it is a missing handoff). `TURN_ENDED_*` → as `errored`/missing handoff, cessation gate
+  applies. `PERMISSION_REQUESTED` comes to you only without a Supervisor: relay its agent/request
+  IDs to the Human; never answer yourself. Delivery is neither acceptance nor authority.
+- A Peer status `error`, `closed` or unavailable when you read it: not done; cessation gate applies.
+- No delivery after a Peer turn you know ended (Human report, status read): missing handoff.
 
-`A foreground turn is already active` or a truncated handback → `seat-recovery` skill
+`A foreground turn is already active` or an incomplete handback → `seat-recovery` skill
 (`.agents/skills/seat-recovery/SKILL.md`); the reload is Human-run. At the common three-event
 limit, REOPEN with the layer (own premise, or the Human's); replacement via
 the `context-reset` skill (`.agents/skills/context-reset/SKILL.md`) after Human confirmation and
@@ -152,8 +150,8 @@ writer/children → `BLOCKED`; idle/cancel receipt is not cessation.
 
 ## Acceptance
 
-Read § Handoff in the Peer prompt. Review only `<agent-response>`; truncated (`[truncated N
-chars; ...]`) or incomplete → `seat-recovery` skill (one retrieval or a handoff-only resend).
+Read § Handoff in the Peer prompt. Review only the delivery body; incomplete → `seat-recovery`
+skill (one retrieval or a handoff-only resend).
 Check task/round, outcome, six cells and candidate; never reconstruct cells from the timeline.
 
 Before closing, you may run the kit's mechanical pre-check on the handoff text:

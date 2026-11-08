@@ -236,8 +236,9 @@ else
   # acceptEdits and default stop a non-interactive Claude Peer on its first Bash permission request.
   jq -e 'all(.daemon.agentProfiles[]? | select(.provider == "claude-peer"); .modeId == "bypassPermissions")
   ' "$paseo_config" >/dev/null || fail "claude-peer: every profile needs modeId bypassPermissions"
-  # Paseo does not inherit a Lead's mode into a Peer of another provider: create_agent without modeId fails.
-  for pair in amp-peer:local cursor-peer:agent kiro-peer:epistex_peer omp-peer:full; do
+  # Paseo does not inherit the caller's mode into an agent of another provider: create_agent without modeId fails.
+  for pair in amp-peer:local cursor-peer:agent kiro-peer:epistex_peer omp-peer:full \
+      kiro-lead:epistex_lead kiro-supervisor:epistex_supervisor; do
     jq -e --arg provider "${pair%%:*}" --arg mode "${pair#*:}" '
       all(.daemon.agentProfiles[]? | select(.provider == $provider); .modeId == $mode)
     ' "$paseo_config" >/dev/null || fail "${pair%%:*}: every profile needs modeId ${pair#*:}"

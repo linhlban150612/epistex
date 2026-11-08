@@ -67,6 +67,9 @@ Codex Peer profiles use `modeId: auto-review` ([why](docs/setup/codex-runtime.md
 Paseo does not inherit a Lead's mode into a Peer of another provider: `create_agent` without `modeId` fails with `cannot inherit mode`
 unless the Lead runs in an unattended mode. So every Peer profile of a provider with modes carries one: `amp-peer` `local`,
 `cursor-peer` `agent`, `kiro-peer` `epistex_peer`, `omp-peer` `full`; `--check` rejects other values. `pi-peer` has no modes.
+Kiro Lead and Supervisor profiles carry their fixed seat mode the same way (`epistex_lead`, `epistex_supervisor`). Verified live the
+same day: a `claude-supervisor` in mode `default` got the error for `kiro-lead` without `modeId` and created it from
+its profile in `epistex_lead`; `kiro-supervisor` launched in `epistex_supervisor`.
 Verified live on Paseo 0.15.3 (2026-11-08): a `claude-lead` in mode `default` got that error for `omp-peer` without
 `modeId`, and created all four Peers from their profiles in the profile's mode.
 Groups blocked for Lead: 11 schedule/heartbeat, 22 browser, 5 terminal, 13 workspace/agent/provider/host;

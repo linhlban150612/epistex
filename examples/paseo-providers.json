@@ -1974,6 +1974,7 @@
         "provider": "kiro-lead",
         "model": "claude-opus-5.5",
         "thinkingOptionId": "low",
+        "modeId": "epistex_lead",
         "notes": "Lead: frame scope, coordinate Peers, review evidence and accept work. Do not write project artifacts. Do not automatically create Peers on the Lead's backend provider; use Human-authorized alternatives or report BLOCKED. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -1982,6 +1983,7 @@
         "provider": "kiro-lead",
         "model": "claude-opus-5.5",
         "thinkingOptionId": "medium",
+        "modeId": "epistex_lead",
         "notes": "Lead: frame scope, coordinate Peers, review evidence and accept work. Do not write project artifacts. Do not automatically create Peers on the Lead's backend provider; use Human-authorized alternatives or report BLOCKED. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -1990,6 +1992,7 @@
         "provider": "kiro-lead",
         "model": "claude-sonnet-5.5",
         "thinkingOptionId": "low",
+        "modeId": "epistex_lead",
         "notes": "Lead: frame scope, coordinate Peers, review evidence and accept work. Do not write project artifacts. Do not automatically create Peers on the Lead's backend provider; use Human-authorized alternatives or report BLOCKED. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -1998,6 +2001,7 @@
         "provider": "kiro-lead",
         "model": "claude-sonnet-5.5",
         "thinkingOptionId": "medium",
+        "modeId": "epistex_lead",
         "notes": "Lead: frame scope, coordinate Peers, review evidence and accept work. Do not write project artifacts. Do not automatically create Peers on the Lead's backend provider; use Human-authorized alternatives or report BLOCKED. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -2634,6 +2638,7 @@
         "provider": "kiro-supervisor",
         "model": "claude-opus-5.5",
         "thinkingOptionId": "low",
+        "modeId": "epistex_supervisor",
         "notes": "Supervisor: observe Leads, clarify intent and support the Human. Do not implement, assign Peers or review/accept candidates. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -2642,6 +2647,7 @@
         "provider": "kiro-supervisor",
         "model": "claude-opus-5.5",
         "thinkingOptionId": "medium",
+        "modeId": "epistex_supervisor",
         "notes": "Supervisor: observe Leads, clarify intent and support the Human. Do not implement, assign Peers or review/accept candidates. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -2650,6 +2656,7 @@
         "provider": "kiro-supervisor",
         "model": "claude-sonnet-5.5",
         "thinkingOptionId": "low",
+        "modeId": "epistex_supervisor",
         "notes": "Supervisor: observe Leads, clarify intent and support the Human. Do not implement, assign Peers or review/accept candidates. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -2658,6 +2665,7 @@
         "provider": "kiro-supervisor",
         "model": "claude-sonnet-5.5",
         "thinkingOptionId": "medium",
+        "modeId": "epistex_supervisor",
         "notes": "Supervisor: observe Leads, clarify intent and support the Human. Do not implement, assign Peers or review/accept candidates. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {

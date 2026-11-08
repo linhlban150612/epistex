@@ -207,6 +207,10 @@ class SetupSeatsTest(unittest.TestCase):
              "amp-peer: every profile needs modeId local"),
             ("kiro peer without mode", lambda d: profile(d, "kiro-peer--claude-opus-5-5--low").pop("modeId"),
              "kiro-peer: every profile needs modeId epistex_peer"),
+            ("kiro lead without mode", lambda d: profile(d, "kiro-lead--claude-sonnet-5-5--medium").pop("modeId"),
+             "kiro-lead: every profile needs modeId epistex_lead"),
+            ("kiro supervisor wrong mode", lambda d: profile(d, "kiro-supervisor--claude-opus-5-5--low").__setitem__(
+                "modeId", "epistex_lead"), "kiro-supervisor: every profile needs modeId epistex_supervisor"),
             # Pi and OMP seats
             ("OMP Luna effort default", lambda d: model(d, "omp-peer", "openai-codex/gpt-6-luna")["thinkingOptions"][0]
              .__setitem__("isDefault", False), "omp-peer: wrong GPT-6 Luna"),

@@ -21,7 +21,8 @@ by the launchers, resolved from the kit rather than the session directory. Missi
 sources or a combined prompt over 16 KiB block launch; a Markdown link is not the loader.
 
 Backends: **Claude, Codex, Devin, Copilot, Cursor, Pi, Amp, Kiro, Droid, Antigravity**. Codex loads prompts with
-`model_instructions_file`. Claude adds the role to `appendSystemPrompt` in the SDK
+`model_instructions_file`, which **replaces** the built-in Codex base instructions: a Codex role
+seat runs without the default Codex prompt. Claude adds the role to `appendSystemPrompt` in the SDK
 `initialize` message when using stream-json, or uses `--append-system-prompt` outside the SDK.
 Pi uses native launch instructions. Devin/Copilot/Cursor/Amp/Kiro/Droid/Antigravity use the ACP proxy, which adds role
 instructions to each new session's first prompt — **not the system prompt**. A session restored

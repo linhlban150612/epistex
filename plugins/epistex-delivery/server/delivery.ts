@@ -213,7 +213,7 @@ export class Delivery {
 
   private async recordTurn(event: TurnEndedEvent, leadAgentId: string, paseo: DeliveryPaseo, outcomeKnown = true): Promise<void> {
     const peerAgentId = event.agent.id;
-    const { page, entries } = await this.readAfterCursor(peerAgentId, paseo);
+    const { page, entries, end } = await this.readAfterCursor(peerAgentId, paseo);
     const assistant = entries.filter((entry) => entry.item.type === "assistant_message");
     const inTurn = event.turnId ? assistant.filter((entry) => entry.turnId === event.turnId) : [];
     const candidates = inTurn.length ? inTurn : assistant;
@@ -229,7 +229,6 @@ export class Delivery {
     }
     const last = candidates[handoffAt];
     const trailing = candidates.slice(handoffAt + 1).map((entry) => entry.item.text ?? "");
-    const end = entries.at(-1);
     const cursor: OutboxCursor | null = end ? { epoch: page.epoch, seq: end.seqEnd } : this.outbox.cursor(peerAgentId);
 
     let kind: DeliveryKind;
@@ -290,14 +289,20 @@ export class Delivery {
     if (cursor) await this.outbox.setCursor(peerAgentId, cursor); // only after the record is durable
   }
 
-  /** Timeline entries after the Peer's stored cursor; falls back to the tail when the cursor is stale. */
-  private async readAfterCursor(peerAgentId: string, paseo: DeliveryPaseo): Promise<{ page: TimelinePage; entries: TimelineEntry[] }> {
+  /**
+   * Timeline entries after the Peer's stored cursor; falls back to the tail when the cursor is stale.
+   * A replaced timeline (new epoch, e.g. after an archive or reload) carries the old messages under
+   * new IDs, so the tail is re-anchored after the last assistant text already recorded for this Peer.
+   * `end` is the last entry read, including skipped ones, so the cursor still advances.
+   */
+  private async readAfterCursor(peerAgentId: string, paseo: DeliveryPaseo): Promise<{ page: TimelinePage; entries: TimelineEntry[]; end?: TimelineEntry }> {
     const timeline = paseo.agents.ref(peerAgentId).timeline;
     const stored = this.outbox.cursor(peerAgentId);
     let page = stored
       ? await timeline.refetch({ direction: "after", cursor: stored, limit: PAGE_LIMIT })
       : await timeline.refetch({ direction: "tail", limit: PAGE_LIMIT });
-    if (stored && (page.reset || page.staleCursor || page.epoch !== stored.epoch)) {
+    const stale = !!stored && (!!page.reset || !!page.staleCursor || page.epoch !== stored.epoch);
+    if (stale) {
       this.log.info(`cursor for ${peerAgentId} is stale; reading the tail`);
       page = await timeline.refetch({ direction: "tail", limit: PAGE_LIMIT });
     }
@@ -308,7 +313,26 @@ export class Delivery {
       entries.push(...next.entries);
       page = { ...next, epoch: page.epoch };
     }
-    return { page, entries };
+    const end = entries.at(-1);
+    const anchor = stale ? this.lastRecordedText(peerAgentId) : null;
+    if (anchor !== null) {
+      let at = entries.length - 1;
+      while (at >= 0 && !(entries[at].item.type === "assistant_message" && entries[at].item.text === anchor)) at -= 1;
+      if (at >= 0) {
+        this.log.info(`tail of ${peerAgentId} re-anchored after its last recorded message; ${at + 1} entries skipped`);
+        entries.splice(0, at + 1);
+      }
+    }
+    return { page, entries, end };
+  }
+
+  /** The last assistant text already recorded for a Peer: the newest receipt's trailing text, else its body. */
+  private lastRecordedText(peerAgentId: string): string | null {
+    const newest = this.outbox
+      .records()
+      .filter((record) => record.peerAgentId === peerAgentId && record.kind !== "PERMISSION_REQUESTED" && (record.body || record.trailing?.length))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    return newest ? (newest.trailing?.at(-1) ?? newest.body) : null;
   }
 
   /** Send every pending record for a recipient (Lead or Supervisor), but only while it is not mid-turn. */

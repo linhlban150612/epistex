@@ -79,8 +79,13 @@ Its outbox is a delivery receipt store outside Git; it holds no authority or dec
 
 1. **`payload.timeline` is empty.** The handler must `timeline.refetch` for the Peer. Keep the
    stored cursor per Peer and read `after` it; fall back to `tail` when `staleCursor`/`reset` is
-   set or the `epoch` changed. Take the last `assistant_message` whose `turnId` matches the
-   ended turn when present, otherwise the last one after the cursor.
+   set or the `epoch` changed. A replaced timeline (archive, reload) returns the old messages under
+   new `messageId`s, so the tail is re-anchored after the last `assistant_message` whose text equals
+   the Peer's newest recorded text (its last `trailing` entry, else its body); the cursor still
+   advances to the end of the tail. Residual: an identical handoff the Peer writes again after a
+   replacement, and that was not yet recorded, is taken as already delivered. Take the last
+   `assistant_message` whose `turnId` matches the ended turn when present, otherwise the last one
+   after the cursor.
 2. **"If the Lead is busy the prompt queues" is false.** The only queue is the 2-second
    coalescing window; after it the message either steers into or replaces the Lead's running
    turn. `interrupt` always replaces. There is no send option that never disturbs a running
@@ -173,7 +178,13 @@ The conclusions:
   second Peer turn interrupted with `paseo stop` gave `TURN_ENDED_INVALID_HANDOFF`, `outcome:
   "canceled"`; the Lead ACKed both. The reload's reconcile read an archived Peer whose timeline had a
   new epoch and recorded its old handoff again under a new `messageId` (`outcome: "unknown"`, pending
-  for its archived Lead, never sent). Both agents were archived.
+  for its archived Lead, never sent); the tail is now re-anchored (item 1 of [Differences from the handoff](#differences-from-the-handoff-and-the-design-adjustment)). Both
+  agents were archived.
+- **Paseo 0.15.3 (2026-11-07), re-anchor:** after a `HANDBACK_VALID`, `paseo agent reload` of the
+  Peer gave it a new timeline epoch. Its next turn, interrupted with `paseo stop`, logged `cursor ...
+  is stale; reading the tail` and `re-anchored after its last recorded message; 3 entries skipped`, and
+  recorded only the new partial text (`TURN_ENDED_INVALID_HANDOFF`, `canceled`), not the old handoff.
+  A later plugin reload's reconcile of the archived Peer recorded nothing. Both agents were archived.
 - **Not covered live:** a real missed `notifyOnFinish` (#6346) on a background completion; one host only.
 
 ## Decisions and open questions

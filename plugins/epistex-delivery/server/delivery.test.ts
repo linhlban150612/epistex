@@ -357,6 +357,39 @@ test("stale cursor or changed epoch falls back to the tail; hasNewer pages are f
   });
 });
 
+test("a replaced timeline (new epoch) is re-anchored: the old handoff is not recorded again, a newer message is", async () => {
+  await scratch(async (delivery, outbox, lines) => {
+    const round2 = VALID.replace("Round: 1", "Round: 2");
+    const replaced = (entries: TimelineEntry[]): TimelinePage[] => [{ epoch: "e2", staleCursor: true, entries: [] }, { epoch: "e2", entries }];
+    const fake = fakePaseo(
+      { "lead-1": leadIdle },
+      {
+        "peer-1": [{ epoch: "e1", entries: [assistant(VALID, 3, { messageId: "a" })] }],
+        "peer-2": [{ epoch: "e1", entries: [assistant(VALID, 3, { messageId: "a2" })] }],
+      },
+    );
+    const peer2 = { ...peerTurn().agent, id: "peer-2" };
+    await delivery.onTurnEnded(peerTurn(), fake.paseo);
+    await delivery.onTurnEnded(peerTurn({ agent: peer2 }), fake.paseo);
+    assert.equal(outbox.records().length, 2);
+
+    // The same history comes back under new message IDs; peer-2 also wrote a new handoff after it.
+    const pages = {
+      "peer-1": replaced([{ item: { type: "user_message", text: "brief" }, seqEnd: 1 }, assistant(VALID, 2, { messageId: "b" }), { item: { type: "tool_call" }, turnId: "t2", seqEnd: 4 }]),
+      "peer-2": replaced([assistant(VALID, 2, { messageId: "b2" }), assistant(round2, 5, { messageId: "c2", turnId: "t2" })]),
+    };
+    const second = fakePaseo({ "lead-1": leadIdle }, pages);
+    await delivery.onTurnEnded(peerTurn({ turnId: "t2" }), second.paseo);
+    await delivery.onTurnEnded(peerTurn({ agent: peer2, turnId: "t2" }), second.paseo);
+
+    const records = outbox.records();
+    assert.equal(records.length, 3, "only peer-2's new handoff is recorded");
+    assert.deepEqual([records[2].peerAgentId, records[2].round, records[2].messageId], ["peer-2", "2", "c2"]);
+    assert.deepEqual(outbox.cursor("peer-1"), { epoch: "e2", seq: 4 }, "cursor advances past the skipped entries");
+    assert.ok(lines.some((l) => /tail of peer-1 re-anchored after its last recorded message; 2 entries skipped/.test(l)));
+  });
+});
+
 test("a failing send leaves the record pending and durable for the next event", async () => {
   await scratch(async (delivery, outbox, lines) => {
     const fake = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [{ epoch: "e1", entries: [assistant(VALID, 1, { messageId: "m" })] }] });

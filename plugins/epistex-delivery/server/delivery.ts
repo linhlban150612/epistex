@@ -119,7 +119,7 @@ export class Delivery {
           finished = !peer || !!peer.archivedAt || peer.status === "closed";
           if (!peer || peer.status === "running" || peer.status === "initializing") continue;
           const synthetic: TurnEndedEvent = { agent: { ...NO_HOOK_AGENT, id: peerAgentId, parentAgentId: latest.leadAgentId, provider: peer.provider }, turnId: null, outcome: { kind: "completed" }, timeline: [] };
-          await this.recordTurn(synthetic, latest.leadAgentId, paseo);
+          await this.recordTurn(synthetic, latest.leadAgentId, paseo, false);
         } catch (error) {
           // A Peer whose cwd is gone (deleted scratch clone) makes the timeline read fail; one
           // such Peer must not stop the catch-up of the others or the delivery of live events.
@@ -211,7 +211,7 @@ export class Delivery {
     await this.flush(recipient.id, paseo, recipient);
   }
 
-  private async recordTurn(event: TurnEndedEvent, leadAgentId: string, paseo: DeliveryPaseo): Promise<void> {
+  private async recordTurn(event: TurnEndedEvent, leadAgentId: string, paseo: DeliveryPaseo, outcomeKnown = true): Promise<void> {
     const peerAgentId = event.agent.id;
     const { page, entries } = await this.readAfterCursor(peerAgentId, paseo);
     const assistant = entries.filter((entry) => entry.item.type === "assistant_message");
@@ -272,6 +272,7 @@ export class Delivery {
         peerAgentId,
         leadAgentId,
         kind,
+        outcome: outcomeKnown ? event.outcome.kind : "unknown",
         turnId: event.turnId ?? last?.turnId ?? null,
         taskId,
         round,

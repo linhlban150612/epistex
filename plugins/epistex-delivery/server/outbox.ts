@@ -20,6 +20,8 @@ export interface DeliveryRecord {
   /** Who receives the message when it is not the Lead: the Lead's Supervisor for a permission request. */
   recipientAgentId?: string;
   kind: DeliveryKind;
+  /** How the Peer turn ended; "unknown" for a restart catch-up. Absent on permission requests and older receipts. */
+  outcome?: "completed" | "failed" | "canceled" | "unknown";
   turnId: string | null;
   taskId: string | null;
   round: string | null;

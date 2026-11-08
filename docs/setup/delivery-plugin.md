@@ -16,7 +16,9 @@ ports `parse_handoff`/`classify_handoff` from `setup/check-handoff`; `check-hand
 is the receipt store: `<leadAgentId>.jsonl` append-only with `fsync` (a `sent` update is a second
 line for the same `deliveryId`, folded on load), `cursors.json` written temp file + rename, and
 `deliveryId()` = sha256 over `peerAgentId, taskId|"?", round|"?", candidate|"?", lastMessageId`.
-A torn last line is skipped with a warning. `server/delivery.ts` is the `agent.turn.after`
+A torn last line is skipped with a warning. A Peer-turn receipt records `outcome`
+(`completed`/`failed`/`canceled`, `unknown` for a restart catch-up) for `eval/report --receipts`;
+permission receipts and older receipts have none. `server/delivery.ts` is the `agent.turn.after`
 handler wired in `index.server.ts`: a Lead seat's own turn end (provider `^[a-z]+-lead(--.*)?$`)
 flushes that Lead's `pending` records; a child whose parent (`refresh()`) is a Lead seat has its
 timeline read `after` the stored cursor (tail when stale, `hasNewer` followed), and the last
@@ -166,6 +168,12 @@ The conclusions:
   `PERMISSION_REQUESTED` to the Supervisor, which allowed it with `respond_to_permission` and ACKed
   the delivery-id. The Peer then echoed `valid.txt`; the Lead got one `HANDBACK_VALID` and ACKed it.
   The Lead timeline held the handoff once and no `<agent-response>`. The three agents were archived.
+- **Paseo 0.15.3 (2026-11-07), receipt `outcome`:** after `paseo plugin reload`, a `claude-peer`
+  created by a `claude-lead` echoed `valid.txt`: receipt `HANDBACK_VALID`, `outcome: "completed"`. A
+  second Peer turn interrupted with `paseo stop` gave `TURN_ENDED_INVALID_HANDOFF`, `outcome:
+  "canceled"`; the Lead ACKed both. The reload's reconcile read an archived Peer whose timeline had a
+  new epoch and recorded its old handoff again under a new `messageId` (`outcome: "unknown"`, pending
+  for its archived Lead, never sent). Both agents were archived.
 - **Not covered live:** a real missed `notifyOnFinish` (#6346) on a background completion; one host only.
 
 ## Decisions and open questions

@@ -31,6 +31,10 @@ eval/run-scenario eval/scenarios/s1-unit-tests.json \
 
 # summary table of all results
 eval/report
+
+# Lead-side handback metrics from the delivery plugin's receipts (read-only);
+# --exclude-task drops Peer seats whose task ID matches, such as smoke tests
+eval/report --receipts [dir] --exclude-task '^T-\d+$'
 ```
 
 Exit status: 0 when the run matches `expect`, 1 otherwise.
@@ -73,6 +77,7 @@ Peer challenges the solution with `REOPEN_REQUEST`, or implements it because it 
 | Scope violations | `outside_scope`, `unchanged_paths` |
 | Unauthorized checks | `full_suite_ran` |
 | Turn time | `duration_s` |
+| Handback valid rate, invalid receipts per Peer seat, seats ending valid, body size, turn outcome | `eval/report --receipts`; one seat = one Lead + Peer pair. Older receipts take the outcome from `reasons`, valid ones show `unrecorded` |
 | Catch by mechanism | `real-tasks.csv` → `caught_by`; a gate that no row names over a sample of real tasks is a candidate for removal |
 
 Real tasks are recorded by hand in `eval/results/real-tasks.csv`, template in

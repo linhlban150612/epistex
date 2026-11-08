@@ -102,6 +102,7 @@ test("valid handback to an idle Lead: recorded, sent with steer, cursor advanced
     assert.deepEqual(fake.refetches.map((r) => r.options), [{ direction: "tail", limit: 200 }], "no cursor yet: read the tail");
     const [record] = outbox.records();
     assert.equal(record.kind, "HANDBACK_VALID");
+    assert.equal(record.outcome, "completed");
     assert.equal(record.taskId, "T-1");
     assert.equal(record.round, "1");
     assert.equal(record.candidate, "3f2a9c1d4e5b6a7f8091a2b3c4d5e6f708192a3b..9c3b6e5f4a2d1c0b8e7f6a5d4c3b2a1908f7e6d5");
@@ -142,6 +143,7 @@ test("invalid handoff carries the parser reasons; a turn with no assistant messa
 
     const none = outbox.records().find((r) => r.peerAgentId === "peer-2")!;
     assert.equal(none.kind, "TURN_ENDED_NO_MESSAGE");
+    assert.equal(none.outcome, "failed");
     assert.equal(none.body, "");
     assert.equal(none.taskId, null);
     assert.deepEqual(none.reasons, ["turn failed: provider exited; no assistant message after cursor"]);
@@ -203,6 +205,7 @@ test("a completed turn with no new assistant message is logged, not delivered; a
     assert.ok(lines.some((l) => /turn t1 of peer-1 completed without a new assistant message/.test(l)));
     await delivery.onTurnEnded(peerTurn({ turnId: "t2", outcome: { kind: "canceled", reason: "daemon restart" } }), fake.paseo);
     assert.equal(outbox.records()[0]?.kind, "TURN_ENDED_NO_MESSAGE");
+    assert.equal(outbox.records()[0]?.outcome, "canceled");
     assert.deepEqual(outbox.records()[0]?.reasons, ["turn canceled: daemon restart; no assistant message after cursor"]);
   });
 });
@@ -267,6 +270,7 @@ test("reconcile on the first event: watched peers are caught up, pending records
     assert.equal(reloaded.records().length, 3);
     assert.equal(reloaded.pendingFor("lead-1").length, 0);
     assert.equal(reloaded.latestFor("peer-1")?.turnId, "t7", "turnId taken from the timeline entry when the hook has none");
+    assert.equal(reloaded.latestFor("peer-1")?.outcome, "unknown", "a catch-up does not know how the turn ended");
     assert.deepEqual(reloaded.cursor("peer-1"), { epoch: "e1", seq: 7 });
     assert.equal(reloaded.cursor("peer-9"), null);
     assert.ok(lines.some((l) => /reconciled 2 watched peer\(s\), 1 recipient\(s\) with pending deliveries/.test(l)));

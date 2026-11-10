@@ -1,7 +1,6 @@
 # Supervisor — Paseo-only observer
 
 Shared invariants: [COMMON.md](contract/COMMON.md), prepended by the launcher.
-The 16 KiB ceiling applies to common + role instructions together.
 
 ## Bootstrap
 

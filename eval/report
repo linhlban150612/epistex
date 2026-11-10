@@ -105,6 +105,7 @@ def report_receipts(directory, exclude, agents, include_test_seats):
     print("| Lead | Peer | Provider / model | Task | Receipts | Valid | Invalid | No message | Ends valid | Max body (B) |")
     print("|---|---|---|---|---|---|---|---|---|---|")
     kinds, outcomes, sizes, ends_valid = Counter(), Counter(), [], 0
+    starts_valid, briefs, calls = 0, [], []
     classify = SourceFileLoader("check_handoff", str(pathlib.Path(__file__).resolve().parents[1] / "setup/check-handoff")
                                 ).load_module().classify_handoff
     models, codes = defaultdict(Counter), Counter()
@@ -125,6 +126,10 @@ def report_receipts(directory, exclude, agents, include_test_seats):
         task = next((r["taskId"].strip("`") for r in items if r.get("taskId")), "?")
         last_valid = items[-1]["kind"] == "HANDBACK_VALID"
         ends_valid += last_valid
+        starts_valid += items[0]["kind"] == "HANDBACK_VALID"
+        briefs += [r["briefCodes"] for r in items if "briefCodes" in r]  # plugin check of the Lead's brief
+        if any("toolCalls" in r for r in items):
+            calls.append(sum(r.get("toolCalls", 0) for r in items))
         print(f"| {lead[:8]} | {peer[:8]} | {model} | {task} | {len(items)} | {count['HANDBACK_VALID']} | "
               f"{count['TURN_ENDED_INVALID_HANDOFF']} | {count['TURN_ENDED_NO_MESSAGE']} | {'yes' if last_valid else 'no'} | "
               f"{max(body, default=0)} |")
@@ -142,7 +147,11 @@ def report_receipts(directory, exclude, agents, include_test_seats):
     print(f"| Handback receipts | {total} |")
     print(f"| Valid rate | {kinds['HANDBACK_VALID']}/{total} |")
     print(f"| Invalid receipts per seat (mean) | {kinds['TURN_ENDED_INVALID_HANDOFF'] / len(seats):.2f} |")
+    print(f"| Seats whose first receipt is valid | {starts_valid}/{len(seats)} |")
     print(f"| Seats whose last receipt is valid | {ends_valid}/{len(seats)} |")
+    print(f"| Briefs that pass check-brief | {sum(not b for b in briefs)}/{len(briefs)} checked |")
+    print(f"| Tool calls per seat median / max | {int(statistics.median(calls)) if calls else 0} / {max(calls, default=0)} "
+          f"({len(calls)} seats counted) |")
     print(f"| Body size median / max (B) | {int(statistics.median(sizes)) if sizes else 0} / {max(sizes, default=0)} |")
     print(f"| Turn outcome | {', '.join(f'{k} {v}' for k, v in sorted(outcomes.items()))} |")
 

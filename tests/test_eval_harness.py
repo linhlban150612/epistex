@@ -39,27 +39,28 @@ class EvalHarnessTest(unittest.TestCase):
         self.assertIn("no results", result.stderr)
 
     def test_report_receipts_per_seat(self):
-        def receipt(delivery, peer, kind, task, created, body="", reasons=(), outcome=None):
+        def receipt(delivery, peer, kind, task, created, body="", reasons=(), outcome=None, **extra):
             record = {"deliveryId": delivery, "peerAgentId": peer, "leadAgentId": "lead-1", "kind": kind, "taskId": task,
                       "round": "1", "reasons": list(reasons), "body": body, "state": "pending", "createdAt": created}
             if outcome:
                 record["outcome"] = outcome
-            return json.dumps(record)
+            return json.dumps({**record, **extra})
         handoff = ("Task ID: TASK-C | Round: 1\n**Outcome:** complete\n**Candidate:** base 1111111, candidate 2222222\n"
                    "**Scope:** a.py\n**Verification:** ran\n**Unknown / risk:** none\n**Ownership:** released")
         agents = [{"id": "peer-a", "provider": "p", "model": "m1", "cwd": "/repo"},
                   {"id": "peer-t", "provider": "p", "model": "m1", "cwd": "/tmp/epistex-live-x1"},
                   {"id": "peer-c", "provider": "p", "model": "m2", "cwd": "/repo"}]
         lines = [
-            receipt("d1", "peer-a", "TURN_ENDED_INVALID_HANDOFF", None, "2026-11-01T01", "x" * 300, ["turn canceled: Interrupted"]),
+            receipt("d1", "peer-a", "TURN_ENDED_INVALID_HANDOFF", None, "2026-11-01T01", "x" * 300, ["turn canceled: Interrupted"],
+                    briefCodes=["ROUND_MISSING"], toolCalls=40),
             json.dumps({"deliveryId": "d1", "state": "sent", "sentAt": "t", "sendReceipt": "accepted"}),
-            receipt("d2", "peer-a", "HANDBACK_VALID", "`TASK-A`", "2026-11-01T02", "é" * 50, outcome="completed"),
+            receipt("d2", "peer-a", "HANDBACK_VALID", "`TASK-A`", "2026-11-01T02", "é" * 50, outcome="completed", toolCalls=7),
             receipt("d3", "peer-b", "TURN_ENDED_NO_MESSAGE", None, "2026-11-01T03", reasons=["x"], outcome="failed"),
             receipt("d4", "peer-b", "PERMISSION_REQUESTED", None, "2026-11-01T04", "{}"),
             receipt("d5", "peer-s", "HANDBACK_VALID", "T-1", "2026-11-01T05", "smoke", outcome="completed"),
             receipt("d6", "peer-t", "HANDBACK_VALID", "TASK-T", "2026-11-01T06", "live", outcome="completed"),
             receipt("d7", "peer-c", "TURN_ENDED_INVALID_HANDOFF", "TASK-C", "2026-11-01T07", handoff,
-                    ["turn completed", "Candidate cell needs base SHA and candidate SHA (found 0)"]),
+                    ["turn completed", "Candidate cell needs base SHA and candidate SHA (found 0)"], briefCodes=[], toolCalls=3),
             '{"deliveryId": "torn',
         ]
         with tempfile.TemporaryDirectory() as directory:
@@ -82,6 +83,9 @@ class EvalHarnessTest(unittest.TestCase):
         self.assertIn("| CANDIDATE_IDENTITY | 1 |", result.stdout)
         self.assertIn("| NO_MESSAGE | 1 |", result.stdout)
         self.assertIn("| Valid rate | 1/4 |", result.stdout)
+        self.assertIn("| Seats whose first receipt is valid | 0/3 |", result.stdout)
+        self.assertIn("| Briefs that pass check-brief | 1/2 checked |", result.stdout)
+        self.assertIn("| Tool calls per seat median / max | 25 / 47 (2 seats counted) |", result.stdout)
         self.assertIn("| Body size median / max (B) | 182 / 300 |", result.stdout)
         self.assertIn("| Turn outcome | canceled 1, completed 2, failed 1 |", result.stdout)
 

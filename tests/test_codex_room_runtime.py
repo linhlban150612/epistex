@@ -168,27 +168,6 @@ command = "other"
                 self.assertIn("invalid canonical TOML", result.stderr)
                 self.assertEqual(config.read_bytes(), previous)
 
-    def test_seatworks_fallbacks_reuse_runtime_and_epistex_settings_take_precedence(self) -> None:
-        legacy = self.home / "legacy-codex"
-        legacy.mkdir()
-        (legacy / "config.toml").write_text('model = "legacy"\n')
-        (legacy / "auth.json").write_text('{"legacy": true}\n')
-        project_id = hashlib.sha256(str(self.project).encode()).hexdigest()[:12]
-        runtime = self.home / ".codex-runtime" / "seatworks" / project_id / "lead"
-        (runtime / "sessions").mkdir(parents=True)
-        private = runtime / "sessions" / "keep.jsonl"
-        private.write_text("keep\n")
-        for name, env, auth in (
-                ("SEATWORKS_CODEX_HOME fallback", {"EPISTEX_CODEX_HOME": ""}, legacy),
-                ("repeat", {"EPISTEX_CODEX_HOME": ""}, legacy),
-                ("EPISTEX_CODEX_HOME precedence", {}, self.canonical)):
-            with self.subTest(name):
-                result = self.sync("lead", extra_env={"SEATWORKS_CODEX_HOME": str(legacy), **env})
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual(result.stdout.strip(), str(runtime))
-                self.assertEqual((runtime / "auth.json").resolve(), auth / "auth.json")
-                self.assertEqual(private.read_text(), "keep\n")
-
     def test_git_root_subdirectory_and_linked_worktree_reuse_legacy_runtime(self):
         subprocess.run(["git", "init", str(self.project)], check=True, capture_output=True)
         subprocess.run(["git", "-C", str(self.project), "-c", "user.name=Test",

@@ -4,8 +4,7 @@ This guide adds `agy-peer`, a Paseo Peer, and an example `agy-lead` seat (see [L
 
 ## Prerequisites and install
 
-1. Download the pinned registry release for your platform (Linux x86_64, version 1.4.5; earlier
-   verified: 1.4.1):
+1. Download the pinned registry release for your platform (Linux x86_64, version 1.4.5):
 
    ```sh
    curl -fsSLO https://dl.google.com/agy-extensions/releases/linux/agy-acp-server-1.4.5-linux-x86_64.zip
@@ -39,5 +38,5 @@ The official server advertises `mcpCapabilities` `http` and `sse`; Paseo forward
 
 The server reads its settings from `~/.gemini/antigravity-acp/settings.json`. This is private runtime state and must remain outside the repository.
 
-- The server advertises `loadSession`, `session/list` and `session/resume`. Cancelling a running prompt through Paseo returns the agent to idle; session resume through Paseo was verified live (Paseo 0.14.0, `agy-peer` gemini-3.8-flash-low): after a daemon restart, the server transcript shows the next prompt with only the cwd line and no second role copy, and `pwd` reports the session cwd.
+- The server advertises `loadSession`, `session/list` and `session/resume`. Cancelling a running prompt through Paseo returns the agent to idle; session resume through Paseo was verified live (`agy-peer` gemini-3.8-flash-low): after a daemon restart, the server transcript shows the next prompt with only the cwd line and no second role copy, and `pwd` reports the session cwd.
 - The role configuration is an example only. The operator merges/reloads it and performs an actual Paseo launch; static checks do not establish that authentication or runtime integration works.

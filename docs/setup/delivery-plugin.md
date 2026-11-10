@@ -139,10 +139,9 @@ Human decisions; Git history holds their dates and earlier variants.
 3. Receipts are kept for audit after the Lead is archived, with no compaction, until the Human
    deletes them.
 4. Busy recipient: event-gated send plus `steer` for the residual race (see [Design](#design)).
-5. The plugin is **required**. The earlier prompt workaround for
-   [#6346](https://github.com/getpaseo/paseo/issues/6346) is gone from the role prompts, so a host
-   without the plugin has no mitigation and `setup-seats.sh --check` fails until it is installed.
-   Running seats keep their old injected instructions until a separate authorized transition.
+5. The plugin is **required**: the role prompts carry no workaround for
+   [#6346](https://github.com/getpaseo/paseo/issues/6346), so a host without the plugin has no
+   mitigation and `setup-seats.sh --check` fails until it is installed.
 6. Paseo requirement `>=0.15.0 <0.16` (0.14 has no `addHook`); the dev dependency is
    `@getpaseo/plugin` 0.15.3. Paseo 0.16 needs a new SDK check.
 7. `agents.resumeOnStartup` stays off: when on, a Peer cut by a daemon restart gets "Resume
@@ -157,10 +156,11 @@ Verified live with real role seats on Paseo 0.15.x: hook registration, handback 
 `HANDBACK_VALID` (including trailing text after the handoff), receipt `outcome` for completed and
 canceled turns, `PERMISSION_REQUESTED` routed to the Supervisor and answered there, a single
 handoff in the Lead timeline with `notifyOnFinish: false`, re-anchoring after a Peer timeline
-replacement, and unwatching dead Peers on reconcile. Earlier fault-injection runs on 0.14.0 covered
-a busy Lead, missed turns plus reconcile, a crash between fsync and send, and a Peer cut mid-turn.
-Run logs stay outside Git in the local `eval/results/delivery-plugin-live-runs.md`.
+replacement, and unwatching dead Peers on reconcile. Run logs stay outside Git in the local
+`eval/results/delivery-plugin-live-runs.md`.
 
+Fault injection (a busy Lead, missed turns plus reconcile, a crash between fsync and send, a Peer
+cut mid-turn) was run only on Paseo 0.14.0, below the required range, and not again on 0.15.x.
 Not covered live: a real missed `notifyOnFinish` (#6346) on a background completion; native
 `host unreachable`/`host removed` (one host only). A Peer that ends without a turn end the plugin
 observes is a missing handoff.

@@ -74,7 +74,7 @@ when. It holds no authority or decisions and is not a trust boundary.
 
 ## Codex runtime and resume
 
-Runtime layout, resume selection, environment variables and Seatworks compatibility:
+Runtime layout, resume selection, environment variables and the legacy `seatworks` runtime namespace:
 [Codex runtime guide](docs/setup/codex-runtime.md).
 
 ## Key files
@@ -134,8 +134,6 @@ recovery checks.
   [delivery plugin](docs/setup/delivery-plugin.md), which relays each Peer turn end to the Lead as
   a `[epistex-delivery]` message; the Lead rules are in [Lead monitoring](agents/LEAD.md#monitoring),
   the live evidence in that doc.
-  Existing sessions retain their old injected instructions on load/resume; these edits do not
-  update running seats. Rollout to them needs a separate authorized transition, not a live resend.
 - Agent tree and idle release (read from Paseo's source): an agent created through Paseo
   MCP `create_agent` is a child of the calling agent (label `paseo.parent-agent-id`), unless the
   hidden legacy `relationship: {kind: "detached"}` is used. The parent label is verified live (the

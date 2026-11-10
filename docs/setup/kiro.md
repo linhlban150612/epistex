@@ -3,8 +3,8 @@
 `kiro-peer` dùng `role-agent peer kiro`, `kiro-lead` dùng `role-agent lead kiro`; cả hai
 đi qua adapter local `setup/kiro-acp <role>`; không sửa
 Paseo package hoặc global Kiro settings. Cần Kiro CLI đã đăng nhập, Python 3.11+,
-và kit ở đường dẫn tuyệt đối. Cơ chế này được kiểm với CLI **2.33.1, engine V3**
-(`kiro-cli acp --agent-engine=v3 --auth-method=cli`, KAS 0.66.58); engine v2 không còn được hỗ trợ.
+và kit ở đường dẫn tuyệt đối. Adapter chỉ launch **engine V3**
+(`kiro-cli acp --agent-engine=v3 --auth-method=cli`); đã kiểm với CLI 2.33.1 đến 3.1.0.
 Không suy engine từ ACP protocol version: cả v2/v3 đều dùng version 1.
 
 ## Cài runtime và provider
@@ -12,8 +12,8 @@ Không suy engine từ ACP protocol version: cả v2/v3 đều dùng version 1.
 Giữ nguyên credentials, sessions, settings và các agent khác. Cài riêng file seat-owned
 `setup/kiro-peer.json` thành `~/.kiro/agents/epistex_peer.json`; nếu tên đó đã thuộc cấu hình
 khác, dừng và xin quyết định của Human, không overwrite. Không dùng symlink.
-V3 **bỏ qua** profile có `allowedTools` mà không có `permissions`: nếu file đang cài là bản
-seat cũ có `allowedTools`, thay bằng bản mới; `cp -n` không ghi đè.
+`cp -n` không ghi đè: nếu file đã có nhưng khác bản kit, thay bằng bản kit; `--check` yêu cầu
+file đã cài khớp byte với file kit.
 
 ```bash
 mkdir -p ~/.kiro/agents
@@ -66,7 +66,7 @@ tag native của Peer (`read`, `write`, `shell`, `web`) cộng đúng 11 tool Le
 (allow `fs_read`, `fs_write`, `shell`, `web_fetch`, `web_search`; Lead thêm `mcp` match đúng 11
 `paseo/<tool>`), nên Lead tự duyệt mọi tool (bypass) và Peer không bị hỏi quyền mỗi lần gọi. Policy
 built-in của Kiro (vd chặn ghi settings của chính Kiro) và deny ở scope khác vẫn thắng; tool khác vẫn
-hỏi qua ACP permission request. Không có `knowledge`: V3 (CLI 2.33.1) không quảng bá tool này thành
+hỏi qua ACP permission request. Không có `knowledge`: V3 không quảng bá tool này thành
 tag và nó vẫn là experimental. Chỉ enable lại khi V3 thực sự quảng bá `knowledge`; khi đó thêm lại vào
 `tools` của cả ba file và kiểm capability/permission tương ứng, nếu không Lead có thể bị hỏi quyền.
 `includeMcpJson=false`, `mcpServers={}`: không đọc MCP từ workspace hoặc global config.
@@ -76,8 +76,8 @@ server `{"type":"http","name":"paseo","url":…,"headers":…}` với đúng b�
 URL `http://<host>:<port>/mcp/agents?callerAgentId=<id>` với host `127.0.0.1`, `localhost`
 hoặc `::1`, có port, không userinfo/fragment, query chỉ một `callerAgentId` khác rỗng;
 `headers` là `[]` hoặc đúng một `{"name":"Authorization","value":"Bearer <token>"}`.
-`[]` chỉ dành cho session probe của Paseo (catalog/features/diagnostics — đã quan sát các probe
-Paseo 0.11 gửi `mcpServers: []`); session probe không bao giờ được chạy `session/prompt`, còn
+`[]` chỉ dành cho session probe của Paseo (catalog/features/diagnostics gửi `mcpServers: []`);
+session probe không bao giờ được chạy `session/prompt`, còn
 session thật cần đúng server Paseo trên. Mọi thứ khác bị reject trước backend: không có/nhiều
 server, stdio/sse, tên khác, key thừa, https, host không loopback, path/query khác, header
 khác. `session/resume` chạy cùng validator MCP và CWD như load cho cả hai role; session được
@@ -92,7 +92,7 @@ và, với session có Paseo, đủ 11 tag `@paseo/<tool>`. `_kiro/mcp/status` l
 30 s) rồi mới kết luận. Tag lạ (kể cả `subagent`, bare `kill_agent`, `@paseo/<tool bị chặn>`, server
 khác) hoặc thiếu tool Paseo làm session thất bại thay vì expose. V3 tải MCP tool theo yêu cầu: model
 chỉ thấy `tool_load`/`tool_call`, và catalog của `tool_load` chỉ gồm tool được chọn trong `tools`.
-`speak` (live, Paseo 0.12.0): server chỉ đăng ký `speak` khi bật voice tools, và khi đó
+`speak` (live): server chỉ đăng ký `speak` khi bật voice tools, và khi đó
 `disabledTools` không chặn được nó; launch thường không có `speak` trong catalog Lead/Supervisor. Nếu
 `@paseo/speak` xuất hiện thành tag, seat fail closed; đổi allowlist cần Human quyết định.
 
@@ -104,11 +104,11 @@ V3 dùng `session/set_config_option` với `configId=model` và `configId=effort
 `thought_level`); `session/set_model`, `_kiro.dev/commands/*` và `/effort` không còn. Adapter chỉ cho
 qua hai option này, giá trị trong `MODELS`/`EFFORTS`; `mode`, `autopilot`, `memoryReflection`,
 `contentCollection` và option lạ bị ẩn khỏi `configOptions` (response lẫn `config_option_update`) và
-bị reject khi set. Live 2.33.1 trả success nhưng **giữ nguyên giá trị** khi value không hợp lệ, nên
+bị reject khi set. Kiro trả success nhưng **giữ nguyên giá trị** khi value không hợp lệ (live), nên
 adapter chỉ trả thành công khi `currentValue` trong response bằng giá trị yêu cầu; selection không
 được confirm làm session mất trạng thái ready và prompt bị refuse. Backend error giữ nguyên
 code/message/data. Sau đổi model, nếu effort khác giá trị trước đó thì adapter reapply và confirm
-(live 2.33.1 không reset, nhưng Paseo có thể bỏ qua setter khi thinkingOptionId không đổi).
+(live: Kiro không reset, nhưng Paseo có thể bỏ qua setter khi thinkingOptionId không đổi).
 
 Không launch bằng `--agent`, `--model`, `--effort` hoặc `--trust-*`: V3 reject các flag đó. Adapter
 gửi `_meta.kiro.modeId=epistex_<role>` trên `session/new`; model ban đầu lấy từ trường `model` của
@@ -165,12 +165,11 @@ raw `config_option_update`, `_kiro/tools/didChange` và `_kiro/mcp/status` hoặ
 candidate. Trong live task prompt, yêu cầu agent mô tả heading role **đã nhận trong session**,
 liệt kê tools thực sự thấy và in `pwd`; không coi đọc lại file prompt là proof injection.
 Peer phải nhận `# Peer — independent co-worker`, project CWD, không Paseo/subagent tools.
-Trạng thái live: trên CLI 2.33.1, Paseo 0.12.0, bốn profile `kiro-peer` và `kiro-lead`/`kiro-supervisor`
+Trạng thái live (CLI 2.33.1 đến 3.1.0): bốn profile `kiro-peer` và `kiro-lead`/`kiro-supervisor`
 Sonnet/low launch với đúng mode/model/effort, nhận `# Common contract` cộng heading role, CWD là project;
 Peer chỉ có native tools; catalog Lead có đúng 11 tool `paseo::*`, không có `speak`;
-Lead gọi `list_workspaces` không bị hỏi quyền. Trên CLI 2.34.0, Paseo 0.13.0, `kiro-peer` launch lại đúng
-role/CWD/tools, và `kiro-lead` tạo `kiro-peer` qua `create_agent`; handback hiện đi qua
-[delivery plugin](delivery-plugin.md), không qua native notification. Chưa live-cover `session/cancel`,
+Lead gọi `list_workspaces` không bị hỏi quyền; `kiro-lead` tạo `kiro-peer` qua `create_agent`;
+handback đi qua [delivery plugin](delivery-plugin.md), không qua native notification. Chưa live-cover `session/cancel`,
 `session/resume` và `session/load` qua lifecycle Paseo. Chưa kiểm qua Paseo thì chỉ kết luận ACP metadata/fixture verified, không kết luận seat đã được chấp nhận.
 
 Nguồn authoritative (running capabilities thắng ví dụ tài liệu):

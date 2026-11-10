@@ -54,16 +54,13 @@ class CodexRoomTest(unittest.TestCase):
         for role in ("lead", "peer"):
             with self.subTest(role=role):
                 self.assert_launch(self.run_room(role, *args), role, self.project, args)
-        legacy = self.root / "legacy project"
-        legacy.mkdir()
-        with self.subTest("SEATWORKS_PROJECT_ROOT fallback and default codex lookup"):
-            self.env["SEATWORKS_PROJECT_ROOT"] = str(legacy)
+        pinned = self.root / "pinned project"
+        pinned.mkdir()
+        with self.subTest("EPISTEX_PROJECT_ROOT pins the project and default codex lookup"):
+            self.env["EPISTEX_PROJECT_ROOT"] = str(pinned)
             del self.env["CODEX_BIN"]
             (self.bin / "codex").symlink_to(self.codex)
-            self.assert_launch(self.run_room("peer"), "peer", legacy, [])
-        with self.subTest("EPISTEX_PROJECT_ROOT precedence"):
-            self.env["EPISTEX_PROJECT_ROOT"] = str(self.project)
-            self.assert_launch(self.run_room("lead"), "lead", self.project, [])
+            self.assert_launch(self.run_room("peer"), "peer", pinned, [])
 
     def test_only_direct_uuid_resume_selects_runtime_from_another_cwd(self):
         session_id = "12345678-1234-1234-1234-123456789abc"

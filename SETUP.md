@@ -39,7 +39,7 @@ paseo daemon status --json
 
 The canonical Codex home is `~/.codex`; if the real credentials/config live elsewhere, set
 `EPISTEX_CODEX_HOME` in the `env` of the Codex providers
-([environment variables](docs/setup/codex-runtime.md#environment-variables-and-seatworks-compatibility)).
+([environment variables](docs/setup/codex-runtime.md#environment-variables-and-the-legacy-runtime-namespace)).
 Check credentials and model discovery for each other backend in its own guide.
 
 Linux Desktop: if `paseo` is a symlink to `/opt/Paseo/Paseo` and `paseo run` opens the GUI, use the

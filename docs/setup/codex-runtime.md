@@ -51,7 +51,7 @@ so a Codex Lead re-reads `$CODEX_HOME/skills/` instead of relying on memory. The
 not in `$CODEX_HOME/skills/`; they are installed into the project's `.agents/skills/`
 ([SETUP.md step 6](../../SETUP.md#6-set-the-contract-and-protocol-in-the-target-project)).
 
-### Environment variables and Seatworks compatibility
+### Environment variables and the legacy runtime namespace
 
 | Variable | Default / purpose |
 |---|---|
@@ -61,11 +61,9 @@ not in `$CODEX_HOME/skills/`; they are installed into the project's `.agents/ski
 | `PASEO_CONFIG` | Config file used by the seat checker |
 | `PASEO_HOME` | Seat checker uses `<PASEO_HOME>/config.json` if `PASEO_CONFIG` is unset |
 
-`SEATWORKS_PROJECT_ROOT` and `SEATWORKS_CODEX_HOME` are fallbacks for their corresponding
-`EPISTEX_*` variables; a non-empty new value takes precedence. An old runtime under
-`.codex-runtime/seatworks` is used in place if it is the sole match for project/role. If both old
-and new runtimes exist, ordinary launch reports ambiguity. There is no bulk migration; do not
-delete/copy data to fix resume.
+An old runtime under `.codex-runtime/seatworks` is used in place if it is the sole match for
+project/role. If both old and new runtimes exist, ordinary launch reports ambiguity. There is no
+bulk migration; do not delete/copy data to fix resume.
 
 ### Peer sandbox and worktrees
 

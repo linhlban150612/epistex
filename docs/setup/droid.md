@@ -15,8 +15,8 @@ provider does not inject the common contract and the selected role prompt
 2. Authenticate Droid before launching a seat: use Factory's login flow (shared by all seats), or
    give each seat its own key (see [Per-seat API keys](#per-seat-api-keys)). Credentials stay in
    Droid's user state or in the Paseo config, never in this repository.
-3. Droid 0.247.0 reports `auto` ("Auto Model") with reasoning `none` only; the seat does not offer
-   it. The seat's model list contains exactly the models in the table below.
+3. The seat does not offer Droid's `auto` ("Auto Model", reasoning `none` only). The seat's model
+   list contains exactly the models in the table below.
 
 ## Configure Paseo
 
@@ -136,17 +136,16 @@ auto-approved, so Lead never waits for permission). Droid's advertised modes: `n
 Provider `droid-supervisor`, command `["<KIT>/setup/role-agent","supervisor","droid"]`, Supervisor
 Paseo tool policy per SETUP.md (46-entry deny-list). Same four models and low/medium efforts as
 `droid-lead`; default `claude-sonnet-5-5`, `low`. Profiles `droid-supervisor--<model>--<effort>`
-carry `modeId: "auto-high"`. Live probe (Droid 0.251.0): in `normal`, `auto-low` and
-`auto-medium` the seat stopped on a permission request for the Paseo MCP call `list_workspaces`; in
-`auto-high` it completed the call and showed the common contract as its first role-instruction line.
+carry `modeId: "auto-high"`: in `normal`, `auto-low` and `auto-medium` the seat stops on a
+permission request for every Paseo MCP call (verified live with `list_workspaces`).
 
 ## Per-seat API keys
 
 To bill or track each role on a different Factory key, give each seat its key **and** its own Droid
 home in the live Paseo config (`~/.paseo/config.json`), then run `paseo reload`.
 
-Droid 0.251.0 cannot combine a key with the stored login in `~/.factory`: `session/new` succeeds,
-then `session/set_config_option` returns `Unknown session identifier` and the prompt fails with
+Droid cannot combine a key with the stored login in `~/.factory`: `session/new` succeeds, then
+`session/set_config_option` returns `Unknown session identifier` and the prompt fails with
 `Session not found` (`assertSessionAccessibleForOrganization`). Paseo always sets model and effort,
 so every launch fails. `FACTORY_HOME_OVERRIDE` moves Droid's state to `$FACTORY_HOME_OVERRIDE/.factory`,
 where no stored login exists.
@@ -183,10 +182,10 @@ when you no longer need its session history. `~/.factory` is not changed.
 
 Notes:
 
-- Live probe (Droid 0.251.0): all three seats completed a Paseo prompt; Lead and
-  Supervisor called `list_workspaces`. Sessions went to each seat's dir; no `auth*` file was created.
-  The agent's file tool resolved `~/` to the real home and shell `$HOME` stayed unchanged.
-- `FACTORY_HOME_OVERRIDE` is not in Factory's docs (found in the 0.251.0 binary). Re-check it after
+- Verified live: all three seats completed a Paseo prompt; Lead and Supervisor called
+  `list_workspaces`. Sessions went to each seat's dir; no `auth*` file was created. The agent's
+  file tool resolved `~/` to the real home and shell `$HOME` stayed unchanged.
+- `FACTORY_HOME_OVERRIDE` is not in Factory's docs (found in the `droid` binary). Re-check it after
   each Droid update.
 - An invalid key fails with `Authentication failed`, so the key is used for auth.
 - `setup-seats.sh --check` accepts `env` that is `{}` or exactly `FACTORY_API_KEY` (`fk-` prefix)

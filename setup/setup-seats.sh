@@ -338,8 +338,8 @@ else
       ' "$paseo_config" >/dev/null || fail "$seat: missing or wrong swe-2-high profile"
     done
   fi
-  # Droid env is empty (stored login) or a per-seat key plus its own Droid home: Droid 0.251.0
-  # rejects sessions when a key and the stored login in ~/.factory belong to different orgs.
+  # Droid env is empty (stored login) or a per-seat key plus its own Droid home: Droid rejects
+  # sessions when a key and the stored login in ~/.factory belong to different orgs.
   droid_env='.env == {} or (.env | keys == ["FACTORY_API_KEY","FACTORY_HOME_OVERRIDE"] and
     (.FACTORY_API_KEY | type == "string" and startswith("fk-")) and
     (.FACTORY_HOME_OVERRIDE | type == "string" and startswith("/")))'

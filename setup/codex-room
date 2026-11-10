@@ -165,7 +165,7 @@ def sync(role: str, project: pathlib.Path, session_id: str) -> pathlib.Path:
     instructions = load_prompt(role)
 
     default_home = pathlib.Path.home() / ".codex"
-    canonical_setting = os.environ.get("EPISTEX_CODEX_HOME") or os.environ.get("SEATWORKS_CODEX_HOME")
+    canonical_setting = os.environ.get("EPISTEX_CODEX_HOME")
     canonical = pathlib.Path(canonical_setting or default_home).expanduser().resolve(strict=True)
     base_config = canonical / "config.toml"
     if not base_config.is_file():
@@ -213,7 +213,7 @@ def main() -> None:
     if len(sys.argv) < 2 or sys.argv[1] not in ROLES:
         raise SystemExit(f"invalid room role: {sys.argv[1] if len(sys.argv) > 1 else ''}")
     role, args = sys.argv[1], sys.argv[2:]
-    project_setting = os.environ.get("EPISTEX_PROJECT_ROOT") or os.environ.get("SEATWORKS_PROJECT_ROOT")
+    project_setting = os.environ.get("EPISTEX_PROJECT_ROOT")
     project = pathlib.Path(project_setting or os.getcwd()).resolve(strict=True)
 
     runtime = sync(role, project, resume_session(args))

@@ -31,7 +31,7 @@ Profile pins:
 
 Claude Lead dùng deny-list tại [SETUP.md §3](../../SETUP.md); không áp dụng cho Peer.
 Profile `claude-lead` và mọi profile `claude-peer` dùng `modeId: "bypassPermissions"`; `--check` từ chối
-profile `claude-peer` thiếu mode này. Live (Paseo 0.13.2): với `acceptEdits`, Peer non-interactive dừng ở
+profile `claude-peer` thiếu mode này. Live: với `acceptEdits`, Peer non-interactive dừng ở
 permission request Bash khi chạy `python3`/`git commit`; với `bypassPermissions` thì không.
 
 Đặt label/description theo role và thay `<KIT>` bằng đường dẫn tuyệt đối. `role-agent` và
@@ -42,7 +42,7 @@ thêm prompt role vào `request.appendSystemPrompt` của bản tin `control_req
 giữ nguyên system prompt, append text và các field khác của SDK. Flag CLI
 `--append-system-prompt` đơn lẻ không đủ: field `appendSystemPrompt` trong `initialize` thay flag đó.
 Một field trong `initialize` chỉ thay flag CLI tương ứng; flag không có field tương ứng vẫn có hiệu lực.
-Paseo 0.13.2 (Claude Agent SDK 0.3.246) gửi `initialize` với `hooks`, `appendSystemPrompt`,
+Paseo gửi `initialize` với `hooks`, `appendSystemPrompt`,
 `forwardSubagentText`, `perTaskStopAffordance`, và tự đặt `--model`, `--effort`, `--thinking`,
 `--thinking-display`, `--permission-mode`, `--permission-prompt-tool stdio`, `--setting-sources`,
 `--allow-dangerously-skip-permissions`, `--include-partial-messages`; không thêm các flag đó vào

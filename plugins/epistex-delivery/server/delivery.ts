@@ -16,7 +16,13 @@ const NO_HOOK_AGENT: TurnEndedEvent["agent"] = { id: "", workspaceId: null, pare
 
 // The slice of PaseoApi (Paseo >=0.15.0 <0.16) the plugin uses, typed structurally so tests can supply a fake.
 export interface TimelineEntry {
-  item: { type: string; text?: string; messageId?: string };
+  item: {
+    type: string;
+    text?: string;
+    messageId?: string;
+    /** Set on a `tool_call` row that is a delivered agent message, not a provider tool call. */
+    agentMessage?: { event: string; sender: { id: string }; text: string };
+  };
   turnId?: string | null;
   seqEnd: number;
 }
@@ -311,7 +317,7 @@ export class Delivery {
     } else {
       const warnings = roundWarnings({ peerAgentId, leadAgentId, taskId, round }, this.outbox.records());
       const briefCodes = firstTurn ? await this.briefCodes(peerAgentId, leadAgentId, page, entries, paseo) : null;
-      const toolCalls = entries.filter((entry) => entry.item.type === "tool_call").length;
+      const toolCalls = entries.filter((entry) => entry.item.type === "tool_call" && !entry.item.agentMessage).length;
       const sessionCalls = this.outbox.records().reduce((sum, record) => sum + (record.peerAgentId === peerAgentId ? (record.toolCalls ?? 0) : 0), toolCalls);
       if (sessionCalls >= TOOL_CALL_LIMIT) warnings.push(`peer session at ${sessionCalls} tool calls (limit ${TOOL_CALL_LIMIT}); context-reset or a new Peer advised`);
       if (briefCodes?.length) warnings.push(`brief failed check-brief: ${briefCodes.join(", ")}`);
@@ -396,8 +402,12 @@ export class Delivery {
         return null;
       }
     }
-    const first = entries.find((entry) => entry.item.type === "user_message");
-    const brief = first ? briefOf(first.item.text ?? "", leadAgentId) : null;
+    // Paseo shows a prompt that is only an agent message as a tool_call row with `agentMessage`
+    // (body already unescaped); a prompt with role instructions before the envelope stays a user_message.
+    const first = entries.find((entry) => entry.item.type === "user_message" || entry.item.agentMessage);
+    if (!first) return null;
+    const message = first.item.agentMessage;
+    const brief = message ? (message.event === "message" && message.sender.id === leadAgentId ? message.text : null) : briefOf(first.item.text ?? "", leadAgentId);
     return brief === null ? null : checkBrief(brief);
   }
 

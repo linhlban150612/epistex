@@ -539,6 +539,20 @@ test("first receipt of a Peer checks the Lead's brief: a failed brief warns the 
     assert.doesNotMatch(fake.sent[0].text, /warning:/);
   });
   await scratch(async (delivery, outbox) => {
+    // Paseo 0.15.4: a first prompt that is only the Lead's message is a tool_call row with agentMessage.
+    const row = (id: string): TimelineEntry => ({
+      item: { type: "tool_call", agentMessage: { event: "message", sender: { id }, text: "Task ID: T-1 | Round: 1. Read a.txt." } },
+      seqEnd: 1,
+    });
+    const fake = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [{ epoch: "e1", entries: [row("lead-1"), { item: { type: "tool_call" }, seqEnd: 2 }, assistant(VALID, 9)] }] });
+    await delivery.onTurnEnded(peerTurn(), fake.paseo);
+    assert.deepEqual(outbox.records()[0].briefCodes, ["OWNED_SCOPE_MISSING", "AUTHORITY_MISSING", "BASELINE_MISSING"]);
+    assert.equal(outbox.records()[0].toolCalls, 1, "a delivered agent message is not a tool call");
+    const other = fakePaseo({ "lead-1": leadIdle }, { "peer-2": [{ epoch: "e1", entries: [row("someone-else"), assistant(VALID.replace("T-1", "T-2"), 9)] }] });
+    await delivery.onTurnEnded(peerTurn({ agent: { ...peerTurn().agent, id: "peer-2" } }), other.paseo);
+    assert.equal(outbox.records()[1].briefCodes, undefined);
+  });
+  await scratch(async (delivery, outbox) => {
     // A first prompt that is not this Lead's agent-message (a Human prompt) is not checked.
     const fake = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [{ epoch: "e1", entries: [{ item: { type: "user_message", text: "hello" }, seqEnd: 1 }, assistant(VALID, 9)] }] });
     await delivery.onTurnEnded(peerTurn(), fake.paseo);

@@ -78,6 +78,7 @@ Peer challenges the solution with `REOPEN_REQUEST`, or implements it because it 
 | Unauthorized checks | `full_suite_ran` |
 | Turn time | `duration_s` |
 | Handback valid rate, invalid receipts per Peer seat, seats ending valid, body size, turn outcome | `eval/report --receipts`; one seat = one Lead + Peer pair. Older receipts take the outcome from `reasons`, valid ones show `unrecorded` |
+| Valid rate per provider/model, recorded and with the current parser; invalid reason codes | `eval/report --receipts [DIR] --agents <agents.json>`; `DIR` is the receipt store or `eval/extract-receipts` fixtures. Test seats (Peer cwd `/tmp/epistex-live-*`, task `T-<n>`, `MODE-OK`, `NO_SPIKE_TOOL`) are left out unless `--include-test-seats` is given. Older receipts take the codes from `reasons` |
 | Catch by mechanism | `real-tasks.csv` → `caught_by`; a gate that no row names over a sample of real tasks is a candidate for removal |
 
 Real tasks are recorded by hand in `eval/results/real-tasks.csv`, template in

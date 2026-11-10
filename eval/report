@@ -2,13 +2,21 @@
 """Summarize eval results as Markdown tables.
 
 Usage: eval/report [results-dir]
-       eval/report --receipts [receipts-dir] [--exclude-task REGEX]
+       eval/report --receipts [receipts-dir] [--agents FILE] [--include-test-seats] [--exclude-task REGEX]
 
---receipts reads the delivery plugin's receipt store (default ${PASEO_HOME:-~/.paseo}/epistex-delivery)
-and reports Lead-side handback metrics per Peer seat. It only reads the store.
+--receipts reads the delivery plugin's receipt store (default ${PASEO_HOME:-~/.paseo}/epistex-delivery),
+or a directory of eval/extract-receipts fixtures, and reports Lead-side handback metrics per Peer
+seat, per model and per invalid reason code. It only reads the receipts.
+--agents is a JSON list of agents (id, provider, model, cwd) that names the Peer seat of each receipt.
+Test seats are left out unless --include-test-seats is given: Peer cwd /tmp/epistex-live-*, or a
+task ID T-<n>, MODE-OK or NO_SPIKE_TOOL.
 """
 import argparse, json, os, pathlib, re, statistics, sys
 from collections import Counter, defaultdict
+from importlib.machinery import SourceFileLoader
+
+TEST_CWD = re.compile(r"^/tmp/epistex-live-")
+TEST_TASK = re.compile(r"^`?(?:T-\d+|MODE-OK|NO_SPIKE_TOOL)`?$")
 
 HANDBACK_KINDS = ("HANDBACK_VALID", "TURN_ENDED_INVALID_HANDOFF", "TURN_ENDED_NO_MESSAGE")
 
@@ -45,6 +53,10 @@ def load_receipts(directory):
                 records.setdefault(item["deliveryId"], item)
             elif item.get("deliveryId") in records:
                 records[item["deliveryId"]]["state"] = item.get("state")
+    for path in sorted(directory.glob("*.json")):  # eval/extract-receipts fixtures
+        item = json.loads(path.read_text())
+        if isinstance(item, dict) and "kind" in item and "deliveryId" in item:
+            records.setdefault(item["deliveryId"], item)
     return list(records.values())
 
 
@@ -56,18 +68,46 @@ def outcome_of(record):
     return match.group(1) if match else "unrecorded"
 
 
-def report_receipts(directory, exclude):
+def codes_of(record):
+    """Invalid reason codes; receipts written before the `codes` field get them from `reasons`."""
+    if record["kind"] == "HANDBACK_VALID":
+        return []
+    if record.get("codes"):
+        return record["codes"]
+    text = "; ".join(record.get("reasons") or [])
+    codes = ["TURN_CANCELED"] if "turn canceled" in text else []
+    if record["kind"] == "TURN_ENDED_NO_MESSAGE":
+        return codes + ["NO_MESSAGE"]
+    if "handoff header" in text:
+        codes.append("HEADER_MISSING")
+    missing = re.search(r"missing cells: ([^;]*)", text)
+    codes += ["CELL_MISSING:" + c.strip() for c in missing[1].split(",")] if missing else []
+    if "Candidate cell needs" in text:
+        codes.append("CANDIDATE_IDENTITY")
+    return codes
+
+
+def report_receipts(directory, exclude, agents, include_test_seats):
     records = [r for r in load_receipts(directory) if r["kind"] in HANDBACK_KINDS]
     seats = defaultdict(list)
     for r in records:
+        seat = agents.get(r["peerAgentId"], {})
+        for field in ("provider", "model", "cwd"):
+            r[field] = r.get(field) or seat.get(field)
         seats[(r["leadAgentId"], r["peerAgentId"])].append(r)
+    if not include_test_seats:
+        seats = {k: v for k, v in seats.items()
+                 if not any(TEST_CWD.search(r["cwd"] or "") or TEST_TASK.search(r.get("taskId") or "") for r in v)}
     if exclude:
         seats = {k: v for k, v in seats.items() if not any(r.get("taskId") and exclude.search(r["taskId"]) for r in v)}
     if not seats:
         sys.exit("no receipts")
-    print("| Lead | Peer | Task | Receipts | Valid | Invalid | No message | Ends valid | Max body (B) |")
-    print("|---|---|---|---|---|---|---|---|---|")
+    print("| Lead | Peer | Provider / model | Task | Receipts | Valid | Invalid | No message | Ends valid | Max body (B) |")
+    print("|---|---|---|---|---|---|---|---|---|---|")
     kinds, outcomes, sizes, ends_valid = Counter(), Counter(), [], 0
+    classify = SourceFileLoader("check_handoff", str(pathlib.Path(__file__).resolve().parents[1] / "setup/check-handoff")
+                                ).load_module().classify_handoff
+    models, codes = defaultdict(Counter), Counter()
     for (lead, peer), items in sorted(seats.items(), key=lambda kv: min(r["createdAt"] for r in kv[1])):
         items.sort(key=lambda r: r["createdAt"])
         count = Counter(r["kind"] for r in items)
@@ -75,13 +115,28 @@ def report_receipts(directory, exclude):
         outcomes.update(outcome_of(r) for r in items)
         body = [len(r["body"].encode()) for r in items if r["body"]]
         sizes += body
+        model = f"{items[0]['provider'] or '?'} / {items[0]['model'] or '?'}"
+        for r in items:
+            models[model]["receipts"] += 1
+            models[model]["valid"] += r["kind"] == "HANDBACK_VALID"
+            # The plugin's test: a turn with a message is valid when the current parser accepts the body.
+            models[model]["now"] += r["kind"] != "TURN_ENDED_NO_MESSAGE" and classify(r["body"])["valid"]
+            codes.update(codes_of(r))
         task = next((r["taskId"].strip("`") for r in items if r.get("taskId")), "?")
         last_valid = items[-1]["kind"] == "HANDBACK_VALID"
         ends_valid += last_valid
-        print(f"| {lead[:8]} | {peer[:8]} | {task} | {len(items)} | {count['HANDBACK_VALID']} | "
+        print(f"| {lead[:8]} | {peer[:8]} | {model} | {task} | {len(items)} | {count['HANDBACK_VALID']} | "
               f"{count['TURN_ENDED_INVALID_HANDOFF']} | {count['TURN_ENDED_NO_MESSAGE']} | {'yes' if last_valid else 'no'} | "
               f"{max(body, default=0)} |")
     total = sum(kinds.values())
+    print("\n| Provider / model | Receipts | Valid (recorded) | Valid (current parser) |\n|---|---|---|---|")
+    for model, count in sorted(models.items()):
+        print(f"| {model} | {count['receipts']} | {count['valid']} | {count['now']} |")
+    print(f"| all | {total} | {kinds['HANDBACK_VALID']} | {sum(c['now'] for c in models.values())} |")
+    if codes:
+        print("\n| Invalid reason code (recorded) | Receipts |\n|---|---|")
+        for code, count in sorted(codes.items(), key=lambda kv: (-kv[1], kv[0])):
+            print(f"| {code} | {count} |")
     print(f"\n| Metric | Value |\n|---|---|")
     print(f"| Peer seats | {len(seats)} |")
     print(f"| Handback receipts | {total} |")
@@ -96,9 +151,12 @@ parser = argparse.ArgumentParser(description="Summarize eval results or delivery
 parser.add_argument("results", nargs="?", type=pathlib.Path, default=pathlib.Path(__file__).resolve().parent / "results")
 parser.add_argument("--receipts", nargs="?", type=pathlib.Path, metavar="DIR",
                     const=pathlib.Path(os.environ.get("PASEO_HOME", "").strip() or "~/.paseo").expanduser() / "epistex-delivery")
+parser.add_argument("--agents", type=pathlib.Path, metavar="FILE", help="JSON list of agents: id, provider, model, cwd")
+parser.add_argument("--include-test-seats", action="store_true", help="keep test seats in the receipt report")
 parser.add_argument("--exclude-task", type=re.compile, metavar="REGEX", help="drop Peer seats with a matching task ID (smoke tests)")
 args = parser.parse_args()
 if args.receipts:
-    report_receipts(args.receipts, args.exclude_task)
+    agents = {a["id"]: a for a in json.loads(args.agents.read_text())} if args.agents else {}
+    report_receipts(args.receipts, args.exclude_task, agents, args.include_test_seats)
 else:
     report_results(args.results)

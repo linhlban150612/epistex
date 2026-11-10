@@ -1,0 +1,143 @@
+#!/usr/bin/env python3
+"""Mechanical brief gate: check a Lead brief before it goes to a Peer.
+
+Usage: check-brief <brief.txt | brief.json | -> [--json]
+
+A text brief must carry the fields of the assignment template in agents/LEAD.md: Task ID, Round
+(a number), Owned scope, Authority and a baseline identity (a line that says base/baseline with a
+commit SHA, or a sha256 checksum with a path). A JSON brief uses the check-handoff schema:
+task_id, round, owned_scope, commit_allowed, base_sha. The handoff paragraph must not redefine the
+six handoff cells: it refers to § Handoff in the Peer prompt or names all six exact names.
+Prints OK or FAIL with reasons; exit 0 or 1. It checks shape only, not whether the brief is right.
+"""
+import argparse
+import importlib.machinery
+import json
+import pathlib
+import re
+import sys
+
+sys.dont_write_bytecode = True  # the kit folder stays clean
+handoff = importlib.machinery.SourceFileLoader(
+    "check_handoff", str(pathlib.Path(__file__).resolve().parent / "check-handoff")).load_module()
+PREFIX, EMPH = handoff.PREFIX, handoff.EMPH
+# Label at line start after optional markup, an optional note in parentheses, then the value; or
+# label with a colon inside a line, after a sentence or segment mark ("Project: x / Task ID: y").
+FIELD = (r"(?im)(?:^{prefix}(?:{label}){emph}?(?:[ \t]*\([^()\n]*\))?{emph}?[ \t]*[:|=]?"
+         r"|[.;,/|—–(-][ \t]+{emph}?(?:{label}){emph}?[ \t]*:){emph}?[ \t]*(.*)$")
+LABELS = {"Task ID": r"(?:Project[ \t]*/[ \t]*)?Task ID", "Round": "Round", "Owned scope": "Owned scope",
+          "Authority": "Authority"}
+ROUND_NUMBER = re.compile(r"(?i)\bround[*_`]*(?:[ \t]*\([^()\n]*\))?[ \t]*[:=]?[ \t]*[*_`]*(\d+)\b")
+ROUND_LABEL = re.compile(r"(?i)\bround[*_`]*(?:[ \t]*\([^()\n]*\))?[ \t]*:[ \t]*[*_`]*(\S+)")
+BASELINE = re.compile(r"(?i)\bbase(?:line)?\b")
+HANDOFF = re.compile(rf"(?im)^{PREFIX}Handoff\b.*(?:\n(?![ \t]*$).*)*")
+PEER_PROMPT = re.compile(r"(?i)§[ \t]*Handoff|(?:Peer|role) prompt|PEER\.md|Peer Handoff|six-cell handoff")
+CELL_NAMES = {cell: re.compile(r"(?i)(?<!\w)" + re.escape(cell).replace(r"\ /\ ", r"[ \t]*/[ \t]*") + r"(?!\w)")
+              for cell in handoff.CELLS}
+
+
+def field(text, label):
+    """Value of a template field: the rest of its line, else its continuation on the next line."""
+    match = re.search(FIELD.format(prefix=PREFIX, emph=EMPH, label=LABELS[label]), text)
+    if not match:
+        return None
+    value = match.group(1).strip(" \t|")
+    if not value:
+        following = text[match.end():].split("\n")[1:2]
+        # A continuation is indented or a list item; a line at the margin is the next field.
+        value = following[0].strip() if following and re.match(r"[ \t]+\S|[-*+][ \t]", following[0]) else ""
+    return value
+
+
+def has_baseline(text):
+    """A base/baseline line that carries a commit SHA, or a sha256 checksum with a path; the identity may be on the next line."""
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if not BASELINE.search(line):
+            continue
+        for candidate in (line, " ".join(lines[index:index + 2])):
+            if handoff.SHA256.search(candidate):
+                if handoff.PATH.search(handoff.SHA256.sub("", candidate)):
+                    return True
+            elif handoff.SHA.search(candidate):
+                return True
+    return False
+
+
+def check_text(text):
+    codes, reasons = [], []
+    task = field(text, "Task ID")
+    number, label = ROUND_NUMBER.search(text), ROUND_LABEL.search(text)
+    values = {"Task ID": task and re.split(r"[ \t]*[|;,][ \t]*", task)[0], "Round": number.group(1) if number else None,
+              "Owned scope": field(text, "Owned scope"), "Authority": field(text, "Authority")}
+    for name, value in values.items():
+        if value:
+            continue
+        if name == "Round" and label:
+            codes.append("ROUND_NOT_NUMBER")
+            reasons.append(f"Round must be a number (found {label.group(1)!r})")
+            continue
+        codes.append(name.upper().replace(" ", "_") + "_MISSING")
+        reasons.append(f"field '{name}' not found or empty")
+    if not has_baseline(text):
+        codes.append("BASELINE_MISSING")
+        reasons.append("no baseline: need a line with base/baseline and a commit SHA, or a sha256 checksum with a path")
+    for match in HANDOFF.finditer(text):
+        paragraph = match.group(0)
+        named = [cell for cell, pattern in CELL_NAMES.items() if pattern.search(paragraph)]
+        if len(named) < len(CELL_NAMES) and not PEER_PROMPT.search(paragraph):
+            absent = [cell for cell in CELL_NAMES if cell not in named]
+            codes.append("CELLS_REDEFINED")
+            reasons.append("handoff paragraph gives its own format (absent cell names: " + ", ".join(absent)
+                           + "); refer to § Handoff in the Peer prompt and add task needs as 'Add to <cell>: …'")
+            break
+    return {"fields": values, "codes": codes, "reasons": reasons, "valid": not codes}
+
+
+def check_json(brief):
+    codes, reasons = [], []
+    checks = {
+        "TASK_ID_MISSING": ("task_id", lambda v: isinstance(v, str) and v.strip()),
+        "ROUND_MISSING": ("round", lambda v: isinstance(v, int) and not isinstance(v, bool)),
+        "OWNED_SCOPE_MISSING": ("owned_scope", lambda v: isinstance(v, list) and v and all(isinstance(g, str) and g for g in v)),
+        "AUTHORITY_MISSING": ("commit_allowed", lambda v: isinstance(v, bool)),
+        "BASELINE_MISSING": ("base_sha", lambda v: isinstance(v, str) and handoff.SHA.fullmatch(v)),
+    }
+    for code, (key, ok) in checks.items():
+        if not ok(brief.get(key)):
+            codes.append(code)
+            reasons.append(f"brief.json key '{key}' missing or invalid")
+    return {"fields": {key: brief.get(key) for key, _ in checks.values()}, "codes": codes, "reasons": reasons,
+            "valid": not codes}
+
+
+def check(text):
+    try:
+        brief = json.loads(text)
+    except ValueError:
+        brief = None
+    return check_json(brief) if isinstance(brief, dict) else check_text(text)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("brief", help="brief text or brief.json; '-' reads standard input")
+    parser.add_argument("--json", action="store_true", help="print the result as JSON (exit status unchanged)")
+    args = parser.parse_args(argv)
+    try:
+        text = sys.stdin.read() if args.brief == "-" else pathlib.Path(args.brief).read_text(encoding="utf-8")
+    except OSError as error:
+        print(f"FAIL\n- {error}")
+        return 1
+    result = check(text)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False))
+    else:
+        print("OK" if result["valid"] else "FAIL")
+        for reason in result["reasons"]:
+            print(f"- {reason}")
+    return 0 if result["valid"] else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

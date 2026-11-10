@@ -86,7 +86,7 @@ Runtime layout, resume selection, environment variables and Seatworks compatibil
 | `setup/{amp,devin,copilot,cursor,kiro}-acp`, `setup/claude-sdk`, `setup/kiro-*.json` | Per-backend launchers and Kiro agent configs |
 | `setup/codex-room` | Select runtime/resume and generate Codex config |
 | `setup/setup-seats.sh`, `setup/normalize-profiles.jq`, `examples/paseo-providers.json` | Seat checker, profile normalizer and provider catalog |
-| `setup/check-handoff`, `setup/fail-on-base` | Mechanical gates for handoffs and reproducible-bug fixes |
+| `setup/check-brief`, `setup/check-handoff`, `setup/fail-on-base` | Mechanical gates for briefs, handoffs and reproducible-bug fixes |
 | `.agents/skills/*/SKILL.md` | Lead skills: Dual-Lane review, context reset, seat recovery, rework escalation, handling reopen/dependency requests; installed per project by `setup-seats.sh --project` |
 | `plugins/epistex-delivery/`, `docs/setup/delivery-plugin.md` | Required Paseo `>=0.15.0 <0.16` server plugin that relays a Peer's end-of-turn handback to its Lead; installed through `setup-seats.sh --install-plugin` after Human approval |
 | `.pi/settings.json`, `.omp/config.yml` | Checkout-scoped Pi/OMP compaction settings |

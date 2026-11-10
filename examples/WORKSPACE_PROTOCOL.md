@@ -66,6 +66,9 @@ Refer to Authority in `AGENTS.md`; record only additional coordination decisions
   writer for task artifacts, including tests/configuration/documentation and conflict resolution.
   If the Peer is blocked, the Lead does not write in their place.
 - This is a role contract, not a filesystem sandbox.
+- A task with a job that can outlast one tool call (build, benchmark, training, deploy): name the
+  `waiting-on-long-jobs` skill (`.agents/skills/waiting-on-long-jobs/SKILL.md`) in the brief. The
+  Peer waits inside its turn or returns `partial` with PID and log path.
 - repository-specific worktree location/convention:
 - integration owner:
 

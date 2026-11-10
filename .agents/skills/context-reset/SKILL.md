@@ -12,7 +12,7 @@ task, round, baseline, frozen candidate or authority.
 
 - Reset needs explicit Human confirmation. Silence, idle status or a notification is not confirmation.
 - No replacement writer before the old writer's cessation is verified
-  (see [common cessation gate](../../../agents/contract/COMMON.md#ownership-and-candidate-identity)).
+  (common cessation gate: `COMMON.md` §Ownership and candidate identity).
 - Preserve baseline, frozen candidate and rejected candidates. No candidate → resume from baseline.
 - No patrol, timer or heartbeat to watch the stuck agent; use a bounded check triggered by
   cancellation or a lifecycle event.

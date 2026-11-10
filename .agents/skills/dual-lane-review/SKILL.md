@@ -43,10 +43,9 @@ Do not remove `P1`–`P6`. A finding that fits no property uses `P0-other`.
 When the reviewed candidate has no Peer writer (a review-only request on an existing commit,
 snapshot or decision), the gate in step 0 still applies: the Lead confirms the required checks
 from checks the brief or the Human authorized the Lead to run, or from the Human's evidence,
-instead of a handoff. `P2-scope` and
-`P3-artifacts` are `not-checked (no writer)`; `P1`, `P4`, `P5` and `P6` still apply, `P5` against
-the requirements the review brief states and `P6` against the transitional code the review brief
-declares.
+instead of a handoff. `P2-scope` and `P3-artifacts` are `not-checked (no writer)`; `P1`, `P4`,
+`P5` and `P6` still apply, `P5` against the requirements the review brief states and `P6` against
+the transitional code the review brief declares.
 
 Judge evidence by the common proof rule (`COMMON.md` §Evidence): if the behavior disappeared
 and the proof would still pass, it is not evidence. Exit 0 and "tests pass" are signals, not
@@ -95,9 +94,9 @@ record the higher one.
    check that is not authorized or cannot run stays `pending`; `pending` is not a pass. Open
    lanes only when every required check passed, or the Human explicitly waived or deferred the
    rest. A **failed** check → after validating the writer's handback, request rework from the
-writer per `LEAD.md` §Acceptance. A
-   **`pending`** check → ask the Human to authorize, waive or defer it (`COMMON.md` §Evidence:
-   only the Human may waive/defer); the writer cannot resolve it, so do not send rework for it.
+   writer per `LEAD.md` §Acceptance. A **`pending`** check → ask the Human to authorize, waive or
+   defer it (`COMMON.md` §Evidence: only the Human may waive/defer); the writer cannot resolve it,
+   so do not send rework for it.
 1. Open two read-only Peers (Architect or Scout) from different model families. Record each
    lane's model ID and family evidence.
 2. Send both lanes an identical neutral brief on the same frozen candidate, in the `LEAD.md`

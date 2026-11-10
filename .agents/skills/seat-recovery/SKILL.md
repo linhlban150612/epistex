@@ -37,7 +37,7 @@ A `[epistex-delivery]` message with `kind: TURN_ENDED_NO_MESSAGE` or
 `TURN_ENDED_INVALID_HANDOFF` is a delivery from the kit's plugin, not a handoff and not acceptance.
 Treat it as `errored` / missing handoff: handle the `delivery-id` once, apply the incomplete
 handback retrieval if a body is present, otherwise follow the Monitoring rules for `errored`.
-The [cessation gate](../../../agents/contract/COMMON.md#ownership-and-candidate-identity) applies
+The cessation gate (`COMMON.md` §Ownership and candidate identity) applies
 before any replacement.
 
 ## Limits

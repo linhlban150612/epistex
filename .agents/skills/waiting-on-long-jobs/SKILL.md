@@ -1,6 +1,7 @@
 ---
 name: waiting-on-long-jobs
 description: Peer procedure for a command that can run longer than one tool call, such as a build, test suite, benchmark, training run, migration or deploy. Use before starting such a job, and before ending a turn while a process you started is still running.
+compatibility: Requires nohup and GNU coreutils tail (`tail --pid`); BSD and macOS tail do not have it.
 ---
 
 # Waiting on long jobs
@@ -49,5 +50,6 @@ process runs. The Lead decides the next round; you do not schedule your own retu
 
 ## Before any handoff
 
-Run `pgrep -P $$` or check your recorded PIDs. Each process you started is finished, stopped by
-you, or listed in the handoff as above.
+Check every PID you recorded with `kill -0 <pid>`: exit 0 means the process still runs. A detached
+job is not a child of your current shell, so a child-process listing does not show it. Each process
+you started is finished, stopped by you, or listed in the handoff as above.

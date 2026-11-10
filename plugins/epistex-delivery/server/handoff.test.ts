@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { classifyHandoff, parseHandoff, splitLines } from "./handoff.ts";
@@ -8,23 +9,44 @@ import { classifyHandoff, parseHandoff, splitLines } from "./handoff.ts";
 const ROOT = path.resolve(import.meta.dirname, "../../..");
 const FIXTURES = path.join(ROOT, "tests/fixtures/handoffs");
 const CHECK_HANDOFF = path.join(ROOT, "setup/check-handoff");
+// Real receipts from eval/extract-receipts. They hold project text, so they stay outside Git.
+const RECEIPTS = process.env.EPISTEX_RECEIPTS ?? path.join(ROOT, ".amp/in/receipts");
+
+function python(file: string): unknown {
+  return JSON.parse(
+    execFileSync("python3", [CHECK_HANDOFF, "--parse-only", file, "--json"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }),
+  );
+}
 
 function fixture(name: string): string {
   return readFileSync(path.join(FIXTURES, name), "utf8");
 }
 
-test("parity: every fixture classifies identically in TypeScript and setup/check-handoff", () => {
+test("parity: every fixture classifies identically in TypeScript and setup/check-handoff, with the expected codes", () => {
   const names = readdirSync(FIXTURES).filter((name) => name.endsWith(".txt")).sort();
-  assert.ok(names.length >= 5, `fixtures: ${names.join(", ")}`);
+  const expected = JSON.parse(fixture("expected.json")) as Record<string, string[]>;
+  assert.deepEqual(Object.keys(expected).sort(), names);
   for (const name of names) {
-    const python = JSON.parse(
-      execFileSync("python3", [CHECK_HANDOFF, "--parse-only", path.join(FIXTURES, name), "--json"], {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-      }),
-    );
-    assert.deepEqual(classifyHandoff(fixture(name)), python, name);
+    const result = classifyHandoff(fixture(name));
+    assert.deepEqual(result, python(path.join(FIXTURES, name)), name);
+    assert.deepEqual(result.codes, expected[name], name);
+    assert.equal(result.valid, expected[name].length === 0, name);
   }
+});
+
+test("real receipts: both parsers agree and no HANDBACK_VALID receipt becomes invalid", { skip: !existsSync(RECEIPTS) }, () => {
+  const names = readdirSync(RECEIPTS).filter((name) => name.endsWith(".json"));
+  assert.ok(names.length > 0);
+  const scratch = path.join(mkdtempSync(path.join(tmpdir(), "epistex-receipts-")), "body.txt");
+  for (const name of names) {
+    const receipt = JSON.parse(readFileSync(path.join(RECEIPTS, name), "utf8")) as { kind: string; body: string };
+    if (!receipt.body) continue;
+    const result = classifyHandoff(receipt.body);
+    writeFileSync(scratch, receipt.body);
+    assert.deepEqual(result, python(scratch), name);
+    if (receipt.kind === "HANDBACK_VALID") assert.equal(result.valid, true, name);
+  }
+  rmSync(path.dirname(scratch), { recursive: true });
 });
 
 test("valid.txt: header, six cells, two SHAs", () => {
@@ -66,6 +88,7 @@ test("candidate without two hex tokens or snapshot wording is rejected", () => {
   const text = fixture("valid.txt").replace(/^Candidate .*$/m, "Candidate          branch main worktree /tmp/repo");
   const result = classifyHandoff(text);
   assert.deepEqual(result.reasons, ["Candidate cell needs base SHA and candidate SHA (found 0)"]);
+  assert.deepEqual(result.codes, ["CANDIDATE_IDENTITY"]);
 });
 
 test("hex glued to letters is not a SHA; mixed line endings split like Python", () => {

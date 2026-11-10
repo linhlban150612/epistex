@@ -4,16 +4,36 @@
 export const CELLS = ["Outcome", "Candidate", "Scope", "Verification", "Unknown / risk", "Ownership"] as const;
 export type CellName = (typeof CELLS)[number];
 
+// Markup a Peer may put before a cell name or the header: quote, heading and table marks, a bullet,
+// a number ("1.", "1)", "(1)") and Markdown emphasis, in any order.
+const PREFIX = "(?:[ \\t|>#]|[-+*][ \\t]+|[0-9]+[.)][ \\t]*|\\([0-9]+\\)[ \\t]*|\\*\\*|__|[*_`])*";
+const EMPH = "(?:\\*\\*|__|[*_`])";
 // Round is the first token after "Round:"; a trailing note such as "(not changed by me)" is tolerated.
-const HEADER = /^Task ID:\s*(.+?)\s*\|\s*Round:\s*(\S+)/;
-// Cell name at line start, optionally wrapped in Markdown emphasis (**Outcome**, *Outcome*, `Outcome`),
-// followed by two spaces, a colon, or the end of the line.
-const CELL_START = new RegExp(
-  `^(?:[*_\`]{1,2})?(${CELLS.map(escapeRegExp).join("|")})(?:[*_\`]{1,2})?(?:\\s{2,}|\\s*:\\s*|\\s*$|(?<=[*_\`])\\s+)`,
+const HEADER = new RegExp(
+  `^${PREFIX}Task ID${EMPH}?[ \\t]*:${EMPH}?[ \\t]*(.+?)[ \\t]*\\|[ \\t]*${EMPH}?Round${EMPH}?[ \\t]*:${EMPH}?[ \\t]*([^\\s|]+)`,
 );
-// Python's \b is Unicode-aware; emulate it so a hex run glued to a letter is not a token.
-const SHA = /(?<![\p{L}\p{N}_])[0-9a-f]{7,40}(?![\p{L}\p{N}_])/gu;
-const SNAPSHOT = /snapshot|checksum|uncommitted|no candidate SHA/i;
+// Cell name at line start after optional markup. The name is exact (any case, free spacing around
+// "/"), then: closing emphasis, one parenthesised note, and a colon, a table bar, two spaces, one
+// space after closing emphasis, or the end of the line. One plain space does not end the name, so a
+// renamed cell ("Candidate identity:", "Scope / coverage", "Risks") and a sentence do not match.
+const CELL_START = new RegExp(
+  `^${PREFIX}(${CELLS.map((cell) => cell.replace(" / ", "[ \\t]*/[ \\t]*")).join("|")})${EMPH}?(?:[ \\t]*\\([^()\\n]*\\))?${EMPH}?` +
+    `(?:[ \\t]*:${EMPH}?[ \\t]*|[ \\t]*\\|[ \\t]*|[ \\t]{2,}|(?<=[*_\`])[ \\t]+|[ \\t]*$)`,
+  "iu",
+);
+const CANONICAL = new Map<string, CellName>(CELLS.map((cell) => [cell.replaceAll(" ", "").toLowerCase(), cell]));
+// Python's \w and \b are Unicode-aware; emulate them so a hex run glued to a letter is not a token.
+const W = "\\p{L}\\p{N}_";
+const B = `(?:(?<=[${W}])(?![${W}])|(?<![${W}])(?=[${W}]))`;
+const SHA = new RegExp(`${B}[0-9a-f]{7,40}${B}`, "gu");
+const SHA256 = new RegExp(`${B}[0-9a-f]{64}${B}`, "gu");
+const PATH = new RegExp(`[${W}.~\\-]*/[${W}.\\-]+|${B}[${W}\\-]+\\.[A-Za-z][A-Za-z0-9]{0,7}${B}`, "u");
+const NO_CANDIDATE = new RegExp(
+  `${B}(?:none|n/a|no (?:candidate|commits?|writes?|changes?|diff)|not committed|nothing (?:written|committed|changed))${B}` +
+    "|không (?:có )?(?:candidate|commit|ghi|thay đổi)",
+  "iu",
+);
+const STOPPED = new RegExp(`${B}(?:BLOCKED|REOPEN_REQUEST|DEPENDENCY_REQUEST)${B}`, "u");
 
 export interface HandoffHeader {
   task: string;
@@ -30,11 +50,8 @@ export interface HandoffClassification extends ParsedHandoff {
   shas: string[];
   snapshot: boolean;
   reasons: string[];
+  codes: string[];
   valid: boolean;
-}
-
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\\/]/g, "\\$&");
 }
 
 /** Python str.splitlines(): every line boundary, no trailing empty element. */
@@ -44,22 +61,29 @@ export function splitLines(text: string): string[] {
   return lines;
 }
 
+/** Cell text without the table bar that closes a Markdown table row. */
+function clean(text: string): string {
+  return text.trim().replace(/[ \t]*\|[ \t]*$/, "");
+}
+
 export function parseHandoff(text: string): ParsedHandoff {
   let header: HandoffHeader | null = null;
   const cells: Partial<Record<CellName, string>> = {};
   let current: CellName | null = null;
   for (const line of splitLines(text)) {
     if (header === null) {
-      const match = HEADER.exec(line.trim());
-      if (match) header = { task: match[1], round: match[2] };
+      const match = HEADER.exec(line);
+      if (match) header = { task: match[1].replace(/^[*_ \t]+|[*_ \t]+$/g, ""), round: match[2].replace(/[*_`]+$/, "") };
       continue;
     }
     const match = CELL_START.exec(line);
-    if (match) {
-      current = match[1] as CellName;
-      cells[current] = line.slice(match[0].length).trim();
-    } else if (current && line.trim()) {
-      cells[current] += "\n" + line.trim();
+    const name = match ? CANONICAL.get(match[1].replace(/[ \t]/g, "").toLowerCase()) : undefined;
+    if (match && name && !(name in cells)) {
+      // A later line that repeats a cell name is text of the current cell.
+      current = name;
+      cells[current] = clean(line.slice(match[0].length));
+    } else if (current && line.trim() && !/^[ \t|:-]+$/.test(line)) {
+      cells[current] += "\n" + clean(line);
     }
   }
   return { header, cells };
@@ -68,19 +92,33 @@ export function parseHandoff(text: string): ParsedHandoff {
 /**
  * Shape check without a brief or repository: the plugin's HANDBACK_VALID test. `shas` are the hex
  * tokens of the Candidate cell, unresolved, so `valid` means "looks like a complete handback", not
- * READY_FOR_REVIEW; the Lead still runs setup/check-handoff.
+ * READY_FOR_REVIEW; the Lead still runs setup/check-handoff. `codes` are the machine-readable form
+ * of `reasons`: HEADER_MISSING, CELL_MISSING:<name>, CANDIDATE_IDENTITY.
  */
 export function classifyHandoff(text: string): HandoffClassification {
   const { header, cells } = parseHandoff(text);
   const reasons: string[] = [];
-  if (header === null) reasons.push("handoff header 'Task ID: … | Round: …' not found");
+  const codes: string[] = [];
+  if (header === null) {
+    reasons.push("handoff header 'Task ID: … | Round: …' not found");
+    codes.push("HEADER_MISSING");
+  }
   const missing = CELLS.filter((cell) => !cells[cell]);
-  if (missing.length) reasons.push("missing cells: " + missing.join(", "));
+  if (missing.length) {
+    reasons.push("missing cells: " + missing.join(", "));
+    codes.push(...missing.map((cell) => "CELL_MISSING:" + cell));
+  }
   const candidate = cells.Candidate ?? "";
   const shas = [...candidate.matchAll(SHA)].map((match) => match[0]);
-  const snapshot = SNAPSHOT.test(candidate);
-  if (header !== null && !missing.length && shas.length < 2 && !snapshot) {
+  // Candidate identity, one of: two commit SHAs; a sha256 checksum with a path; a turn that stopped
+  // (BLOCKED, REOPEN_REQUEST, DEPENDENCY_REQUEST), where any non-empty cell is enough; or a base SHA
+  // with a clear statement that there is no candidate.
+  const snapshot = candidate.search(SHA256) >= 0 && PATH.test(candidate.replace(SHA256, ""));
+  const stopped = STOPPED.test(cells.Outcome ?? "");
+  const baseOnly = shas.length >= 1 && NO_CANDIDATE.test(candidate);
+  if (header !== null && !missing.length && shas.length < 2 && !snapshot && !stopped && !baseOnly) {
     reasons.push(`Candidate cell needs base SHA and candidate SHA (found ${shas.length})`);
+    codes.push("CANDIDATE_IDENTITY");
   }
-  return { header, cells, missing, shas, snapshot, reasons, valid: reasons.length === 0 };
+  return { header, cells, missing, shas, snapshot, reasons, codes, valid: reasons.length === 0 };
 }

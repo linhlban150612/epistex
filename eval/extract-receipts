@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+"""Extract delivery receipts into one JSON fixture per receipt.
+
+Usage: eval/extract-receipts --out DIR [--store DIR] [--logs DIR] [--agents rows.json] [--label]
+
+Sources:
+  --store   the delivery plugin's receipt store (*.jsonl). Primary source when given.
+  --logs    Lead logs (`paseo agent logs` dumps, *.log) that hold `[epistex-delivery]` messages.
+            With --store they are the cross-check and select the receipts: only receipts a Lead
+            log shows are written. Without --store the log blocks are the source; a log body can
+            end with untagged Lead text, so the store body is the exact one.
+  --agents  JSON list of agents (id, provider, model, cwd) to attach the Peer seat to each receipt.
+
+Each fixture holds the old `kind` and `reasons`, the body and `expected`. `expected` starts as
+the recorded result; --label replaces it with the result of setup/check-handoff on the body.
+Read every changed label by hand before you commit it. Paths under /home/<user> are replaced by
+/home/user; the script reports bodies that look like they hold a credential and does not write them.
+"""
+import argparse, json, pathlib, re, sys
+from importlib.machinery import SourceFileLoader
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+TAGS = ("User", "Shell", "Thought", "Other", "Read", "Edit", "Search", "Tasks", "Assistant", "Message received",
+        "Agent finished")
+BLOCK = re.compile(
+    r"^\[epistex-delivery\]\ndelivery-id: (?P<id>[0-9a-f]{64})\nkind: (?P<kind>\S+)\n"
+    r"peer: (?P<peer>\S+)  task: (?P<task>.*?)  round: (?P<round>\S+)\n(?P<rest>.*?)"
+    r"(?=^\[(?:%s)\]|\Z)" % "|".join(map(re.escape, TAGS)), re.M | re.S)
+TRAILING = "\n--- trailing text after handoff ---\n"
+HOME = re.compile(r"/home/[A-Za-z0-9_.-]+")
+SECRET = re.compile(
+    r"[a-z][a-z0-9+]*://[^\s/:@]+:[^\s/@]+@"            # URL with user:password
+    r"|-----BEGIN [A-Z ]*PRIVATE KEY-----"
+    r"|\b(?:sk-|pk_|ghp_|gho_|github_pat_|xox[abprs]-|AKIA|AIza)[-_A-Za-z0-9]{16,}"
+    r"|\b(?:password|passwd|secret|token|api[_-]?key)\b\s*[:=]\s*[\"']?[^\s\"'`<>*…]{8,}", re.I)
+
+
+def from_logs(directory):
+    """Receipts by delivery-id from Lead logs; a block inside a role prompt has no 64-hex id."""
+    found = {}
+    for path in sorted(directory.glob("*.log")):
+        for match in BLOCK.finditer(path.read_text(encoding="utf-8", errors="replace")):
+            head, _, body = match["rest"].partition("---\n")
+            body, _, _ = body.partition(TRAILING)
+            reasons = re.search(r"^reasons: (.*)$", head, re.M)
+            found.setdefault(match["id"], {
+                "deliveryId": match["id"], "kind": match["kind"], "peerAgentId": match["peer"], "leadAgentId": path.stem,
+                "taskId": None if match["task"] == "?" else match["task"],
+                "round": None if match["round"] == "?" else match["round"],
+                "reasons": reasons[1].split("; ") if reasons else [], "body": body.rstrip("\n")})
+    return found
+
+
+def from_store(directory):
+    found = {}
+    for path in sorted(directory.glob("*.jsonl")):
+        for line in path.read_text(encoding="utf-8").splitlines():
+            try:
+                item = json.loads(line)
+            except json.JSONDecodeError:
+                continue  # torn last line after a crash
+            if "kind" in item:
+                found.setdefault(item["deliveryId"], item)
+    return found
+
+
+def expected_of(record, classify):
+    if classify is None or record["kind"] not in ("HANDBACK_VALID", "TURN_ENDED_INVALID_HANDOFF"):
+        return {"valid": record["kind"] == "HANDBACK_VALID", "codes": []}
+    result = classify(record["body"])
+    return {"valid": result["valid"], "codes": result.get("codes", [])}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--out", type=pathlib.Path, required=True)
+    parser.add_argument("--store", type=pathlib.Path)
+    parser.add_argument("--logs", type=pathlib.Path)
+    parser.add_argument("--agents", type=pathlib.Path)
+    parser.add_argument("--label", action="store_true", help="set `expected` from setup/check-handoff")
+    args = parser.parse_args()
+    if not args.store and not args.logs:
+        parser.error("give --store, --logs or both")
+    logs = from_logs(args.logs) if args.logs else None
+    records = from_store(args.store) if args.store else logs
+    if args.store and logs is not None:
+        differ = [i for i in logs if i in records and (logs[i]["kind"] != records[i]["kind"]
+                                                       or not logs[i]["body"].startswith(records[i]["body"].strip()))]
+        print(f"store {len(records)}, logs {len(logs)}, log-only {len(set(logs) - set(records))}, "
+              f"store-only {len(set(records) - set(logs))}, kind/body differ {len(differ)}", file=sys.stderr)
+        for delivery in differ:
+            print(f"  differ: {delivery}", file=sys.stderr)
+        records = {i: records.get(i, logs[i]) for i in logs}
+    agents = {a["id"]: a for a in json.loads(args.agents.read_text())} if args.agents else {}
+    classify = SourceFileLoader("check_handoff", str(ROOT / "setup/check-handoff")).load_module().classify_handoff \
+        if args.label else None
+    args.out.mkdir(parents=True, exist_ok=True)
+    written, flagged = 0, []
+    for delivery, record in sorted(records.items()):
+        seat = agents.get(record["peerAgentId"], {})
+        fixture = {
+            "deliveryId": delivery, "kind": record["kind"], "reasons": record.get("reasons") or [],
+            "outcome": record.get("outcome"), "peerAgentId": record["peerAgentId"], "leadAgentId": record["leadAgentId"],
+            "taskId": record.get("taskId"), "round": record.get("round"), "createdAt": record.get("createdAt"),
+            "provider": seat.get("provider"), "model": seat.get("model"), "cwd": seat.get("cwd"),
+            "expected": expected_of(record, classify), "body": record.get("body") or "",
+        }
+        text = HOME.sub("/home/user", json.dumps(fixture, ensure_ascii=False, indent=1))
+        if SECRET.search(text):
+            flagged.append(delivery)
+            continue
+        (args.out / f"{delivery[:16]}.json").write_text(text + "\n", encoding="utf-8")
+        written += 1
+    print(f"wrote {written} receipt(s) to {args.out}", file=sys.stderr)
+    for delivery in flagged:
+        print(f"  not written, possible credential: {delivery}", file=sys.stderr)
+    return 1 if flagged else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

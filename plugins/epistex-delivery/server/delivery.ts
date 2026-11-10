@@ -64,7 +64,10 @@ export function formatDelivery(record: DeliveryRecord): string {
     lines.push(`lead: ${record.leadAgentId}`, "---", record.body);
     return lines.join("\n");
   }
-  if (record.kind !== "HANDBACK_VALID") lines.push(`reasons: ${record.reasons.join("; ")}`);
+  if (record.kind !== "HANDBACK_VALID") {
+    if (record.codes?.length) lines.push(`codes: ${record.codes.join(", ")}`);
+    lines.push(`reasons: ${record.reasons.join("; ")}`);
+  }
   const trailing = record.trailing ?? [];
   if (trailing.length) lines.push(`warning: trailing_text_after_handoff (${trailing.length} message(s))`);
   lines.push("---", record.body);
@@ -233,6 +236,8 @@ export class Delivery {
 
     let kind: DeliveryKind;
     let reasons: string[];
+    let codes: string[];
+    const canceled = event.outcome.kind === "canceled" ? ["TURN_CANCELED"] : [];
     let taskId: string | null = null;
     let round: string | null = null;
     let candidate: string | null = null;
@@ -251,6 +256,7 @@ export class Delivery {
       }
       kind = "TURN_ENDED_NO_MESSAGE";
       reasons = [`${describeOutcome(event.outcome)}; no assistant message after cursor`];
+      codes = [...canceled, "NO_MESSAGE"];
       lastMessageId = `turn:${event.turnId ?? "?"}:${event.outcome.kind}`;
     } else {
       body = last.item.text ?? "";
@@ -260,6 +266,7 @@ export class Delivery {
       candidate = result.shas.length >= 2 ? result.shas.join("..") : result.snapshot ? "snapshot" : null;
       kind = result.valid ? "HANDBACK_VALID" : "TURN_ENDED_INVALID_HANDOFF";
       reasons = result.valid ? [] : [describeOutcome(event.outcome), ...result.reasons];
+      codes = result.valid ? [] : [...canceled, ...result.codes];
       lastMessageId = last.item.messageId ?? `seq:${page.epoch}:${last.seqEnd}`;
     }
     const id = deliveryId({ peerAgentId, taskId, round, candidate, lastMessageId });
@@ -279,6 +286,7 @@ export class Delivery {
         messageId: last?.item.messageId ?? null,
         cursor,
         reasons,
+        ...(codes.length ? { codes } : {}),
         body,
         ...(trailing.length ? { trailing } : {}),
         state: "pending",

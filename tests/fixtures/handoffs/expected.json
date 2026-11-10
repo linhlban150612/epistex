@@ -1,0 +1,86 @@
+{
+ "bad-base-only.txt": [
+  "CANDIDATE_IDENTITY"
+ ],
+ "bad-checksum-no-path.txt": [
+  "CANDIDATE_IDENTITY"
+ ],
+ "bad-header-after-cell.txt": [
+  "CELL_MISSING:Outcome"
+ ],
+ "bad-merged-header-bar.txt": [
+  "HEADER_MISSING",
+  "CELL_MISSING:Outcome",
+  "CELL_MISSING:Candidate",
+  "CELL_MISSING:Scope",
+  "CELL_MISSING:Verification",
+  "CELL_MISSING:Unknown / risk",
+  "CELL_MISSING:Ownership"
+ ],
+ "bad-merged-header.txt": [
+  "HEADER_MISSING",
+  "CELL_MISSING:Outcome",
+  "CELL_MISSING:Candidate",
+  "CELL_MISSING:Scope",
+  "CELL_MISSING:Verification",
+  "CELL_MISSING:Unknown / risk",
+  "CELL_MISSING:Ownership"
+ ],
+ "bad-name-in-sentence.txt": [
+  "CELL_MISSING:Outcome"
+ ],
+ "bad-no-header.txt": [
+  "HEADER_MISSING",
+  "CELL_MISSING:Outcome",
+  "CELL_MISSING:Candidate",
+  "CELL_MISSING:Scope",
+  "CELL_MISSING:Verification",
+  "CELL_MISSING:Unknown / risk",
+  "CELL_MISSING:Ownership"
+ ],
+ "bad-one-space.txt": [
+  "CELL_MISSING:Outcome"
+ ],
+ "bad-renamed-cells.txt": [
+  "CELL_MISSING:Candidate",
+  "CELL_MISSING:Scope",
+  "CELL_MISSING:Unknown / risk"
+ ],
+ "emphasis.txt": [],
+ "empty.txt": [
+  "HEADER_MISSING",
+  "CELL_MISSING:Outcome",
+  "CELL_MISSING:Candidate",
+  "CELL_MISSING:Scope",
+  "CELL_MISSING:Verification",
+  "CELL_MISSING:Unknown / risk",
+  "CELL_MISSING:Ownership"
+ ],
+ "missing-cell.txt": [
+  "CELL_MISSING:Ownership"
+ ],
+ "no-round.txt": [
+  "HEADER_MISSING",
+  "CELL_MISSING:Outcome",
+  "CELL_MISSING:Candidate",
+  "CELL_MISSING:Scope",
+  "CELL_MISSING:Verification",
+  "CELL_MISSING:Unknown / risk",
+  "CELL_MISSING:Ownership"
+ ],
+ "ok-base-only.txt": [],
+ "ok-bold-colon.txt": [],
+ "ok-heading.txt": [],
+ "ok-note-and-case.txt": [],
+ "ok-numbered.txt": [],
+ "ok-snapshot.txt": [],
+ "ok-stopped.txt": [],
+ "ok-table.txt": [],
+ "truncated.txt": [
+  "CELL_MISSING:Scope",
+  "CELL_MISSING:Verification",
+  "CELL_MISSING:Unknown / risk",
+  "CELL_MISSING:Ownership"
+ ],
+ "valid.txt": []
+}

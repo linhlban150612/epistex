@@ -1,0 +1,8 @@
+Task ID: T-1 | Round: 1
+
+Outcome: BLOCKED; Done: none; Not done: all
+Candidate: branch main worktree /tmp/repo, brief has no base
+Scope: Changed: src/a.py; Read: README.md
+Verification: `true` exit 0
+Unknown / risk: none
+Ownership: stopped writing, scope returned

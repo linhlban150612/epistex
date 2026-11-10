@@ -29,6 +29,8 @@ export interface DeliveryRecord {
   messageId: string | null;
   cursor: OutboxCursor | null;
   reasons: string[];
+  /** Machine-readable reasons: HEADER_MISSING, CELL_MISSING:<name>, CANDIDATE_IDENTITY, TURN_CANCELED, NO_MESSAGE. Absent on older receipts. */
+  codes?: string[];
   body: string;
   /** Assistant text the Peer wrote after the delivered handoff in the same turn (warning, not failure). */
   trailing?: string[];

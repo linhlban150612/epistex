@@ -139,7 +139,8 @@ test("invalid handoff carries the parser reasons; a turn with no assistant messa
     assert.equal(invalid.kind, "TURN_ENDED_INVALID_HANDOFF");
     assert.equal(invalid.taskId, "T-1");
     assert.deepEqual(invalid.reasons, ["turn completed", "missing cells: Ownership"]);
-    assert.match(fake.sent[0].text, /^kind: TURN_ENDED_INVALID_HANDOFF\npeer: peer-1  task: T-1  round: 1\nreasons: turn completed; missing cells: Ownership\n---\n/m);
+    assert.match(fake.sent[0].text, /^kind: TURN_ENDED_INVALID_HANDOFF\npeer: peer-1  task: T-1  round: 1\ncodes: CELL_MISSING:Ownership\nreasons: turn completed; missing cells: Ownership\n---\n/m);
+    assert.deepEqual(invalid.codes, ["CELL_MISSING:Ownership"]);
 
     const none = outbox.records().find((r) => r.peerAgentId === "peer-2")!;
     assert.equal(none.kind, "TURN_ENDED_NO_MESSAGE");
@@ -148,7 +149,7 @@ test("invalid handoff carries the parser reasons; a turn with no assistant messa
     assert.equal(none.taskId, null);
     assert.deepEqual(none.reasons, ["turn failed: provider exited; no assistant message after cursor"]);
     assert.equal(fake.sent[1].text, formatDelivery(none));
-    assert.match(fake.sent[1].text, /peer: peer-2  task: \?  round: \?\nreasons: turn failed: provider exited; no assistant message after cursor\n---\n$/);
+    assert.match(fake.sent[1].text, /peer: peer-2  task: \?  round: \?\ncodes: NO_MESSAGE\nreasons: turn failed: provider exited; no assistant message after cursor\n---\n$/);
     assert.deepEqual(outbox.cursor("peer-2"), { epoch: "e2", seq: 1 });
   });
 });
@@ -207,6 +208,7 @@ test("a completed turn with no new assistant message is logged, not delivered; a
     assert.equal(outbox.records()[0]?.kind, "TURN_ENDED_NO_MESSAGE");
     assert.equal(outbox.records()[0]?.outcome, "canceled");
     assert.deepEqual(outbox.records()[0]?.reasons, ["turn canceled: daemon restart; no assistant message after cursor"]);
+    assert.deepEqual(outbox.records()[0]?.codes, ["TURN_CANCELED", "NO_MESSAGE"]);
   });
 });
 

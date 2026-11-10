@@ -17,7 +17,12 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
 - **Parser.** `server/handoff.ts` ports `parse_handoff`/`classify_handoff` from
   `setup/check-handoff`. `check-handoff --parse-only <file> --json` is the parity oracle:
   `tests/fixtures/handoffs/` runs through both (`node --test` in the plugin, driven by
-  `tests/test_delivery_plugin.py`).
+  `tests/test_delivery_plugin.py`); `expected.json` there holds the reason codes of each accepted
+  markup form (`ok-*`) and each rejection (`bad-*`). Real receipts stay outside Git:
+  `eval/extract-receipts --out .amp/in/receipts` writes them and the parity test reads
+  `$EPISTEX_RECEIPTS` (default `.amp/in/receipts`), skipped when the folder is absent. An invalid
+  receipt carries `codes` (`HEADER_MISSING`, `CELL_MISSING:<name>`, `CANDIDATE_IDENTITY`,
+  `TURN_CANCELED`, `NO_MESSAGE`) in the record and as a `codes:` line before `reasons:`.
 - **Receipt store** (`server/outbox.ts`, under `${PASEO_HOME:-~/.paseo}/epistex-delivery/`):
   `<leadAgentId>.jsonl` is append-only with `fsync`; a `sent` update is a second line for the same
   `deliveryId`, folded on load; a torn last line is skipped with a warning. `cursors.json` is

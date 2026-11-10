@@ -1,0 +1,8 @@
+Task ID: T-1 | Round: 1
+
+- OUTCOME: complete; Done: x; Not done: none
+Candidate: base 3f2a9c1d4e5b6a7f8091a2b3c4d5e6f708192a3b candidate 9c3b6e5f4a2d1c0b8e7f6a5d4c3b2a1908f7e6d5 branch main worktree /tmp/repo
+Scope: Changed: src/a.py; Read: README.md
+Verification (real output): `true` exit 0
+unknown/Risk: none
+Ownership: stopped writing, scope returned

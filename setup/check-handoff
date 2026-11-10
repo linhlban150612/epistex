@@ -8,7 +8,7 @@ Prints READY_FOR_REVIEW or FAIL with reasons; exit 0/1. Never prints ACCEPTED:
 behaviour, tests, public contract, open findings and cessation stay with the Lead.
 
 --parse-only runs the parser without a brief or repository and reports the handoff shape
-(header, cells, hex tokens in Candidate, snapshot wording). plugins/epistex-delivery/server/handoff.ts
+(header, cells, hex tokens in Candidate, checksum snapshot, reason codes). plugins/epistex-delivery/server/handoff.ts
 ports the same parser; tests/fixtures/handoffs/ keeps both in parity.
 """
 
@@ -20,57 +20,88 @@ import subprocess
 import sys
 
 CELLS = ("Outcome", "Candidate", "Scope", "Verification", "Unknown / risk", "Ownership")
+# Markup a Peer may put before a cell name or the header: quote, heading and table marks, a bullet,
+# a number ("1.", "1)", "(1)") and Markdown emphasis, in any order.
+PREFIX = r"(?:[ \t|>#]|[-+*][ \t]+|[0-9]+[.)][ \t]*|\([0-9]+\)[ \t]*|\*\*|__|[*_`])*"
+EMPH = r"(?:\*\*|__|[*_`])"
 # Round is the first token after "Round:"; a trailing note such as "(not changed by me)" is tolerated.
-HEADER = re.compile(r"^Task ID:\s*(?P<task>.+?)\s*\|\s*Round:\s*(?P<round>\S+)")
-# Cell name at line start, optionally wrapped in Markdown emphasis (**Outcome**, *Outcome*, `Outcome`),
-# followed by two spaces, a colon, or the end of the line.
-CELL_START = re.compile(r"^(?:[*_`]{1,2})?(%s)(?:[*_`]{1,2})?(?:\s{2,}|\s*:\s*|\s*$|(?<=[*_`])\s+)"
-                        % "|".join(re.escape(c) for c in CELLS))
+HEADER = re.compile(r"^%sTask ID%s?[ \t]*:%s?[ \t]*(?P<task>.+?)[ \t]*\|[ \t]*%s?Round%s?[ \t]*:%s?[ \t]*(?P<round>[^\s|]+)"
+                    % (PREFIX, EMPH, EMPH, EMPH, EMPH, EMPH))
+# Cell name at line start after optional markup. The name is exact (any case, free spacing around
+# "/"), then: closing emphasis, one parenthesised note, and a colon, a table bar, two spaces, one
+# space after closing emphasis, or the end of the line. One plain space does not end the name, so a
+# renamed cell ("Candidate identity:", "Scope / coverage", "Risks") and a sentence do not match.
+CELL_START = re.compile(
+    r"^%s(?P<name>%s)%s?(?:[ \t]*\([^()\n]*\))?%s?"
+    r"(?:[ \t]*:%s?[ \t]*|[ \t]*\|[ \t]*|[ \t]{2,}|(?<=[*_`])[ \t]+|[ \t]*$)"
+    % (PREFIX, "|".join(re.escape(c).replace(r"\ /\ ", r"[ \t]*/[ \t]*") for c in CELLS), EMPH, EMPH, EMPH),
+    re.I)
+CANONICAL = {c.replace(" ", "").lower(): c for c in CELLS}
 SHA = re.compile(r"\b[0-9a-f]{7,40}\b")
+SHA256 = re.compile(r"\b[0-9a-f]{64}\b")
+PATH = re.compile(r"[\w.~-]*/[\w.-]+|\b[\w-]+\.[A-Za-z][A-Za-z0-9]{0,7}\b")
 SNAPSHOT = re.compile(r"snapshot|checksum|uncommitted|no candidate SHA", re.I)
+NO_CANDIDATE = re.compile(r"\b(?:none|n/a|no (?:candidate|commits?|writes?|changes?|diff)|not committed|nothing (?:written|committed|changed))\b"
+                          r"|không (?:có )?(?:candidate|commit|ghi|thay đổi)", re.I)
+STOPPED = re.compile(r"\b(?:BLOCKED|REOPEN_REQUEST|DEPENDENCY_REQUEST)\b")
 EXIT = re.compile(r"\b(?:exit(?:\s+(?:status|code))?|rc|status)\s*[:=]?\s*(\d+)\b", re.I)
 # A reported run is a deliberate baseline run when its line names the base, a stash or a
 # regression check. Such runs may fail; the candidate run must still report exit 0.
 BASELINE = re.compile(r"\b(?:base|baseline|stash(?:ed)?|regression|before the fix|without the fix)\b", re.I)
 
 
+def clean(text):
+    """Cell text without the table bar that closes a Markdown table row."""
+    return re.sub(r"[ \t]*\|[ \t]*$", "", text.strip())
+
+
 def parse_handoff(text):
     header, cells, current = None, {}, None
     for line in text.splitlines():
         if header is None:
-            match = HEADER.match(line.strip())
+            match = HEADER.match(line)
             if match:
-                header = match.groupdict()
+                header = {"task": match["task"].strip("*_ \t"), "round": match["round"].rstrip("*_`")}
             continue
         match = CELL_START.match(line)
-        if match:
-            current = match.group(1)
-            cells[current] = line[match.end():].strip()
-        elif current and line.strip():
-            cells[current] += "\n" + line.strip()
+        name = CANONICAL.get(re.sub(r"[ \t]", "", match["name"]).lower()) if match else None
+        if name and name not in cells:  # a later line that repeats a cell name is text of the current cell
+            current = name
+            cells[current] = clean(line[match.end():])
+        elif current and line.strip() and not re.fullmatch(r"[ \t|:-]+", line):
+            cells[current] += "\n" + clean(line)
     return header, cells
 
 
 def classify_handoff(text):
     """Shape check without a brief or repository: the delivery plugin's HANDBACK_VALID test.
 
-    `shas` are hex tokens in the Candidate cell; they are not resolved to commits here, so
-    `valid` means "looks like a complete handback", not READY_FOR_REVIEW.
+    `shas` are the hex tokens in the Candidate cell; they are not resolved to commits here,
+    so `valid` means "looks like a complete handback", not READY_FOR_REVIEW. `codes` are the
+    machine-readable form of `reasons`: HEADER_MISSING, CELL_MISSING:<name>, CANDIDATE_IDENTITY.
     """
     header, cells = parse_handoff(text)
-    reasons = []
+    reasons, codes = [], []
     if header is None:
         reasons.append("handoff header 'Task ID: … | Round: …' not found")
+        codes.append("HEADER_MISSING")
     missing = [c for c in CELLS if not cells.get(c)]
     if missing:
         reasons.append("missing cells: " + ", ".join(missing))
+        codes += ["CELL_MISSING:" + c for c in missing]
     candidate = cells.get("Candidate", "")
     shas = SHA.findall(candidate)
-    snapshot = SNAPSHOT.search(candidate) is not None
-    if header is not None and not missing and len(shas) < 2 and not snapshot:
+    # Candidate identity, one of: two commit SHAs; a sha256 checksum with a path; a turn that stopped
+    # (BLOCKED, REOPEN_REQUEST, DEPENDENCY_REQUEST), where any non-empty cell is enough; or a base SHA
+    # with a clear statement that there is no candidate.
+    snapshot = SHA256.search(candidate) is not None and PATH.search(SHA256.sub("", candidate)) is not None
+    stopped = STOPPED.search(cells.get("Outcome", "")) is not None
+    base_only = len(shas) >= 1 and NO_CANDIDATE.search(candidate) is not None
+    if header is not None and not missing and len(shas) < 2 and not snapshot and not stopped and not base_only:
         reasons.append(f"Candidate cell needs base SHA and candidate SHA (found {len(shas)})")
+        codes.append("CANDIDATE_IDENTITY")
     return {"header": header, "cells": cells, "missing": missing, "shas": shas, "snapshot": snapshot,
-            "reasons": reasons, "valid": not reasons}
+            "reasons": reasons, "codes": codes, "valid": not reasons}
 
 
 def glob_to_regex(pattern):

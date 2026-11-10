@@ -169,6 +169,14 @@ class CheckHandoffTest(unittest.TestCase):
                 self.assertEqual(as_text.returncode, 1)
                 self.assertIn(reason, as_text.stdout)
         self.assertEqual(parse_only("valid.txt").stdout.strip(), "VALID")
+        # One fixture per accepted markup form (ok-*) and per rejection (bad-*), with its reason codes.
+        expected = json.loads((fixtures / "expected.json").read_text())
+        self.assertEqual(sorted(expected), sorted(path.name for path in fixtures.glob("*.txt")))
+        for name, codes in expected.items():
+            with self.subTest(name):
+                result = json.loads(parse_only(name, "--json").stdout)
+                self.assertEqual(result["codes"], codes)
+                self.assertEqual(result["valid"], not codes)
         missing_args = subprocess.run([sys.executable, str(SCRIPT), "brief.json"], text=True, capture_output=True, env=ENV)
         self.assertEqual(missing_args.returncode, 2)
         self.assertIn("brief and handoff are required", missing_args.stderr)

@@ -12,9 +12,8 @@ Không suy engine từ ACP protocol version: cả v2/v3 đều dùng version 1.
 Giữ nguyên credentials, sessions, settings và các agent khác. Cài riêng file seat-owned
 `setup/kiro-peer.json` thành `~/.kiro/agents/epistex_peer.json`; nếu tên đó đã thuộc cấu hình
 khác, dừng và xin quyết định của Human, không overwrite. Không dùng symlink.
-Nâng cấp từ seat v2: file cài cũ có `allowedTools` và V3 **bỏ qua** profile có `allowedTools`
-mà không có `permissions`. Nếu file đang cài trùng byte với bản v2 của kit thì backup
-(`.before-v3-<timestamp>`) rồi copy bản mới; `cp -n` không ghi đè.
+V3 **bỏ qua** profile có `allowedTools` mà không có `permissions`: nếu file đang cài là bản
+seat cũ có `allowedTools`, thay bằng bản mới; `cp -n` không ghi đè.
 
 ```bash
 mkdir -p ~/.kiro/agents
@@ -170,10 +169,9 @@ Trạng thái live: trên CLI 2.33.1, Paseo 0.12.0, bốn profile `kiro-peer` v�
 Sonnet/low launch với đúng mode/model/effort, nhận `# Common contract` cộng heading role, CWD là project;
 Peer chỉ có native tools; catalog Lead có đúng 11 tool `paseo::*`, không có `speak`;
 Lead gọi `list_workspaces` không bị hỏi quyền. Trên CLI 2.34.0, Paseo 0.13.0, `kiro-peer` launch lại đúng
-role/CWD/tools, và `kiro-lead` tạo `kiro-peer` qua `create_agent` rồi nhận notification `finished` có
-`<agent-response>`. Hành vi notification khi daemon restart: [README](../../README.md#cautions-and-known-limitations).
-Chưa live-cover `session/cancel`, `session/resume` và `session/load` qua lifecycle Paseo. Chưa kiểm qua
-Paseo thì chỉ kết luận ACP metadata/fixture verified, không kết luận seat đã được chấp nhận.
+role/CWD/tools, và `kiro-lead` tạo `kiro-peer` qua `create_agent`; handback hiện đi qua
+[delivery plugin](delivery-plugin.md), không qua native notification. Chưa live-cover `session/cancel`,
+`session/resume` và `session/load` qua lifecycle Paseo. Chưa kiểm qua Paseo thì chỉ kết luận ACP metadata/fixture verified, không kết luận seat đã được chấp nhận.
 
 Nguồn authoritative (running capabilities thắng ví dụ tài liệu):
 [ACP](https://kiro.dev/docs/acp/), [V3 ACP migration](https://kiro.dev/docs/cli/v3/acp-migration/),

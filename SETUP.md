@@ -207,7 +207,8 @@ does not absolutely stop a shell from calling the CLI.
 ## ACP proxy seats
 
 Common part for Devin, Copilot and Cursor ([devin.md](docs/setup/devin.md),
-[copilot.md](docs/setup/copilot.md), [cursor.md](docs/setup/cursor.md)).
+[copilot.md](docs/setup/copilot.md), [cursor.md](docs/setup/cursor.md)). ACP agent sources:
+the [ACP registry](https://github.com/agentclientprotocol/registry) and [Kiro ACP](https://kiro.dev/docs/acp).
 
 - **Merge:** back up, then merge into `.agents.providers`. Do not replace the original backend or its
   credential/config home.

@@ -16,7 +16,6 @@
 - `docs/setup/claude.md`, `docs/setup/amp.md`, `docs/setup/pi-omp.md`, `docs/setup/devin.md`,
   `docs/setup/copilot.md`, `docs/setup/cursor.md`, `docs/setup/antigravity.md`,
   `docs/setup/droid.md`, `docs/setup/kiro.md`: backend-specific role-seat setup.
-- `docs/setup/acp.md`: ACP registry sources.
 - `docs/setup/context-compaction.md`: per-backend compaction thresholds and limits.
 - `docs/setup/codex-runtime.md`: Codex runtime/resume, environment compatibility, Peer sandbox
   and Supervisor pin.

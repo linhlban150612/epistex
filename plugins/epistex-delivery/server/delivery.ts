@@ -1,5 +1,6 @@
 // Turn-ended delivery: read the Peer's last assistant message, classify it with the shared parser,
 // record it in the outbox (fsync) and hand it to the Lead. Event-gated only: no timers, no polling.
+import { briefOf, checkBrief } from "./brief.ts";
 import { classifyHandoff } from "./handoff.ts";
 import { deliveryId, recipientOf, type DeliveryKind, type DeliveryRecord, type Outbox, type OutboxCursor } from "./outbox.ts";
 import type { Logger, PermissionEvent, TurnEndedEvent } from "./plugin.ts";
@@ -24,6 +25,7 @@ export interface TimelinePage {
   reset?: boolean;
   staleCursor?: boolean;
   hasNewer?: boolean;
+  hasOlder?: boolean;
   entries: TimelineEntry[];
 }
 export interface AgentSnapshot {
@@ -100,6 +102,12 @@ export function roundWarnings(
   if (reused) warnings.push("task reused across peers");
   return warnings;
 }
+
+/**
+ * Tool calls in one Peer session above which a receipt warns the Lead. In 179 Peer sessions over
+ * seven days the 95th percentile was 168 calls; the sessions above it lost the brief's rules.
+ */
+export const TOOL_CALL_LIMIT = 150;
 
 function describeOutcome(outcome: TurnEndedEvent["outcome"]): string {
   if (outcome.kind === "failed") return `turn failed: ${outcome.error.message}`;
@@ -242,6 +250,8 @@ export class Delivery {
 
   private async recordTurn(event: TurnEndedEvent, leadAgentId: string, paseo: DeliveryPaseo, outcomeKnown = true): Promise<void> {
     const peerAgentId = event.agent.id;
+    // First read of this Peer: its first prompt is the Lead's brief, checked once below.
+    const firstTurn = !this.outbox.cursor(peerAgentId);
     const { page, entries, end } = await this.readAfterCursor(peerAgentId, paseo);
     const assistant = entries.filter((entry) => entry.item.type === "assistant_message");
     const inTurn = event.turnId ? assistant.filter((entry) => entry.turnId === event.turnId) : [];
@@ -300,6 +310,11 @@ export class Delivery {
       this.log.info(`delivery ${id.slice(0, 12)} already recorded for ${peerAgentId}; replay`);
     } else {
       const warnings = roundWarnings({ peerAgentId, leadAgentId, taskId, round }, this.outbox.records());
+      const briefCodes = firstTurn ? await this.briefCodes(peerAgentId, leadAgentId, page, entries, paseo) : null;
+      const toolCalls = entries.filter((entry) => entry.item.type === "tool_call").length;
+      const sessionCalls = this.outbox.records().reduce((sum, record) => sum + (record.peerAgentId === peerAgentId ? (record.toolCalls ?? 0) : 0), toolCalls);
+      if (sessionCalls >= TOOL_CALL_LIMIT) warnings.push(`peer session at ${sessionCalls} tool calls (limit ${TOOL_CALL_LIMIT}); context-reset or a new Peer advised`);
+      if (briefCodes?.length) warnings.push(`brief failed check-brief: ${briefCodes.join(", ")}`);
       await this.outbox.append({
         deliveryId: id,
         peerAgentId,
@@ -315,6 +330,8 @@ export class Delivery {
         reasons,
         ...(codes.length ? { codes } : {}),
         ...(warnings.length ? { warnings } : {}),
+        ...(briefCodes ? { briefCodes } : {}),
+        toolCalls,
         body,
         ...(trailing.length ? { trailing } : {}),
         state: "pending",
@@ -360,6 +377,28 @@ export class Delivery {
       }
     }
     return { page, entries, end };
+  }
+
+  /**
+   * check-brief codes for the brief that opened this Peer's session: the Lead's agent-message in
+   * the Peer's first user message. Empty when the brief passes; null when no brief was found, so
+   * nothing is reported. A failure to read the start of the timeline must not stop the delivery.
+   */
+  private async briefCodes(peerAgentId: string, leadAgentId: string, page: TimelinePage, tail: TimelineEntry[], paseo: DeliveryPaseo): Promise<string[] | null> {
+    let entries = tail;
+    if (page.hasOlder) {
+      try {
+        const start = await paseo.agents.ref(peerAgentId).timeline.refetch({ direction: "after", cursor: { epoch: page.epoch, seq: 0 }, limit: PAGE_LIMIT });
+        if (start.reset || start.staleCursor || start.epoch !== page.epoch) return null;
+        entries = start.entries;
+      } catch (error) {
+        this.log.error(`brief of ${peerAgentId} not read: ${error instanceof Error ? error.message : String(error)}`);
+        return null;
+      }
+    }
+    const first = entries.find((entry) => entry.item.type === "user_message");
+    const brief = first ? briefOf(first.item.text ?? "", leadAgentId) : null;
+    return brief === null ? null : checkBrief(brief);
   }
 
   /** The last assistant text already recorded for a Peer: the newest receipt's trailing text, else its body. */

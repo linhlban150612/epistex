@@ -33,6 +33,10 @@ export interface DeliveryRecord {
   codes?: string[];
   /** Notes for the Lead that do not change `kind`: round above the rework limit, task reused across Peers. */
   warnings?: string[];
+  /** check-brief codes of the Lead's brief, on the Peer's first receipt only; empty when the brief passes. Absent when no brief was read. */
+  briefCodes?: string[];
+  /** Tool calls the Peer made in the timeline read for this receipt; summed per Peer for the session warning. Absent on older receipts. */
+  toolCalls?: number;
   body: string;
   /** Assistant text the Peer wrote after the delivered handoff in the same turn (warning, not failure). */
   trailing?: string[];

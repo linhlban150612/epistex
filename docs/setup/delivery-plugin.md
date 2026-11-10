@@ -28,6 +28,16 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
   required`. A Peer's first receipt for a task, at a round above one that another Peer of the same
   Lead reported, carries `warning: task reused across peers`; the receipt store supplies the earlier
   receipts. Warnings are stored in `warnings` and never change `kind`.
+- **Brief check** (`server/brief.ts`, a port of `setup/check-brief`; `brief.test.ts` holds the
+  parity cases). On a Peer's first receipt the plugin reads the Peer's first user message, takes
+  the body of the Lead's `agent-message` envelope (role instructions an ACP launcher put before it
+  are left out) and stores its codes in `briefCodes`; an empty list is a pass. A failed brief adds
+  `warning: brief failed check-brief: <codes>`. The warning arrives with the first handback, not
+  before the Peer starts. A first prompt that is not this Lead's agent message is not checked.
+- **Tool-call count**. Each receipt stores `toolCalls`, the `tool_call` entries read for it. When
+  the sum for one Peer reaches 150 (`TOOL_CALL_LIMIT`), the receipt carries `warning: peer session
+  at <n> tool calls (limit 150); context-reset or a new Peer advised`. A first turn longer than
+  the 200-entry tail is counted from the tail only, so the count is a lower bound.
 - **Receipt store** (`server/outbox.ts`, under `${PASEO_HOME:-~/.paseo}/epistex-delivery/`):
   `<leadAgentId>.jsonl` is append-only with `fsync`; a `sent` update is a second line for the same
   `deliveryId`, folded on load; a torn last line is skipped with a warning. `cursors.json` is

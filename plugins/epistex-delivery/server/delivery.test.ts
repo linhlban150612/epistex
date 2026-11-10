@@ -503,3 +503,68 @@ test("permission request: goes to the Lead without a live Supervisor parent; ign
     assert.deepEqual(outbox.records().map((r) => r.recipientAgentId), [undefined, undefined]);
   });
 });
+
+test("first receipt of a Peer checks the Lead's brief: a failed brief warns the Lead, a later turn is not checked again", async () => {
+  const user = (body: string, seqEnd: number): TimelineEntry => ({
+    item: { type: "user_message", text: `Role instructions for this session:\nOwned scope in the brief is your write authority.\n<paseo-system version="1" kind="agent-message" source-agent-id="lead-1" message-id="m0">\n${body}\n</paseo-system>` },
+    seqEnd,
+  });
+  const good =
+    "Task ID: T-1\nRound: 1\nBaseline: base 3f2a9c1d4e5b6a7f8091a2b3c4d5e6f708192a3b\nOwned scope: src/** &amp; docs\nAuthority: edit files in owned scope\n";
+  await scratch(async (delivery, outbox) => {
+    // The tail does not reach the first prompt: the start of the timeline is read once.
+    const fake = fakePaseo(
+      { "lead-1": leadIdle },
+      { "peer-1": [{ epoch: "e1", hasOlder: true, entries: [assistant(VALID, 300, { messageId: "m9" })] }, { epoch: "e1", entries: [user("Fix the login bug. Round: 1", 1)] }] },
+    );
+    await delivery.onTurnEnded(peerTurn(), fake.paseo);
+    assert.deepEqual(fake.refetches.map((r) => r.options), [
+      { direction: "tail", limit: 200 },
+      { direction: "after", cursor: { epoch: "e1", seq: 0 }, limit: 200 },
+    ]);
+    const [record] = outbox.records();
+    assert.equal(record.kind, "HANDBACK_VALID", "a brief warning does not change the kind");
+    assert.deepEqual(record.briefCodes, ["TASK_ID_MISSING", "OWNED_SCOPE_MISSING", "AUTHORITY_MISSING", "BASELINE_MISSING"]);
+    assert.match(fake.sent[0].text, /^warning: brief failed check-brief: TASK_ID_MISSING, OWNED_SCOPE_MISSING, AUTHORITY_MISSING, BASELINE_MISSING$/m);
+
+    const later = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [{ epoch: "e1", entries: [user("rework", 301), assistant(VALID.replace("Round: 1", "Round: 2"), 310, { messageId: "m10", turnId: "t2" })] }] });
+    await delivery.onTurnEnded(peerTurn({ turnId: "t2" }), later.paseo);
+    assert.equal(outbox.records()[1].briefCodes, undefined);
+    assert.doesNotMatch(later.sent[0].text, /check-brief/);
+  });
+  await scratch(async (delivery, outbox) => {
+    const fake = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [{ epoch: "e1", entries: [user(good, 1), assistant(VALID, 9)] }] });
+    await delivery.onTurnEnded(peerTurn(), fake.paseo);
+    assert.deepEqual(outbox.records()[0].briefCodes, [], "a passing brief is recorded with no codes");
+    assert.doesNotMatch(fake.sent[0].text, /warning:/);
+  });
+  await scratch(async (delivery, outbox) => {
+    // A first prompt that is not this Lead's agent-message (a Human prompt) is not checked.
+    const fake = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [{ epoch: "e1", entries: [{ item: { type: "user_message", text: "hello" }, seqEnd: 1 }, assistant(VALID, 9)] }] });
+    await delivery.onTurnEnded(peerTurn(), fake.paseo);
+    assert.equal(outbox.records()[0].briefCodes, undefined);
+  });
+});
+
+test("tool calls are counted per Peer across receipts; at the limit the receipt warns the Lead", async () => {
+  await scratch(async (delivery, outbox) => {
+    const calls = (from: number, count: number, turnId: string): TimelineEntry[] =>
+      Array.from({ length: count }, (_, index) => ({ item: { type: "tool_call" }, turnId, seqEnd: from + index }));
+    const first = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [{ epoch: "e1", entries: [...calls(1, 100, "t1"), assistant(VALID, 101, { messageId: "m1" })] }] });
+    await delivery.onTurnEnded(peerTurn(), first.paseo);
+    assert.equal(outbox.records()[0].toolCalls, 100);
+    assert.doesNotMatch(first.sent[0].text, /tool calls/);
+
+    // Another Peer of the same Lead has its own count.
+    const other = fakePaseo({ "lead-1": leadIdle }, { "peer-2": [{ epoch: "e2", entries: [...calls(1, 49, "t1"), assistant(VALID.replace("T-1", "T-2"), 50, { messageId: "n1" })] }] });
+    await delivery.onTurnEnded(peerTurn({ agent: { ...peerTurn().agent, id: "peer-2" } }), other.paseo);
+    assert.doesNotMatch(other.sent[0].text, /tool calls/);
+
+    const second = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [{ epoch: "e1", entries: [...calls(102, 50, "t2"), assistant(VALID.replace("Round: 1", "Round: 2"), 152, { messageId: "m2", turnId: "t2" })] }] });
+    await delivery.onTurnEnded(peerTurn({ turnId: "t2" }), second.paseo);
+    const record = outbox.records().find((r) => r.messageId === "m2")!;
+    assert.equal(record.toolCalls, 50);
+    assert.equal(record.kind, "HANDBACK_VALID");
+    assert.match(second.sent[0].text, /^warning: peer session at 150 tool calls \(limit 150\); context-reset or a new Peer advised$/m);
+  });
+});

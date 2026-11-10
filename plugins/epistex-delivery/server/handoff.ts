@@ -6,8 +6,8 @@ export type CellName = (typeof CELLS)[number];
 
 // Markup a Peer may put before a cell name or the header: quote, heading and table marks, a bullet,
 // a number ("1.", "1)", "(1)") and Markdown emphasis, in any order.
-const PREFIX = "(?:[ \\t|>#]|[-+*][ \\t]+|[0-9]+[.)][ \\t]*|\\([0-9]+\\)[ \\t]*|\\*\\*|__|[*_`])*";
-const EMPH = "(?:\\*\\*|__|[*_`])";
+export const PREFIX = "(?:[ \\t|>#]|[-+*][ \\t]+|[0-9]+[.)][ \\t]*|\\([0-9]+\\)[ \\t]*|\\*\\*|__|[*_`])*";
+export const EMPH = "(?:\\*\\*|__|[*_`])";
 // Round is the first token after "Round:"; a trailing note such as "(not changed by me)" is tolerated.
 const HEADER = new RegExp(
   `^${PREFIX}Task ID${EMPH}?[ \\t]*:${EMPH}?[ \\t]*(.+?)[ \\t]*\\|[ \\t]*${EMPH}?Round${EMPH}?[ \\t]*:${EMPH}?[ \\t]*([^\\s|]+)`,
@@ -25,9 +25,9 @@ const CANONICAL = new Map<string, CellName>(CELLS.map((cell) => [cell.replaceAll
 // Python's \w and \b are Unicode-aware; emulate them so a hex run glued to a letter is not a token.
 const W = "\\p{L}\\p{N}_";
 const B = `(?:(?<=[${W}])(?![${W}])|(?<![${W}])(?=[${W}]))`;
-const SHA = new RegExp(`${B}[0-9a-f]{7,40}${B}`, "gu");
-const SHA256 = new RegExp(`${B}[0-9a-f]{64}${B}`, "gu");
-const PATH = new RegExp(`[${W}.~\\-]*/[${W}.\\-]+|${B}[${W}\\-]+\\.[A-Za-z][A-Za-z0-9]{0,7}${B}`, "u");
+export const SHA = new RegExp(`${B}[0-9a-f]{7,40}${B}`, "gu");
+export const SHA256 = new RegExp(`${B}[0-9a-f]{64}${B}`, "gu");
+export const PATH = new RegExp(`[${W}.~\\-]*/[${W}.\\-]+|${B}[${W}\\-]+\\.[A-Za-z][A-Za-z0-9]{0,7}${B}`, "u");
 const NO_CANDIDATE = new RegExp(
   `${B}(?:none|n/a|no (?:candidate|commits?|writes?|changes?|diff)|not committed|nothing (?:written|committed|changed))${B}` +
     "|không (?:có )?(?:candidate|commit|ghi|thay đổi)",

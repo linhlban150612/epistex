@@ -145,7 +145,9 @@ def main() -> int:
             raise SystemExit(f"agent executable not found: {command[0]}")
         os.execvp(command[0], command)
     if agent == "pi":
-        command = [agent, "--append-system-prompt", load_prompt(role), *sys.argv[3:]]
+        # Pi loads a project's skills only after project trust; the kit's own copy needs none.
+        command = [agent, "--append-system-prompt", load_prompt(role),
+                   "--skill", str(ROOT / ".agents/skills"), *sys.argv[3:]]
         if shutil.which(command[0]) is None:
             raise SystemExit(f"agent executable not found: {command[0]}")
         os.execvp(command[0], command)

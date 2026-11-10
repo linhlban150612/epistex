@@ -139,12 +139,15 @@ output alone does not prove model, settings or role. Existing sessions retain th
 - Copy `examples/WORKSPACE_PROTOCOL.md` to `<PROJECT>/WORKSPACE_PROTOCOL.md`, then fill in the repo's own risk,
   authority, task class and review gate. This file is for Lead; Peer receives the necessary
   constraints through the task brief.
-- Install the Lead skills: `bash <KIT>/setup/setup-seats.sh --project <PROJECT>` copies every
-  `.agents/skills/*` of the kit into `<PROJECT>/.agents/skills/` (non-kit skills there are left alone) and adds
-  `/.agents/skills/` to `<PROJECT>/.git/info/exclude` unless the repository already tracks or ignores them.
-  Backends load skills only from the project's `.agents/skills/` or a user-wide skills directory, so without
-  this step the Lead cannot follow `dual-lane-review`, `context-reset`, `rework-escalation` or
-  `handling-reopen` and reports the missing procedure instead. Repeat after updating the kit;
+- Install the kit skills: `bash <KIT>/setup/setup-seats.sh --project <PROJECT>` copies every
+  `.agents/skills/*` of the kit into `<PROJECT>/.agents/skills/`, `<PROJECT>/.claude/skills/` and
+  `<PROJECT>/.kiro/skills/` (non-kit skills there are left alone) and adds each directory to
+  `<PROJECT>/.git/info/exclude` unless the repository already tracks or ignores it.
+  A backend lists a skill only from a directory it reads: `.agents/skills/` for Amp, Codex, OMP, Cursor,
+  Antigravity and Droid, `.claude/skills/` for Claude Code, `.kiro/skills/` for Kiro. Pi loads project skills
+  only after project trust, so `role-agent` passes it the kit copy with `--skill`. Without
+  this step the Lead cannot follow `dual-lane-review`, `context-reset`, `seat-recovery`, `rework-escalation` or
+  `handling-reopen`, a Peer cannot follow `waiting-on-long-jobs`, and each reports the missing procedure instead. Repeat after updating the kit;
   `--check --project <PROJECT>` fails on a missing or stale skill, when `WORKSPACE_PROTOCOL.md` names
   a skill that is not installed, or when the installed skills are neither tracked nor ignored.
 

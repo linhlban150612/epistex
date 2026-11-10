@@ -314,6 +314,9 @@ for line in sys.stdin:
                     self.assertEqual(parsed_args[0], "--append-system-prompt")
                     self.assertIn("# Common contract", parsed_args[1])
                     self.assertIn("# Peer — independent co-worker", parsed_args[1])
+                    if agent == "pi":
+                        self.assertEqual(parsed_args[2:4], ["--skill", str(ROOT / ".agents/skills")])
+                        del parsed_args[2:4]
                     self.assertEqual(parsed_args[2:], ["--mode", "rpc", "--model", "provider/model"])
                     self.assertEqual(message, '{"type":"prompt","message":"unchanged"}')
         # omp keeps caller append text and file sources.
@@ -417,7 +420,8 @@ print(json.dumps({"effective":append, "args":args}))
                                         cwd=root, env=env, text=True, capture_output=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(json.loads(result.stdout),
-                                 ["--append-system-prompt", f"COMMON SENTINEL\n\nROLE {role}\n"])
+                                 ["--append-system-prompt", f"COMMON SENTINEL\n\nROLE {role}\n",
+                                  "--skill", str(kit / ".agents/skills")])
             # Byte boundary: multi-byte text must not be counted as characters.
             common.write_text("é" * 8186, encoding="utf-8")
             command = [sys.executable, str(kit / "setup/role-agent"), "peer", "pi"]

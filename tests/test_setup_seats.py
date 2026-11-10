@@ -10,6 +10,7 @@ import unittest
 from collections import Counter
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+SKILL_DIRS = (".agents/skills", ".claude/skills", ".kiro/skills")
 SCRIPT = ROOT / "setup" / "setup-seats.sh"
 CATALOG = set("""archive_agent archive_workspace browser_back browser_click browser_close_tab browser_drag browser_evaluate browser_fill browser_forward browser_hover browser_keypress browser_list_tabs browser_logs browser_navigate browser_new_tab browser_reload browser_resize browser_screenshot browser_scroll browser_select browser_snapshot browser_type browser_upload browser_wait cancel_agent capture_terminal create_agent create_heartbeat create_schedule create_terminal create_workspace delete_heartbeat delete_schedule get_agent_activity get_agent_status inspect_provider inspect_schedule kill_agent kill_terminal list_agents list_hosts list_models list_pending_permissions list_profiles list_providers list_schedules list_terminals list_workspace_scripts list_workspaces pause_schedule rename_workspace respond_to_permission resume_schedule run_schedule_once schedule_logs send_agent_prompt send_terminal_keys set_agent_mode start_workspace_script stop_workspace_script update_agent update_schedule""".split())
 KEEP_LEAD = set("""list_workspaces list_providers list_models list_profiles create_agent send_agent_prompt cancel_agent archive_agent list_pending_permissions respond_to_permission set_agent_mode""".split())
@@ -624,24 +625,27 @@ class SetupSeatsTest(unittest.TestCase):
         result = self.run_check("--check", "--project", str(project))
         self.assertNotEqual(result.returncode, 0)
         for name in kit_skills:
-            self.assertIn(f"{project}: missing skill {name}", result.stderr)
+            for directory in SKILL_DIRS:
+                self.assertIn(f"{project}: missing skill {name} in {directory}", result.stderr)
         self.assertIn("WORKSPACE_PROTOCOL.md names .agents/skills/handling-reopen/SKILL.md but it is not installed",
                       result.stderr)
-        self.assertFalse((project / ".agents").exists(), "--check must not install")
+        for directory in SKILL_DIRS:
+            self.assertFalse((project / directory).exists(), "--check must not install")
         self.assertNotIn("/.agents/skills/", exclude.read_text() if exclude.exists() else "")
 
         result = self.run_check("--project", str(project))
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn(f"{len(kit_skills)} kit skills present in {project}/.agents/skills (ignored in Git)", result.stdout)
-        installed = sorted(p.parent.name for p in project.glob(".agents/skills/*/SKILL.md"))
-        self.assertEqual(installed, kit_skills)
-        for name in kit_skills:
-            self.assertEqual((project / ".agents/skills" / name / "SKILL.md").read_bytes(),
-                             (self.kit / ".agents/skills" / name / "SKILL.md").read_bytes())
-        self.assertEqual(exclude.read_text().count("/.agents/skills/\n"), 1)
+        for directory in SKILL_DIRS:
+            self.assertIn(f"{len(kit_skills)} kit skills present in {project}/{directory} (ignored in Git)", result.stdout)
+            installed = sorted(p.parent.name for p in project.glob(f"{directory}/*/SKILL.md"))
+            self.assertEqual(installed, kit_skills)
+            for name in kit_skills:
+                self.assertEqual((project / directory / name / "SKILL.md").read_bytes(),
+                                 (self.kit / ".agents/skills" / name / "SKILL.md").read_bytes())
+            self.assertEqual(exclude.read_text().count(f"/{directory}/\n"), 1)
         status = subprocess.run(["git", "-C", str(project), "status", "--porcelain"], text=True,
                                 capture_output=True, check=True).stdout
-        self.assertNotIn(".agents", status, "installed skills must not show up as untracked files")
+        self.assertEqual(status, "?? WORKSPACE_PROTOCOL.md\n", "installed skills must not show up as untracked files")
         result = self.run_check("--check", "--project", str(project))
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.run_check("--project", str(project)).returncode, 0)
@@ -651,19 +655,19 @@ class SetupSeatsTest(unittest.TestCase):
         result = self.run_check("--check", "--project", str(project))
         self.assertNotEqual(result.returncode, 0)
         self.assertIn(".agents/skills is neither tracked nor ignored", result.stderr)
-        subprocess.run(["git", "-C", str(project), "add", ".agents/skills"], check=True)
+        subprocess.run(["git", "-C", str(project), "add", *SKILL_DIRS], check=True)
         result = self.run_check("--project", str(project))
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("(tracked in Git)", result.stdout)
+        self.assertEqual(result.stdout.count("(tracked in Git)"), len(SKILL_DIRS))
         self.assertFalse(exclude.exists(), "tracked skills are not added to the exclude file")
-        subprocess.run(["git", "-C", str(project), "rm", "-rq", "--cached", ".agents/skills"], check=True)
+        subprocess.run(["git", "-C", str(project), "rm", "-rq", "--cached", *SKILL_DIRS], check=True)
         self.assertEqual(self.run_check("--project", str(project)).returncode, 0)
 
-        stale = project / ".agents/skills/handling-reopen/SKILL.md"
+        stale = project / ".claude/skills/handling-reopen/SKILL.md"
         stale.write_text(stale.read_text() + "\nlocal edit\n")
         result = self.run_check("--check", "--project", str(project))
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn(f"{project}: skill handling-reopen differs from the kit", result.stderr)
+        self.assertIn(f"{project}: skill handling-reopen differs from the kit in .claude/skills", result.stderr)
         self.assertEqual(self.run_check("--project", str(project)).returncode, 0)
         self.assertNotIn("local edit", stale.read_text())
 
@@ -672,7 +676,7 @@ class SetupSeatsTest(unittest.TestCase):
         result = self.run_check("--check", "--project", str(project))
         self.assertIn(f"{project}: missing skill new-skill", result.stderr)
         self.assertEqual(self.run_check("--project", str(project)).returncode, 0)
-        self.assertTrue((project / ".agents/skills/new-skill/SKILL.md").is_file())
+        self.assertTrue((project / ".kiro/skills/new-skill/SKILL.md").is_file())
 
         protocol = project / "WORKSPACE_PROTOCOL.md"
         protocol.write_text(protocol.read_text() + "\n- also `.agents/skills/ghost/SKILL.md`\n")

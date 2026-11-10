@@ -42,10 +42,14 @@ for seat in LEAD PEER SUPERVISOR; do
     || fail "$seat: common contract and role prompt must load within 16 KiB combined"
 done
 
-# Backends load skills only from the project's .agents/skills/ (or a user-wide skills directory),
-# so every skill the prompts and templates name must exist in the kit and be installed per project.
+# Skills load only from a directory the backend reads: the project's .agents/skills for Amp, Codex,
+# OMP, Cursor, Antigravity and Droid; .claude/skills for Claude Code; .kiro/skills for Kiro. Pi gates
+# project skills behind project trust, so role-agent passes it the kit skills. Every skill the prompts
+# and templates name must exist in the kit and be installed per project.
+skill_dirs=(.agents/skills .claude/skills .kiro/skills)
+skills_report=
 kit_skills=("$kit"/.agents/skills/*/SKILL.md)
-[[ -f "${kit_skills[0]}" ]] || fail 'no Lead skills under .agents/skills/'
+[[ -f "${kit_skills[0]}" ]] || fail 'no kit skills under .agents/skills/'
 while IFS= read -r path; do
   [[ -f "$kit/$path" ]] || fail "$path: referenced by a prompt or template but missing from the kit"
 done < <(grep -rhoE '\.agents/skills/[A-Za-z0-9_-]+/SKILL\.md' "$kit/agents" "$kit/examples" | sort -u)
@@ -55,21 +59,23 @@ if [[ -n "$project" ]]; then
     fail "project directory not found: $project"
   else
     project=$(cd -- "$project" && pwd -P)
-    for skill in "${kit_skills[@]}"; do
-      name=${skill%/SKILL.md}; name=${name##*/}
-      source="$kit/.agents/skills/$name"; target="$project/.agents/skills/$name"
-      if [[ -L "$target" || -L "$project/.agents/skills" || -L "$project/.agents" ]]; then
-        fail "$project: refusing to use symlinked skill path for $name"
-        continue
-      fi
-      if (( dry == 0 )); then
-        mkdir -p "$target" && cp -R "$source/." "$target/"
-      fi
-      if [[ ! -f "$target/SKILL.md" ]]; then
-        fail "$project: missing skill $name; run without --check to install it"
-      elif ! diff -rq "$source" "$target" >/dev/null; then
-        fail "$project: skill $name differs from the kit; run without --check to refresh it"
-      fi
+    for dir in "${skill_dirs[@]}"; do
+      for skill in "${kit_skills[@]}"; do
+        name=${skill%/SKILL.md}; name=${name##*/}
+        source="$kit/.agents/skills/$name"; target="$project/$dir/$name"
+        if [[ -L "$target" || -L "$project/$dir" || -L "$project/${dir%/skills}" ]]; then
+          fail "$project: refusing to use symlinked skill path for $name in $dir"
+          continue
+        fi
+        if (( dry == 0 )); then
+          mkdir -p "$target" && cp -R "$source/." "$target/"
+        fi
+        if [[ ! -f "$target/SKILL.md" ]]; then
+          fail "$project: missing skill $name in $dir; run without --check to install it"
+        elif ! diff -rq "$source" "$target" >/dev/null; then
+          fail "$project: skill $name differs from the kit in $dir; run without --check to refresh it"
+        fi
+      done
     done
     if [[ -f "$project/WORKSPACE_PROTOCOL.md" ]]; then
       while IFS= read -r path; do
@@ -78,20 +84,23 @@ if [[ -n "$project" ]]; then
     fi
     # Installed skills are process documents: keep them out of the target repository unless the
     # Human already tracks them. The repository-local exclude file never changes tracked files.
-    skills_git=untracked
-    if exclude=$(cd -- "$project" && git rev-parse --git-path info/exclude 2>/dev/null); then
-      [[ "$exclude" == /* ]] || exclude="$project/$exclude"
-      probe=${kit_skills[0]%/SKILL.md}; probe=".agents/skills/${probe##*/}/SKILL.md"
-      if git -C "$project" ls-files --error-unmatch .agents/skills >/dev/null 2>&1; then
-        skills_git=tracked
-      elif [[ -f "$project/$probe" ]] && git -C "$project" check-ignore -q "$probe"; then
-        skills_git=ignored
-      elif (( dry == 0 )); then
-        mkdir -p "${exclude%/*}" && printf '/.agents/skills/\n' >> "$exclude" && skills_git=ignored
-      else
-        fail "$project: .agents/skills is neither tracked nor ignored; run without --check to add it to $exclude"
+    for dir in "${skill_dirs[@]}"; do
+      skills_git=untracked
+      if exclude=$(cd -- "$project" && git rev-parse --git-path info/exclude 2>/dev/null); then
+        [[ "$exclude" == /* ]] || exclude="$project/$exclude"
+        probe=${kit_skills[0]%/SKILL.md}; probe="$dir/${probe##*/}/SKILL.md"
+        if git -C "$project" ls-files --error-unmatch "$dir" >/dev/null 2>&1; then
+          skills_git=tracked
+        elif [[ -f "$project/$probe" ]] && git -C "$project" check-ignore -q "$probe"; then
+          skills_git=ignored
+        elif (( dry == 0 )); then
+          mkdir -p "${exclude%/*}" && printf '/%s/\n' "$dir" >> "$exclude" && skills_git=ignored
+        else
+          fail "$project: $dir is neither tracked nor ignored; run without --check to add it to $exclude"
+        fi
       fi
-    fi
+      skills_report+="✓ ${#kit_skills[@]} kit skills present in $project/$dir ($skills_git in Git)"$'\n'
+    done
   fi
 fi
 
@@ -537,7 +546,5 @@ case "$plugin_action" in
     ;;
 esac
 (( errs == 0 )) || { printf '! %s error(s) — setup is not ready.\n' "$errs" >&2; exit 1; }
-if [[ -n "$project" ]]; then
-  printf '✓ %s kit skills present in %s/.agents/skills (%s in Git)\n' "${#kit_skills[@]}" "$project" "$skills_git"
-fi
+printf '%s' "$skills_report"
 printf '✓ static kit/provider check passed; auth, daemon and launch not checked\nAfter changing providers: reload with the Paseo CLI and verify launch per SETUP.md\n'

@@ -31,6 +31,8 @@ export interface DeliveryRecord {
   reasons: string[];
   /** Machine-readable reasons: HEADER_MISSING, CELL_MISSING:<name>, CANDIDATE_IDENTITY, TURN_CANCELED, NO_MESSAGE. Absent on older receipts. */
   codes?: string[];
+  /** Notes for the Lead that do not change `kind`: round above the rework limit, task reused across Peers. */
+  warnings?: string[];
   body: string;
   /** Assistant text the Peer wrote after the delivered handoff in the same turn (warning, not failure). */
   trailing?: string[];

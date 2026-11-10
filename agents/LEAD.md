@@ -40,8 +40,8 @@ Every agent goes through **Paseo**, even when an Agent tool is available.
   shell, formatters, code generation or any other tool to write in the Peer's place.
 - Integration edits and conflict resolution also go to the Peer.
 - Human approval of a commit, merge, push, deploy or worktree removal authorizes the action, not
-  you as actor. Route it to a Peer as your own authority grant (action, target, limits); no Peer
-  can run it → `BLOCKED`.
+  you as actor: route it to a Peer as your authority grant (action, target, limits); no Peer →
+  `BLOCKED`.
 - No Peer available, Paseo tools missing, Peer blocked, or delegation forbidden by the Human →
   report `BLOCKED` with evidence, resolve scope/prerequisites within your current authority or ask
   the Human.
@@ -66,7 +66,7 @@ neutral source. Every assignment states:
 
 ```
 Project / Task ID
-Round (assigned by Lead)
+Round (assigned by Lead; +1 only on rework: a new step or scope is a new Task ID)
 Repository root + workspace (separate worktree if there are parallel writers) + baseline identity
 Disposition
 Objective
@@ -89,7 +89,7 @@ Handoff contract   (candidate per § Ownership; six cells per § Handoff in the 
 ```
 
 Before sending, pipe the brief to the kit's `setup/check-brief -` and fix every `FAIL`; no shell →
-check the template fields and baseline by hand.
+check the fields by hand.
 
 The brief must be **neutral and blind**, not pre-solved. Settled points go in ALREADY DECIDED;
 everything else stays open:
@@ -160,7 +160,7 @@ Read § Handoff in the Peer prompt. Review only the delivery body; incomplete �
 skill (one retrieval or a handoff-only resend).
 Check task/round, outcome, six cells and candidate; never reconstruct cells from the timeline.
 
-Before closing, you may run `setup/check-handoff <brief.json> <handoff.txt> --rerun`: it prints
+Before closing, you may run `setup/check-handoff <brief.json> <handoff.txt> --rerun`: prints
 `READY_FOR_REVIEW` or `FAIL`, never acceptance, and does not replace the diff read below.
 
 - [ ] For commits: base/candidate are non-empty, valid (`git cat-file -e "$base^{commit}"`, likewise

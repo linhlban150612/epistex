@@ -8,6 +8,18 @@ description: Lead procedure when a task exhausts its rework cap. Use when the th
 The cap is **2 rework rounds per task across Peers**: candidate 1, rework 1, rework 2. When the
 third candidate fails, stop iterating and escalate by the kind of failure.
 
+## What counts as a round
+
+- **Task ID** names one scope with one candidate. A new step or a new scope is a new Task ID,
+  `<root>-S<n>` (for example `R15048-S3`), and starts again at Round 1.
+- **Round** counts sends of the same Task ID: Round 1 is the first assignment, and Round rises by
+  one only when you return a rejected candidate for rework. Do not use Round to number steps.
+- The delivery plugin adds `warning: round <n> exceeds rework limit 3; REOPEN or context-reset
+  required` to a receipt above Round 3, and `warning: task reused across peers` when a Peer first
+  reports a Task ID at a round above one that another Peer reported. A warning does not change
+  `kind`. Treat either as the trigger for the table below, or split the work into new Task IDs
+  when the rounds were steps.
+
 ## Decide by the findings
 
 | Situation | Action |

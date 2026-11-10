@@ -70,9 +70,35 @@ export function formatDelivery(record: DeliveryRecord): string {
   }
   const trailing = record.trailing ?? [];
   if (trailing.length) lines.push(`warning: trailing_text_after_handoff (${trailing.length} message(s))`);
+  for (const warning of record.warnings ?? []) lines.push(`warning: ${warning}`);
   lines.push("---", record.body);
   if (trailing.length) lines.push("--- trailing text after handoff ---", ...trailing);
   return lines.join("\n");
+}
+
+/** Rework rounds a task may take before the Lead must REOPEN or reset (agents/LEAD.md § Acceptance). */
+const REWORK_LIMIT = 3;
+
+/**
+ * Warnings for a Peer-turn receipt. A round is counted only when it is a plain number. `earlier` are
+ * the receipts already stored. A Peer that reports a task for the first time, at a round above one
+ * that another Peer of this Lead reported, means the Lead used Round as a step counter or moved the
+ * task between Peers. Two review lanes on one round, and rework by the same Peer, do not warn.
+ */
+export function roundWarnings(
+  receipt: Pick<DeliveryRecord, "peerAgentId" | "leadAgentId" | "taskId" | "round">,
+  earlier: DeliveryRecord[],
+): string[] {
+  if (receipt.taskId === null || !/^\d+$/.test(receipt.round ?? "")) return [];
+  const round = Number(receipt.round);
+  const warnings: string[] = [];
+  if (round > REWORK_LIMIT) warnings.push(`round ${round} exceeds rework limit ${REWORK_LIMIT}; REOPEN or context-reset required`);
+  const sameTask = earlier.filter((record) => record.leadAgentId === receipt.leadAgentId && record.taskId === receipt.taskId);
+  const reused =
+    !sameTask.some((record) => record.peerAgentId === receipt.peerAgentId) &&
+    sameTask.some((record) => /^\d+$/.test(record.round ?? "") && Number(record.round) < round);
+  if (reused) warnings.push("task reused across peers");
+  return warnings;
 }
 
 function describeOutcome(outcome: TurnEndedEvent["outcome"]): string {
@@ -273,6 +299,7 @@ export class Delivery {
     if (this.outbox.get(id)) {
       this.log.info(`delivery ${id.slice(0, 12)} already recorded for ${peerAgentId}; replay`);
     } else {
+      const warnings = roundWarnings({ peerAgentId, leadAgentId, taskId, round }, this.outbox.records());
       await this.outbox.append({
         deliveryId: id,
         peerAgentId,
@@ -287,6 +314,7 @@ export class Delivery {
         cursor,
         reasons,
         ...(codes.length ? { codes } : {}),
+        ...(warnings.length ? { warnings } : {}),
         body,
         ...(trailing.length ? { trailing } : {}),
         state: "pending",

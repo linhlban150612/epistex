@@ -23,6 +23,11 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
   `$EPISTEX_RECEIPTS` (default `.amp/in/receipts`), skipped when the folder is absent. An invalid
   receipt carries `codes` (`HEADER_MISSING`, `CELL_MISSING:<name>`, `CANDIDATE_IDENTITY`,
   `TURN_CANCELED`, `NO_MESSAGE`) in the record and as a `codes:` line before `reasons:`.
+- **Round warnings** (`roundWarnings` in `server/delivery.ts`). A receipt whose round is a plain
+  number above 3 carries `warning: round <n> exceeds rework limit 3; REOPEN or context-reset
+  required`. A Peer's first receipt for a task, at a round above one that another Peer of the same
+  Lead reported, carries `warning: task reused across peers`; the receipt store supplies the earlier
+  receipts. Warnings are stored in `warnings` and never change `kind`.
 - **Receipt store** (`server/outbox.ts`, under `${PASEO_HOME:-~/.paseo}/epistex-delivery/`):
   `<leadAgentId>.jsonl` is append-only with `fsync`; a `sent` update is a second line for the same
   `deliveryId`, folded on load; a torn last line is skipped with a warning. `cursors.json` is

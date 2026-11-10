@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { Delivery, formatDelivery, type AgentSnapshot, type DeliveryPaseo, type TimelineEntry, type TimelinePage } from "./delivery.ts";
+import { Delivery, formatDelivery, roundWarnings, type AgentSnapshot, type DeliveryPaseo, type TimelineEntry, type TimelinePage } from "./delivery.ts";
 import { Outbox } from "./outbox.ts";
 import type { Logger, PermissionEvent, TurnEndedEvent } from "./plugin.ts";
 
@@ -121,6 +121,43 @@ test("valid handback to an idle Lead: recorded, sent with steer, cursor advanced
       ["[epistex-delivery]", `delivery-id: ${record.deliveryId}`, "kind: HANDBACK_VALID", "peer: peer-1  task: T-1  round: 1", "---", VALID].join("\n"),
     );
     assert.match(record.deliveryId, /^[0-9a-f]{64}$/);
+  });
+});
+
+test("round above the rework limit and a task reused across Peers add warnings; kind is unchanged", async () => {
+  const receipt = (round: string | null, peerAgentId = "peer-1", taskId: string | null = "T-1") => ({ peerAgentId, leadAgentId: "lead-1", taskId, round });
+  const limit = "round 4 exceeds rework limit 3; REOPEN or context-reset required";
+  assert.deepEqual(roundWarnings(receipt("3"), []), []);
+  assert.deepEqual(roundWarnings(receipt("4"), []), [limit]);
+  assert.deepEqual(roundWarnings(receipt("?"), []), []);
+  assert.deepEqual(roundWarnings(receipt(null), []), []);
+  assert.deepEqual(roundWarnings(receipt("R4"), []), [], "only a plain number is counted");
+  assert.deepEqual(roundWarnings(receipt("4", "peer-1", null), []), []);
+
+  await scratch(async (delivery, outbox) => {
+    const round = (n: number) => VALID.replace("Round: 1", `Round: ${n}`);
+    const fake = fakePaseo(
+      { "lead-1": leadIdle },
+      {
+        "peer-1": [{ epoch: "e1", entries: [assistant(round(1), 2)] }, { epoch: "e1", entries: [assistant(round(2), 4, { messageId: "m4" })] }],
+        "peer-2": [{ epoch: "e2", entries: [assistant(round(1), 2)] }],
+        "peer-3": [{ epoch: "e3", entries: [assistant(round(4), 2)] }],
+      },
+    );
+    const peer2 = { agent: { ...peerTurn().agent, id: "peer-2" } };
+    await delivery.onTurnEnded(peerTurn(), fake.paseo);
+    await delivery.onTurnEnded(peerTurn(peer2), fake.paseo);
+    await delivery.onTurnEnded(peerTurn({ turnId: "t2" }), fake.paseo);
+    await delivery.onTurnEnded(peerTurn({ agent: { ...peerTurn().agent, id: "peer-3" } }), fake.paseo);
+    const records = outbox.records();
+    assert.deepEqual(records.map((r) => [r.peerAgentId, r.round, r.kind, r.warnings]), [
+      ["peer-1", "1", "HANDBACK_VALID", undefined],
+      ["peer-2", "1", "HANDBACK_VALID", undefined], // two lanes on one round are not reuse
+      ["peer-1", "2", "HANDBACK_VALID", undefined], // rework by the same Peer
+      ["peer-3", "4", "HANDBACK_VALID", [limit, "task reused across peers"]], // a new Peer at a higher round
+    ]);
+    assert.match(fake.sent[3].text, /round: 4\nwarning: round 4 exceeds rework limit 3; REOPEN or context-reset required\nwarning: task reused across peers\n---\n/);
+    assert.equal(fake.sent[2].text, formatDelivery({ ...records[2], warnings: undefined }), "no warning line without a warning");
   });
 });
 

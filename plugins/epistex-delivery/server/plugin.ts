@@ -15,7 +15,7 @@ export interface Logger {
 
 export interface ContributeOptions {
   log?: Logger;
-  /** Handler for every `agent.turn.after` hook. Later steps supply the delivery handler. */
+  /** Handler for every `agent.turn.after` hook. */
   onTurnEnded?: TurnEndedHandler;
   /** Handler for every `agent.permission.before` hook. */
   onPermission?: PermissionHandler;

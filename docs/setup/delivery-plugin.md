@@ -70,7 +70,8 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
   recipient's own turn end flushes it. `send()` resolves on acceptance only, so delivery is at
   least once and the recipient processes each `delivery-id` once.
 - **Reconcile.** Hooks are not replayed and the plugin is a child process, so the first
-  `agent.turn.after` hook of each plugin process (memoised, no timer) reads every watched Peer that
+  lifecycle hook of each plugin process (`agent.turn.after` or `agent.permission.before`; memoised,
+  no timer) reads every watched Peer that
   is not `running` `after` its cursor, then flushes every Lead with `pending` records. Watched
   Peers are those with a stored cursor, so a fresh install does not replay old handbacks. A Peer
   that is gone, archived or `closed` gets that one attempt and is then unwatched (cursor removed,

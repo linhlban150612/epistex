@@ -3,7 +3,7 @@
 import { briefOf, checkBrief } from "./brief.ts";
 import { classifyHandoff } from "./handoff.ts";
 import { deliveryId, recipientOf, type DeliveryKind, type DeliveryRecord, type Outbox, type OutboxCursor } from "./outbox.ts";
-import type { Logger, PermissionEvent, TurnEndedEvent } from "./plugin.ts";
+import { describe, type Logger, type PermissionEvent, type TurnEndedEvent } from "./plugin.ts";
 
 /** A Lead seat's agent-profile id, e.g. `codex-lead`, `droid-lead--gpt-6-1-sol--medium`. */
 export const LEAD_PROVIDER = /^[a-z]+-lead(--.*)?$/;
@@ -84,7 +84,7 @@ export function formatDelivery(record: DeliveryRecord): string {
   return lines.join("\n");
 }
 
-/** Rework rounds a task may take before the Lead must REOPEN or reset (agents/LEAD.md § Acceptance). */
+/** Highest round a task may reach (first candidate plus two rework rounds) before the Lead must REOPEN or reset (agents/LEAD.md § Acceptance). */
 const REWORK_LIMIT = 3;
 
 /**
@@ -166,7 +166,7 @@ export class Delivery {
         } catch (error) {
           // A Peer whose cwd is gone (deleted scratch clone) makes the timeline read fail; one
           // such Peer must not stop the catch-up of the others or the delivery of live events.
-          this.log.error(`reconcile: peer ${peerAgentId} skipped: ${error instanceof Error ? error.message : String(error)}`);
+          this.log.error(`reconcile: peer ${peerAgentId} skipped: ${describe(error)}`);
         } finally {
           if (finished) {
             await this.outbox.unwatch(peerAgentId);
@@ -187,7 +187,7 @@ export class Delivery {
     } catch (error) {
       // Never let a failed catch-up block the live event; retry the catch-up on the next one.
       this.reconciled = null;
-      this.log.error(`reconcile failed; will retry on the next event: ${error instanceof Error ? error.message : String(error)}`);
+      this.log.error(`reconcile failed; will retry on the next event: ${describe(error)}`);
     }
   }
 
@@ -398,7 +398,7 @@ export class Delivery {
         if (start.reset || start.staleCursor || start.epoch !== page.epoch) return null;
         entries = start.entries;
       } catch (error) {
-        this.log.error(`brief of ${peerAgentId} not read: ${error instanceof Error ? error.message : String(error)}`);
+        this.log.error(`brief of ${peerAgentId} not read: ${describe(error)}`);
         return null;
       }
     }
@@ -442,7 +442,7 @@ export class Delivery {
           messageId: record.deliveryId,
         });
       } catch (error) {
-        this.log.error(`send of ${record.deliveryId.slice(0, 12)} to ${recipientAgentId} failed: ${error instanceof Error ? error.message : String(error)}`);
+        this.log.error(`send of ${record.deliveryId.slice(0, 12)} to ${recipientAgentId} failed: ${describe(error)}`);
         return; // keep order; retry on the next lifecycle event or plugin start
       }
       await this.outbox.markSent(record.deliveryId, "accepted", this.now());

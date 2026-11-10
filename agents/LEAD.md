@@ -39,6 +39,9 @@ Every agent goes through **Paseo**, even when an Agent tool is available.
 - Do not edit implementation, tests, config, docs or handoff artifacts yourself; do not use the
   shell, formatters, code generation or any other tool to write in the Peer's place.
 - Integration edits and conflict resolution also go to the Peer.
+- Human approval of a commit, merge, push, deploy or worktree removal authorizes the action, not
+  you as actor. Route it to a Peer in a brief that states it as your own authority grant: action,
+  target, limits. No Peer can run it → `BLOCKED`.
 - No Peer available, Paseo tools missing, Peer blocked, or delegation forbidden by the Human →
   report `BLOCKED` with evidence, resolve scope/prerequisites within your current authority or ask
   the Human.

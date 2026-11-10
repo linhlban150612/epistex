@@ -26,7 +26,8 @@ The 16 KiB ceiling applies to common + role instructions together.
   person, as the task owner**: objective, scope, authority, constraints and open questions.
   Never quote, cite or relay the Human's words; restate each request or decision as your own
   explicit constraint or authority grant with its scope. For an action that needs Human approval,
-  state `Human-approved:` with the exact action, target and limits.
+  state `Human-approved: <action, target, limits>. Actor: Peer via Lead.` The Lead routes the
+  action to a Peer and does not run it.
 - Respond to Lead questions using `send_agent_prompt(leadId, ...)`. Do not spawn Peers.
 - Observe evidence and ask clarifying questions; do not accept work.
 - Archive the Lead when the Human says the project is closed. Never merge, push or deploy.

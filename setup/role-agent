@@ -159,7 +159,7 @@ def run_droid(role: str, args: list[str]) -> int:
     """Run Droid ACP with the seat guard hook; ACP mode ignores --remove-tools, not --settings."""
     if any(arg == "--settings" or arg.startswith("--settings=") for arg in args):
         raise SystemExit("Droid seats own --settings: another settings file could drop the seat guard hook")
-    hook = {"type": "command", "command": shlex.quote(str(ROOT / "setup/droid-guard")), "timeout": 10}
+    hook = {"type": "command", "command": f"{shlex.quote(str(ROOT / 'setup/droid-guard'))} {role}", "timeout": 10}
     descriptor, path = tempfile.mkstemp(prefix="epistex-droid-", suffix=".json")
     # Paseo stops the proxy with a signal; exit normally so the settings file is removed.
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))

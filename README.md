@@ -29,7 +29,8 @@ instructions to each new session's first prompt — **not the system prompt**. A
 with `session/load` or `session/resume` already holds the role in its history, so the proxy does
 not add it again; a backend that compacts the role out of a loaded session does not get it back.
 Droid Lead/Supervisor use the injected Paseo MCP; Droid Peer has Paseo tools disabled. All Droid
-seats run a `PreToolUse` hook that denies Droid's native subagents, Missions, loops and automations.
+seats run a `PreToolUse` hook that denies Droid's native subagents, Missions, loops and automations;
+for Droid Lead/Supervisor it also denies shell commands that commit, push, merge, remove a worktree or deploy.
 
 This is coordination among agents running as the same Unix user, **not an OS sandbox**. Read-only
 and owned scope are contract/prompt rules, not restrictions on arbitrary shell use. Disabling MCP

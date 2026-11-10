@@ -13,7 +13,7 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 proxy = importlib.machinery.SourceFileLoader("role_agent", str(ROOT / "setup" / "role-agent")).load_module()
 DROID_SETTINGS = {"hooks": {"PreToolUse": [{"matcher": "*", "hooks": [
-    {"type": "command", "command": str(ROOT / "setup/droid-guard"), "timeout": 10}]}]}}
+    {"type": "command", "command": str(ROOT / "setup/droid-guard") + " peer", "timeout": 10}]}]}}
 claude_sdk = importlib.machinery.SourceFileLoader("claude_sdk", str(ROOT / "setup" / "claude-sdk")).load_module()
 
 
@@ -78,6 +78,23 @@ class ProfilesTest(unittest.TestCase):
                 result = subprocess.run([str(ROOT / "setup/droid-guard")], input=payload, text=True,
                                         capture_output=True, timeout=10)
                 self.assertEqual(result.returncode, code, result.stderr)
+        # A Lead or Supervisor seat does not run the write actions it must route to a Peer.
+        for role, command, code in (
+                ("lead", "git commit -m x", 2), ("lead", "cd /repo && git -C /x -c user.name=a push origin main", 2),
+                ("supervisor", "git merge --ff-only topic", 2), ("lead", "git worktree remove ../wt", 2),
+                ("lead", "modal deploy app.py", 2), ("supervisor", "cd app && npm run deploy", 2),
+                ("lead", 'bash -c "git push"', 2),
+                ("lead", "git merge-base --is-ancestor a b && git diff --stat a b", 0),
+                ("lead", "git worktree list; git log --oneline; git show HEAD:docs/commit.md", 0),
+                ("lead", "rg -n deploy docs; cat deploy.sh; git log -- deploy", 0),
+                ("peer", "git commit -m x && git push", 0)):
+            with self.subTest(role=role, command=command):
+                payload = json.dumps({"tool_name": "Execute", "tool_input": {"command": command}})
+                result = subprocess.run([str(ROOT / "setup/droid-guard"), role], input=payload, text=True,
+                                        capture_output=True, timeout=10)
+                self.assertEqual(result.returncode, code, result.stderr)
+                if code:
+                    self.assertIn(f"in a {role.capitalize()} seat", result.stderr)
         result = subprocess.run([sys.executable, str(ROOT / "setup/role-agent"), "peer", "droid", "--settings", "x"],
                                 text=True, capture_output=True, timeout=10)
         self.assertIn("Droid seats own --settings", result.stderr)

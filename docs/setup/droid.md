@@ -48,16 +48,22 @@ topology, and roles create no schedules, so every Droid seat denies these tools:
 `EditAutomation`, `DeleteAutomation`, `RunAutomation`. Other tools, Paseo MCP and Script stay
 available.
 
+A Lead or Supervisor seat is also denied an `Execute` command that runs `git commit`, `git push`,
+`git merge`, `git worktree remove` or a deploy (`<tool> deploy`, `npm run deploy`): the Peer is the
+only writer, and Human approval of such an action is routed to a Peer. Read commands such as
+`git merge-base`, `git worktree list` and `rg deploy` stay allowed. A Peer seat has no command check.
+
 - `role-agent <role> droid` writes a private settings file with a `PreToolUse` hook that runs
-  `setup/droid-guard`, and starts `droid exec --output-format acp --settings <file>`. It removes
-  the file when the seat exits (SIGTERM included; a SIGKILL leaves a 157-byte file in `$TMPDIR`).
+  `setup/droid-guard <role>`, and starts `droid exec --output-format acp --settings <file>`. It removes
+  the file when the seat exits (SIGTERM included; a SIGKILL leaves the small file in `$TMPDIR`).
   No manual setup; the seat's `settings.json` is not changed.
 - The hook runs for direct calls and for each tool call inside a Script, and exit code 2 rejects
   the call. Unreadable hook input is also rejected.
 - `role-agent` rejects a `--settings` launch argument, because a second settings file could drop
   the hook.
 - `setup-seats.sh --check` fails when any Droid seat is enabled and `setup/droid-guard` is not
-  executable, does not allow `Glob`, or does not deny `Task` with exit code 2.
+  executable, does not allow `Glob`, does not deny `Task` with exit code 2, or does not deny
+  `git push` for a Lead.
 
 Why a hook: Droid 1.0.0 ACP accepts `--remove-tools`/`--only-tools` silently and ignores them, and
 ACP has no tool config option. Paseo MCP calls inside Script stay allowed: Opus 5.5 runs in Droid's
@@ -106,8 +112,10 @@ low/high models does not prove runtime medium support.
 - Role instructions are added to each new session's first prompt by the ACP proxy, not to the system
   prompt. A session restored with `session/load` or `session/resume` does not get them again.
 - Droid Lead/Supervisor use the injected Paseo MCP; Droid Peer has Paseo tools disabled.
-- The [seat guard hook](#seat-guard-hook) denies tools by name only. It is not an OS sandbox: a
-  seat can still start processes through `Execute`.
+- The [seat guard hook](#seat-guard-hook) denies tools by name, and Lead/Supervisor write commands
+  by a pattern on the command text. It is not an OS sandbox: a seat can still start processes
+  through `Execute`, and a command the pattern does not know (a script that pushes, `./deploy.sh`)
+  passes. Only Droid seats have this hook; other backends rely on the role prompt.
 - Static checks do not prove authentication, the `acp` output mode, effort mapping or runtime
   integration. The operator merges/reloads the config and performs an actual Paseo launch.
   Last verified launches: `droid-peer` on Droid 1.4.1 (`claude-haiku-5-5`, `low`, `auto-high`);

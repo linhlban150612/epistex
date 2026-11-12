@@ -4,7 +4,8 @@
 đi qua adapter local `setup/kiro-acp <role>`; không sửa
 Paseo package hoặc global Kiro settings. Cần Kiro CLI đã đăng nhập, Python 3.11+,
 và kit ở đường dẫn tuyệt đối. Adapter chỉ launch **engine V3**
-(`kiro-cli acp --agent-engine=v3 --auth-method=cli`); đã kiểm với CLI 2.33.1 đến 3.1.0.
+(`kiro-cli acp --agent-engine=v3 --auth-method=cli`); đã kiểm với CLI 2.33.1 đến 3.2.1.
+Entry `kiro` của ACP registry (pin 3.0.0) dùng `acp --agent-engine=v3`; `--auth-method=cli` là giá trị mặc định, adapter ghi tường minh.
 Không suy engine từ ACP protocol version: cả v2/v3 đều dùng version 1.
 
 ## Cài runtime và provider
@@ -165,7 +166,7 @@ raw `config_option_update`, `_kiro/tools/didChange` và `_kiro/mcp/status` hoặ
 candidate. Trong live task prompt, yêu cầu agent mô tả heading role **đã nhận trong session**,
 liệt kê tools thực sự thấy và in `pwd`; không coi đọc lại file prompt là proof injection.
 Peer phải nhận `# Peer — independent co-worker`, project CWD, không Paseo/subagent tools.
-Trạng thái live (CLI 2.33.1 đến 3.1.0): bốn profile `kiro-peer` và `kiro-lead`/`kiro-supervisor`
+Trạng thái live (CLI 2.33.1 đến 3.1.0; 3.2.1: launch `kiro-peer` Sonnet/low, heading role, CWD, không Paseo tools): bốn profile `kiro-peer` và `kiro-lead`/`kiro-supervisor`
 Sonnet/low launch với đúng mode/model/effort, nhận `# Common contract` cộng heading role, CWD là project;
 Peer chỉ có native tools; catalog Lead có đúng 11 tool `paseo::*`, không có `speak`;
 Lead gọi `list_workspaces` không bị hỏi quyền; `kiro-lead` tạo `kiro-peer` qua `create_agent`;

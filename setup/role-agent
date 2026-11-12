@@ -19,8 +19,10 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 ROLES = ("supervisor", "lead", "peer")
 ACP = {
     "agy": ["agy_acp_server.par", "--uid="],
-    "droid": ["droid", "exec", "--output-format", "acp"],
+    "droid": ["droid", "exec", "--output-format", "acp-daemon"],
 }
+# The ACP registry entry for Droid sets these: a seat must not replace its binary during a session.
+DROID_ENV = {"DROID_DISABLE_AUTO_UPDATE": "true", "FACTORY_DROID_AUTO_UPDATE_ENABLED": "false"}
 
 
 def prime(line: bytes, primer: Primer, cwd: str | None = None) -> bytes:
@@ -168,6 +170,7 @@ def run_droid(role: str, args: list[str]) -> int:
     try:
         with os.fdopen(descriptor, "w") as settings:
             json.dump({"hooks": {"PreToolUse": [{"matcher": "*", "hooks": [hook]}]}}, settings)
+        os.environ.update(DROID_ENV)
         return run_acp([*ACP["droid"], "--settings", path, *args], role)
     finally:
         os.unlink(path)

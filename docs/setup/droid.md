@@ -9,9 +9,12 @@ provider does not inject the common contract and the selected role prompt
 ## Prerequisites
 
 1. Install Factory Droid and ensure the `droid` binary is on the PATH inherited by Paseo.
-   `role-agent peer droid` runs `droid exec --output-format acp --settings <guard file>`. Verified
-   versions: 1.0.0, 1.1.0, 1.4.1 and 1.7.1. The ACP registry entry launches `--output-format acp-daemon`;
-   the seat keeps `acp`, which those versions support.
+   `role-agent peer droid` runs `droid exec --output-format acp-daemon --settings <guard file>` with
+   `DROID_DISABLE_AUTO_UPDATE=true` and `FACTORY_DROID_AUTO_UPDATE_ENABLED=false`: the launch
+   arguments and environment of the [ACP registry](https://github.com/agentclientprotocol/registry)
+   entry `factory-droid` (registry pin: 1.9.0). The launcher sets the two variables; do not add them
+   to the provider `env`. Verified versions: 1.0.0, 1.1.0 and 1.4.1 with `acp`; 1.7.1 with `acp` and
+   `acp-daemon`; 1.9.0 with `acp-daemon`.
 2. Authenticate Droid before launching a seat: use Factory's login flow (shared by all seats), or
    give each seat its own key (see [Per-seat API keys](#per-seat-api-keys)). Credentials stay in
    Droid's user state or in the Paseo config, never in this repository.
@@ -65,7 +68,7 @@ The workspace is `$FACTORY_PROJECT_DIR` when Droid sets it, else the Git top lev
 `cwd`, else that `cwd`. The denial tells the Peer to use a narrower command or report `BLOCKED`.
 
 - `role-agent <role> droid` writes a private settings file with a `PreToolUse` hook that runs
-  `setup/droid-guard <role>`, and starts `droid exec --output-format acp --settings <file>`. It removes
+  `setup/droid-guard <role>`, and starts `droid exec --output-format acp-daemon --settings <file>`. It removes
   the file when the seat exits (SIGTERM included; a SIGKILL leaves the small file in `$TMPDIR`).
   No manual setup; the seat's `settings.json` is not changed.
 - The hook runs for direct calls and for each tool call inside a Script, and exit code 2 rejects
@@ -134,11 +137,17 @@ low/high models does not prove runtime medium support.
   can still start processes through `Execute`, and a command the pattern does not know (a script
   that pushes, `./deploy.sh`, `find -delete`, a file tool) passes. Droid seats and the Claude Peer
   seat have a guard hook; other backends rely on the role prompt.
-- Static checks do not prove authentication, the `acp` output mode, effort mapping or runtime
+- Static checks do not prove authentication, the `acp-daemon` output mode, effort mapping or runtime
   integration. The operator merges/reloads the config and performs an actual Paseo launch.
-  Last verified launches: `droid-peer` on Droid 1.4.1 (`claude-haiku-5-5`, `low`, `auto-high`);
-  `droid-lead` (`claude-opus-5-5`) and `droid-supervisor` (`claude-sonnet-5-5`) on 1.0.0 (`low`,
-  `auto-high`), completing a Paseo prompt with the guard hook.
+  Last verified launches (Droid 1.9.0, `acp-daemon`, `low`, `auto-high`): `droid-peer`
+  (`gemini-3.8-flash`), `droid-lead` and `droid-supervisor` (`claude-sonnet-5-5`). Each seat got the
+  role instructions, the session cwd and the two auto-update variables; the Peer guard denied
+  `git reset --hard` and the Peer saw no Paseo tools; Lead and Supervisor completed `list_workspaces`.
+  Session restore (Droid 1.9.0, `droid-peer`): after `paseo agent reload`, Paseo sent `session/load`
+  to a new proxy and the seat still knew the earlier turn. A direct ACP run through
+  `role-agent peer droid` restored one session with `session/resume` and with `session/load`, each
+  in a new process; the proxy did not add the role instructions again, and the `session/load`
+  replay held them one time.
 
 
 ## droid-lead

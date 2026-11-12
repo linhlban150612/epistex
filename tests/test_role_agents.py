@@ -23,16 +23,21 @@ class ProfilesTest(unittest.TestCase):
             for backend, binary, acp_args, role, launchers in (
                 ("devin", "devin", ["acp"], "peer", (["role-agent", "peer", "devin"], ["devin-acp", "peer"])),
                 ("copilot", "copilot", ["--acp"], "peer", (["role-agent", "peer", "copilot"], ["copilot-acp", "peer"])),
-                ("droid", "droid", ["exec", "--output-format", "acp", "--settings", DROID_SETTINGS], "peer",
-                 (["role-agent", "peer", "droid"],)),
+                # Launch arguments and environment of the ACP registry entry for Droid, plus the guard file.
+                ("droid", "droid", ["exec", "--output-format", "acp-daemon", "--settings", DROID_SETTINGS,
+                                    "DROID_DISABLE_AUTO_UPDATE=true", "FACTORY_DROID_AUTO_UPDATE_ENABLED=false"],
+                 "peer", (["role-agent", "peer", "droid"],)),
             ):
                 executable = pathlib.Path(folder) / binary
                 # Print argv with a --settings file replaced by its content, read while the seat runs.
-                executable.write_text(f"#!{sys.executable}\nimport json, sys\n"
+                executable.write_text(f"#!{sys.executable}\nimport json, os, sys\n"
                                       "args = sys.argv[1:]\n"
                                       "if '--settings' in args:\n"
                                       "    i = args.index('--settings') + 1\n"
                                       "    args[i] = json.load(open(args[i]))\n"
+                                      "    extra = args[i + 1:]\n"
+                                      "    args[i + 1:] = [f'{k}={v}' for k, v in sorted(os.environ.items())\n"
+                                      "                    if 'AUTO_UPDATE' in k] + extra\n"
                                       "print(json.dumps(args), flush=True)\n"
                                       "for line in sys.stdin:\n"
                                       "    print(line, end='', flush=True)\n"

@@ -213,6 +213,19 @@ Common part for Devin, Copilot and Cursor ([devin.md](docs/setup/devin.md),
 [copilot.md](docs/setup/copilot.md), [cursor.md](docs/setup/cursor.md)). ACP agent sources:
 the [ACP registry](https://github.com/agentclientprotocol/registry) and [Kiro ACP](https://kiro.dev/docs/acp).
 
+Seat launch commands compared with the registry (checked 2026-11-12). The seat launch starts the
+backend that is on Paseo's PATH; the registry version is not a pin of the seat.
+
+| Backend | Registry entry and version | Registry launch | Seat launch |
+|---|---|---|---|
+| Amp | `amp-acp` 0.12.0 | `amp-acp` | Same |
+| Antigravity | `antigravity-acp` 1.4.5 | `agy_acp_server.par --uid=` | Same |
+| Copilot | `github-copilot-cli` 1.0.109 | `copilot --acp` | Same |
+| Cursor | `cursor` 2026.11.11 | `cursor-agent acp` | Same |
+| Devin | `devin` 3000.12.43 | `devin acp` | Same |
+| Droid | `factory-droid` 1.9.0 | `droid exec --output-format acp-daemon`, auto-update off | Same, plus `--settings <guard file>` |
+| Kiro | `kiro` 3.0.0 | `kiro-cli acp --agent-engine=v3` | Same, plus `--auth-method=cli` (the default) |
+
 - **Merge:** back up, then merge into `.agents.providers`. Do not replace the original backend or its
   credential/config home.
 - **MCP:** keep injection enabled in the daemon (§3). These seats are Peers: `paseoTools.enabled=false`.

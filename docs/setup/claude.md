@@ -58,7 +58,8 @@ dẫn ngoài workspace (`$CLAUDE_PROJECT_DIR`, hoặc Git top level của `cwd`;
 `/var/tmp/<x>` được phép; đường dẫn có `$VAR` hoặc `$(…)` bị từ chối), `git push` với `--force`,
 `-f`, `--force-with-lease`, `--mirror` hoặc `+refspec`, và `git reset --hard`. Nếu Paseo đã truyền
 `--settings`, launcher giữ nội dung đó và thêm hook; giá trị không đọc được làm launch dừng.
-Đây là guard theo backend, không phải sandbox: hook so khớp chữ của lệnh, chỉ có ở Claude Peer,
+Đây là guard theo backend, không phải sandbox: hook so khớp chữ của lệnh, ở Claude chỉ seat Peer có
+hook (Droid Peer dùng cùng bộ luật `setup/seat_guard.py` qua `setup/droid-guard`),
 và không chặn lệnh bị giấu (file script, `xargs`, `find -delete`, tool khác). Mọi seat vẫn chạy cùng
 một Unix user. Kiểm hook bằng launch thật: yêu cầu Peer chạy `git reset --hard` trong một repo thử.
 

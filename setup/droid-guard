@@ -6,13 +6,18 @@ Usage: droid-guard [supervisor|lead|peer]   (PreToolUse JSON on standard input)
 Paseo owns agent lifecycle and topology, and roles create no schedules. Droid runs this hook for
 direct tool calls and for each tool call inside a Script; exit code 2 rejects the call.
 A Lead or Supervisor seat is also denied shell commands that commit, push, merge, remove a worktree
-or deploy: the Peer is the only writer. The command check is a pattern match on the command text,
-not a sandbox: it stops the usual forms, not a seat that hides the command.
+or deploy: the Peer is the only writer. A Peer seat is denied the destructive forms of
+`setup/seat_guard.py` (`rm -rf` outside the workspace, forced `git push`, `git reset --hard`); its
+workspace is `$FACTORY_PROJECT_DIR`, else the Git top level of the hook's `cwd`. Each command check
+matches the command text. It is not a sandbox: it stops the usual forms, not a seat that hides the
+command.
 """
 
 import json
 import re
 import sys
+
+from seat_guard import PEER_ADVICE, peer_reason
 
 DENIED = {
     "Task", "TaskOutput", "TaskStop",
@@ -56,6 +61,10 @@ def main() -> int:
             sys.stderr.write(f"Epistex seat policy denies {action} in a {role.capitalize()} seat: the Peer is the only "
                              "writer. Route the action to a Peer as an authority grant, or report BLOCKED.\n")
             return 2
+    reason = peer_reason(call, "Execute", "FACTORY_PROJECT_DIR") if role == "peer" else None
+    if reason:
+        sys.stderr.write(f"Epistex seat policy denies {reason} in a Peer seat. {PEER_ADVICE}\n")
+        return 2
     return 0
 
 

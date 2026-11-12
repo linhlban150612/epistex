@@ -87,7 +87,7 @@ class ProfilesTest(unittest.TestCase):
                 ("lead", "git merge-base --is-ancestor a b && git diff --stat a b", 0),
                 ("lead", "git worktree list; git log --oneline; git show HEAD:docs/commit.md", 0),
                 ("lead", "rg -n deploy docs; cat deploy.sh; git log -- deploy", 0),
-                ("peer", "git commit -m x && git push", 0)):
+                ("peer", "git commit -m x && git push", 0), ("supervisor", "git reset --hard", 0)):
             with self.subTest(role=role, command=command):
                 payload = json.dumps({"tool_name": "Execute", "tool_input": {"command": command}})
                 result = subprocess.run([str(ROOT / "setup/droid-guard"), role], input=payload, text=True,
@@ -425,12 +425,25 @@ print(json.dumps({"effective":append, "args":args}))
                     ("git fetch && git reset --hard origin/main", 2), ('bash -c "git reset --hard"', 2),
                     ("echo 'unbalanced && rm -rf /", 2)):
                 with self.subTest(command=command):
-                    payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}, "cwd": str(work)})
-                    result = subprocess.run([str(ROOT / "setup/claude-guard")], input=payload, text=True,
-                                            capture_output=True, timeout=10, env=env)
-                    self.assertEqual(result.returncode, code, result.stderr)
-                    if code:
-                        self.assertIn("in a Peer seat", result.stderr)
+                    # A Droid Peer seat has the same rule set on its own shell tool and project variable.
+                    for guard, tool, variable in ((["setup/claude-guard"], "Bash", "CLAUDE_PROJECT_DIR"),
+                                                  (["setup/droid-guard", "peer"], "Execute", "FACTORY_PROJECT_DIR")):
+                        payload = json.dumps({"tool_name": tool, "tool_input": {"command": command}, "cwd": str(work)})
+                        result = subprocess.run([str(ROOT / guard[0]), *guard[1:]], input=payload, text=True,
+                                                capture_output=True, timeout=10, env={**os.environ, variable: str(work)})
+                        self.assertEqual(result.returncode, code, result.stderr)
+                        if code:
+                            self.assertIn("in a Peer seat", result.stderr)
+            # Without the project variable the workspace is the Git top level of the hook's cwd.
+            repo = pathlib.Path(folder) / "repo"
+            (repo / "sub").mkdir(parents=True)
+            subprocess.run(["git", "init", "-q", str(repo)], check=True, timeout=10)
+            bare = {name: value for name, value in os.environ.items() if name != "FACTORY_PROJECT_DIR"}
+            for command, code in (("rm -rf .", 0), ("rm -rf ..", 2)):
+                payload = json.dumps({"tool_name": "Execute", "tool_input": {"command": command}, "cwd": str(repo / "sub")})
+                result = subprocess.run([str(ROOT / "setup/droid-guard"), "peer"], input=payload, text=True,
+                                        capture_output=True, timeout=10, env=bare)
+                self.assertEqual(result.returncode, code, result.stderr)
             for payload, code in (('{"tool_name":"Read","tool_input":{"file_path":"/etc/passwd"}}', 0), ("not json", 2)):
                 result = subprocess.run([str(ROOT / "setup/claude-guard")], input=payload, text=True,
                                         capture_output=True, timeout=10, env=env)

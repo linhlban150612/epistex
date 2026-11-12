@@ -375,17 +375,23 @@ else
       ! jq -e '.compactionTokenLimit == 100000' "$home/.factory/settings.json" >/dev/null 2>&1; then
       # Droid reads only this copy; without it the limit falls back to 250000.
       fail "droid seats: $home/.factory/settings.json must be a regular file (copy, not symlink) with compactionTokenLimit 100000"
+    elif jq -e '.hooksDisabled == true' "$home/.factory/settings.json" >/dev/null 2>&1; then
+      # hooksDisabled stops every hook, also the seat guard that role-agent passes with --settings.
+      fail "droid seats: $home/.factory/settings.json must not set hooksDisabled: the seat guard is a hook"
     fi
   done <<<"$droid_homes"
   if jq -e '[.agents.providers | to_entries[] | select(.key | test("^droid-(peer|lead|supervisor)$")) |
       .value.enabled == true] | any' "$paseo_config" >/dev/null; then
     # role-agent passes this PreToolUse hook to every Droid seat; ACP ignores --remove-tools.
-    guard="$kit/setup/droid-guard" allow=0 deny=0 push=0
+    guard="$kit/setup/droid-guard" allow=0 deny=0 push=0 reset=0
     printf '{"tool_name":"Glob"}' | "$guard" >/dev/null 2>&1 || allow=$?
     printf '{"tool_name":"Task"}' | "$guard" >/dev/null 2>&1 || deny=$?
     (( allow == 0 && deny == 2 )) || fail 'droid seats: setup/droid-guard must be executable, allow Glob and deny Task with exit 2'
     printf '{"tool_name":"Execute","tool_input":{"command":"git push"}}' | "$guard" lead >/dev/null 2>&1 || push=$?
     (( allow != 0 || deny != 2 || push == 2 )) || fail 'droid seats: setup/droid-guard must deny git push in a Lead seat with exit 2'
+    printf '{"tool_name":"Execute","tool_input":{"command":"git reset --hard"},"cwd":"/"}' |
+      FACTORY_PROJECT_DIR=/ "$guard" peer >/dev/null 2>&1 || reset=$?
+    (( allow != 0 || deny != 2 || reset == 2 )) || fail 'droid seats: setup/droid-guard must deny git reset --hard in a Peer seat with exit 2'
   fi
   for role in lead supervisor; do
     seat="droid-$role"

@@ -10,7 +10,7 @@ provider does not inject the common contract and the selected role prompt
 
 1. Install Factory Droid and ensure the `droid` binary is on the PATH inherited by Paseo.
    `role-agent peer droid` runs `droid exec --output-format acp --settings <guard file>`. Verified
-   versions: 1.0.0, 1.1.0 and 1.4.1. The ACP registry entry launches `--output-format acp-daemon`;
+   versions: 1.0.0, 1.1.0, 1.4.1 and 1.7.1. The ACP registry entry launches `--output-format acp-daemon`;
    the seat keeps `acp`, which those versions support.
 2. Authenticate Droid before launching a seat: use Factory's login flow (shared by all seats), or
    give each seat its own key (see [Per-seat API keys](#per-seat-api-keys)). Credentials stay in
@@ -51,7 +51,18 @@ available.
 A Lead or Supervisor seat is also denied an `Execute` command that runs `git commit`, `git push`,
 `git merge`, `git worktree remove` or a deploy (`<tool> deploy`, `npm run deploy`): the Peer is the
 only writer, and Human approval of such an action is routed to a Peer. Read commands such as
-`git merge-base`, `git worktree list` and `rg deploy` stay allowed. A Peer seat has no command check.
+`git merge-base`, `git worktree list` and `rg deploy` stay allowed.
+
+A Peer seat is denied three destructive `Execute` forms, the same rule set as the Claude Peer guard
+(`setup/seat_guard.py`):
+
+- `rm` with a recursive flag and a force flag on a path outside the workspace. A path below `/tmp`
+  or `/var/tmp` is allowed. A path the guard cannot read as text (`$VAR`, `$(…)`) is denied.
+- `git push` with `--force`, `-f`, `--force-with-lease`, `--mirror` or a `+refspec`.
+- `git reset --hard`.
+
+The workspace is `$FACTORY_PROJECT_DIR` when Droid sets it, else the Git top level of the hook's
+`cwd`, else that `cwd`. The denial tells the Peer to use a narrower command or report `BLOCKED`.
 
 - `role-agent <role> droid` writes a private settings file with a `PreToolUse` hook that runs
   `setup/droid-guard <role>`, and starts `droid exec --output-format acp --settings <file>`. It removes
@@ -62,8 +73,9 @@ only writer, and Human approval of such an action is routed to a Peer. Read comm
 - `role-agent` rejects a `--settings` launch argument, because a second settings file could drop
   the hook.
 - `setup-seats.sh --check` fails when any Droid seat is enabled and `setup/droid-guard` is not
-  executable, does not allow `Glob`, does not deny `Task` with exit code 2, or does not deny
-  `git push` for a Lead.
+  executable, does not allow `Glob`, does not deny `Task` with exit code 2, does not deny
+  `git push` for a Lead, or does not deny `git reset --hard` for a Peer. It also fails when a seat
+  home's `.factory/settings.json` sets `hooksDisabled: true`, because that setting stops the guard.
 
 Why a hook: Droid 1.0.0 ACP accepts `--remove-tools`/`--only-tools` silently and ignores them, and
 ACP has no tool config option. Paseo MCP calls inside Script stay allowed: Opus 5.5 runs in Droid's
@@ -73,6 +85,11 @@ Live probe (Droid 1.0.0, through Paseo): `droid-peer`, `droid-lead` and `droid-s
 `Epistex seat policy denies Task` for a `Task` call. Lead and Supervisor completed
 `list_workspaces`, and Peer completed `Glob`. A direct ACP probe also rejected `Loop` inside a
 Script.
+
+Live probe of the Peer command check (Droid 1.7.1, through Paseo 0.15.4, `gemini-3.8-flash`, started
+in a subdirectory of a test repository): `droid-peer` ran `git status`, and got
+`Epistex seat policy denies git reset --hard in a Peer seat` and
+`Epistex seat policy denies rm -rf outside the workspace` for the two destructive commands.
 
 ## Additional model capabilities and profiles
 
@@ -113,9 +130,10 @@ low/high models does not prove runtime medium support.
   prompt. A session restored with `session/load` or `session/resume` does not get them again.
 - Droid Lead/Supervisor use the injected Paseo MCP; Droid Peer has Paseo tools disabled.
 - The [seat guard hook](#seat-guard-hook) denies tools by name, and Lead/Supervisor write commands
-  by a pattern on the command text. It is not an OS sandbox: a seat can still start processes
-  through `Execute`, and a command the pattern does not know (a script that pushes, `./deploy.sh`)
-  passes. Only Droid seats have this hook; other backends rely on the role prompt.
+  and Peer destructive commands by a pattern on the command text. It is not an OS sandbox: a seat
+  can still start processes through `Execute`, and a command the pattern does not know (a script
+  that pushes, `./deploy.sh`, `find -delete`, a file tool) passes. Droid seats and the Claude Peer
+  seat have a guard hook; other backends rely on the role prompt.
 - Static checks do not prove authentication, the `acp` output mode, effort mapping or runtime
   integration. The operator merges/reloads the config and performs an actual Paseo launch.
   Last verified launches: `droid-peer` on Droid 1.4.1 (`claude-haiku-5-5`, `low`, `auto-high`);

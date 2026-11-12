@@ -459,6 +459,12 @@ class SetupSeatsTest(unittest.TestCase):
              f"droid seats: {homes[0]}/.factory/settings.json must be a regular file"),
             ("default compaction limit", lambda: (homes[1] / ".factory/settings.json").write_text('{"compactionTokenLimit": 250000}'),
              f"droid seats: {homes[1]}/.factory/settings.json must be a regular file"),
+            ("hooks disabled", lambda: (homes[2] / ".factory/settings.json").write_text(
+                '{"compactionTokenLimit": 100000, "hooksDisabled": true}'),
+             f"droid seats: {homes[2]}/.factory/settings.json must not set hooksDisabled"),
+            ("guard hook without Peer check", lambda: (self.kit / "setup/seat_guard.py").write_text(
+                "PEER_ADVICE = ''\ndef peer_reason(call, tool, variable):\n    return None\n"),
+             "droid seats: setup/droid-guard must deny git reset --hard in a Peer seat"),
             ("guard hook not executable", lambda: (self.kit / "setup/droid-guard").chmod(0o644),
              "droid seats: setup/droid-guard must be executable, allow Glob and deny Task"),
             ("guard hook allows Task", lambda: (self.kit / "setup/droid-guard").write_text("#!/bin/sh\nexit 0\n"),
@@ -473,6 +479,7 @@ class SetupSeatsTest(unittest.TestCase):
                 self.assertIn(expected, result.stderr)
                 self.data = saved
                 shutil.copy2(ROOT / "setup/droid-guard", self.kit / "setup/droid-guard")
+                shutil.copy2(ROOT / "setup/seat_guard.py", self.kit / "setup/seat_guard.py")
                 for home in homes:
                     if (home / ".factory").is_symlink():
                         (home / ".factory").unlink()

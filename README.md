@@ -84,7 +84,7 @@ Runtime layout, resume selection, environment variables and the legacy `seatwork
 | `agents/*.md` | Supervisor, Lead, and Peer prompts |
 | `agents/contract/COMMON.md`, `setup/role_prompt.py` | Shared role invariants, combined prompt loader/size check and the ACP session primer shared by all proxies |
 | `setup/role-agent` | Role launcher: native Claude/Pi/OMP, and the ACP instruction proxy for Amp, Devin, Copilot, Cursor, Kiro, Droid and Antigravity |
-| `setup/{amp,devin,copilot,cursor,kiro}-acp`, `setup/claude-sdk`, `setup/claude-guard`, `setup/droid-guard`, `setup/kiro-*.json` | Per-backend launchers, the Claude Peer and Droid seat guard hooks (command-text guards, not a sandbox) and Kiro agent configs |
+| `setup/{amp,devin,copilot,cursor,kiro}-acp`, `setup/claude-sdk`, `setup/claude-guard`, `setup/droid-guard`, `setup/seat_guard.py`, `setup/kiro-*.json` | Per-backend launchers, the Claude Peer and Droid seat guard hooks with their shared Peer rule set (command-text guards, not a sandbox) and Kiro agent configs |
 | `setup/codex-room` | Select runtime/resume and generate Codex config |
 | `setup/setup-seats.sh`, `setup/normalize-profiles.jq`, `examples/paseo-providers.json` | Seat checker, profile normalizer and provider catalog |
 | `setup/check-brief`, `setup/check-handoff`, `setup/fail-on-base` | Mechanical gates for briefs, handoffs and reproducible-bug fixes |

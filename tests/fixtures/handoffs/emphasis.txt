@@ -12,5 +12,6 @@ Read: README.md
 `Verification`
 baseline run: `true` exit 1
 candidate: `true` exit 0
+*Proof class*: None (nothing run on the candidate)
 Unknown / risk: không có
 Ownership: dừng ghi, trả scope

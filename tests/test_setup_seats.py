@@ -318,6 +318,24 @@ class SetupSeatsTest(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(message, result.stderr)
 
+    def test_check_rejects_a_claude_guard_that_cannot_deny(self):
+        guard = self.kit / "setup/claude-guard"
+        message = "claude-peer: setup/claude-guard must be executable, allow git status and deny git reset --hard"
+        self.assertNotIn(message, self.check_config(self.data).stderr)
+        for name, mutate in (("not executable", lambda: guard.chmod(0o644)),
+                             ("allows everything", lambda: guard.write_text("#!/bin/sh\nexit 0\n")),
+                             ("missing", guard.unlink)):
+            with self.subTest(name):
+                mutate()
+                result = self.check_config(self.data)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(message, result.stderr)
+                shutil.copy2(ROOT / "setup/claude-guard", guard)
+        data = copy.deepcopy(self.data)
+        data["agents"]["providers"]["claude-peer"]["enabled"] = False
+        guard.chmod(0o644)
+        self.assertNotIn(message, self.check_config(data).stderr)
+
     def test_check_rejects_kit_runtime_and_environment_violations(self):
         self.save()
         common = self.kit / "agents/contract/COMMON.md"

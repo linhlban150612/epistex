@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Kit verification in one command: the four checks of AGENTS.md § Verification.
+#
+# Usage: setup/verify [--skip-tests]
+#
+# Runs every check, also after a failure, and prints one result line per check. The last line is
+# `VERIFY OK` only when all four checks ran and passed; exit status 0 only then. With --skip-tests
+# the unit tests do not run and the last line is `VERIFY PARTIAL`, exit status 0 when the rest passed.
+# This does not replace live Paseo launches for launch, auth, model or tool-policy changes.
+set -u
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$root" || exit 2
+skip_tests=0
+case "${1:-}" in
+  '') ;;
+  --skip-tests) skip_tests=1 ;;
+  *) echo 'usage: setup/verify [--skip-tests]' >&2; exit 2 ;;
+esac
+(( $# <= 1 )) || { echo 'usage: setup/verify [--skip-tests]' >&2; exit 2; }
+
+failed=()
+step() {
+  local name="$1"; shift
+  echo "== $name"
+  if "$@"; then echo "ok: $name"; else echo "FAILED: $name"; failed+=("$name"); fi
+}
+
+if (( skip_tests )); then
+  echo '== unit tests'; echo 'skipped: unit tests'
+else
+  step 'unit tests' env PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests
+fi
+step 'codex-room compile' python3 -c 'compile(open("setup/codex-room").read(), "setup/codex-room", "exec")'
+step 'setup-seats.sh syntax' bash -n setup/setup-seats.sh
+step 'git diff --check' git diff --check
+
+if (( ${#failed[@]} )); then
+  printf -v list '%s, ' "${failed[@]}"
+  echo "VERIFY FAILED: ${list%, }"
+  exit 1
+fi
+if (( skip_tests )); then echo 'VERIFY PARTIAL: unit tests skipped'; else echo 'VERIFY OK'; fi

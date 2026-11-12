@@ -1,6 +1,6 @@
 // Turn-ended delivery: read the Peer's last assistant message, classify it with the shared parser,
 // record it in the outbox (fsync) and hand it to the Lead. Event-gated only: no timers, no polling.
-import { briefOf, checkBrief } from "./brief.ts";
+import { briefIdentity, briefOf, checkBrief, outsideScope, ownedScope } from "./brief.ts";
 import { classifyHandoff } from "./handoff.ts";
 import { deliveryId, recipientOf, type DeliveryKind, type DeliveryRecord, type Outbox, type OutboxCursor } from "./outbox.ts";
 import { describe, type Logger, type PermissionEvent, type TurnEndedEvent } from "./plugin.ts";
@@ -52,7 +52,11 @@ export interface AgentHandle {
   ): Promise<void>;
 }
 export interface DeliveryPaseo {
-  agents: { ref(agentId: string): AgentHandle };
+  agents: {
+    ref(agentId: string): AgentHandle;
+    /** Absent on a daemon without the agent list; the early brief check is then skipped. */
+    list?(options: { filter: { labels: Record<string, string> }; page: { limit: number } }): Promise<{ entries: Array<{ agent: AgentSnapshot }> }>;
+  };
 }
 
 export interface DeliveryOptions {
@@ -70,6 +74,10 @@ export function formatDelivery(record: DeliveryRecord): string {
   ];
   if (record.kind === "PERMISSION_REQUESTED") {
     lines.push(`lead: ${record.leadAgentId}`, "---", record.body);
+    return lines.join("\n");
+  }
+  if (record.kind === "BRIEF_INVALID") {
+    lines.push(`codes: ${record.codes?.join(", ") ?? ""}`, `reasons: ${record.reasons.join("; ")}`);
     return lines.join("\n");
   }
   if (record.kind !== "HANDBACK_VALID") {
@@ -114,6 +122,24 @@ export function roundWarnings(
  * seven days the 95th percentile was 168 calls; the sessions above it lost the brief's rules.
  */
 export const TOOL_CALL_LIMIT = 150;
+/** Paths named in one scope warning; the rest are counted. */
+const SCOPE_WARNING_PATHS = 5;
+const BRIEF_INVALID_REASON =
+  "the brief you sent to this Peer failed setup/check-brief; this is not a handoff; the Peer still works on that brief";
+
+/** Identity of the one early brief warning a Peer can get. */
+function briefDeliveryId(peerAgentId: string): string {
+  return deliveryId({ peerAgentId, taskId: null, round: null, candidate: null, lastMessageId: "brief" });
+}
+
+/** The text of a message this Lead sent to the Peer, else null. */
+function leadMessage(entry: TimelineEntry, leadAgentId: string): string | null {
+  // Paseo shows a prompt that is only an agent message as a tool_call row with `agentMessage`
+  // (body already unescaped); a prompt with role instructions before the envelope stays a user_message.
+  const message = entry.item.agentMessage;
+  if (message) return message.event === "message" && message.sender.id === leadAgentId ? message.text : null;
+  return entry.item.type === "user_message" ? briefOf(entry.item.text ?? "", leadAgentId) : null;
+}
 
 function describeOutcome(outcome: TurnEndedEvent["outcome"]): string {
   if (outcome.kind === "failed") return `turn failed: ${outcome.error.message}`;
@@ -127,6 +153,8 @@ export class Delivery {
   private readonly now: () => string;
   private loaded: Promise<void> | null = null;
   private reconciled: Promise<void> | null = null;
+  /** Peers whose first prompt was read at a Lead turn end; in memory only, so a restart reads them once more. */
+  private readonly briefChecked = new Set<string>();
 
   constructor(options: DeliveryOptions) {
     this.outbox = options.outbox;
@@ -202,6 +230,7 @@ export class Delivery {
     await this.catchUp(paseo);
     const { agent } = event;
     if (LEAD_PROVIDER.test(agent.provider) || SUPERVISOR_PROVIDER.test(agent.provider)) {
+      if (LEAD_PROVIDER.test(agent.provider)) await this.warnBriefs(agent.id, paseo);
       await this.flush(agent.id, paseo);
       return;
     }
@@ -254,6 +283,61 @@ export class Delivery {
     await this.flush(recipient.id, paseo, recipient);
   }
 
+  /**
+   * Early brief check, on the Lead's own turn end (the turn in which it briefed its Peers): read the
+   * first prompt of each child Peer that has no receipt yet and, when it fails check-brief, record
+   * one BRIEF_INVALID delivery for the Lead. The Peer is not stopped. Only the first page of
+   * children is read. A failure here must not stop the flush that follows.
+   */
+  private async warnBriefs(leadAgentId: string, paseo: DeliveryPaseo): Promise<void> {
+    if (!paseo.agents.list) return;
+    let peers: AgentSnapshot[];
+    try {
+      peers = (await paseo.agents.list({ filter: { labels: { [PARENT_LABEL]: leadAgentId } }, page: { limit: PAGE_LIMIT } })).entries.map((entry) => entry.agent);
+    } catch (error) {
+      this.log.error(`peers of ${leadAgentId} not listed; early brief check skipped: ${describe(error)}`);
+      return;
+    }
+    for (const peer of peers) {
+      if (this.briefChecked.has(peer.id) || this.outbox.cursor(peer.id) || peer.archivedAt || peer.status === "closed") continue;
+      const id = briefDeliveryId(peer.id);
+      if (this.outbox.get(id)) {
+        this.briefChecked.add(peer.id);
+        continue;
+      }
+      try {
+        const page = await paseo.agents.ref(peer.id).timeline.refetch({ direction: "tail", limit: PAGE_LIMIT });
+        const brief = await this.firstBrief(peer.id, leadAgentId, page, page.entries, paseo);
+        if (brief === undefined) continue; // no first prompt yet: read again at the Lead's next turn end
+        this.briefChecked.add(peer.id);
+        const codes = brief === null ? [] : checkBrief(brief);
+        if (!codes.length) continue;
+        // The delivery id stays keyed on the Peer alone; task and round are for the Lead to read.
+        const { taskId, round } = briefIdentity(brief!);
+        await this.outbox.append({
+          deliveryId: id,
+          peerAgentId: peer.id,
+          leadAgentId,
+          kind: "BRIEF_INVALID",
+          turnId: null,
+          taskId,
+          round,
+          candidate: null,
+          messageId: null,
+          cursor: null,
+          reasons: [BRIEF_INVALID_REASON],
+          codes,
+          body: "",
+          state: "pending",
+          createdAt: this.now(),
+        });
+        this.log.info(`recorded BRIEF_INVALID ${id.slice(0, 12)} for peer ${peer.id} of lead ${leadAgentId}`);
+      } catch (error) {
+        this.log.error(`brief of ${peer.id} not checked: ${describe(error)}`);
+      }
+    }
+  }
+
   private async recordTurn(event: TurnEndedEvent, leadAgentId: string, paseo: DeliveryPaseo, outcomeKnown = true): Promise<void> {
     const peerAgentId = event.agent.id;
     // First read of this Peer: its first prompt is the Lead's brief, checked once below.
@@ -285,6 +369,7 @@ export class Delivery {
     let candidate: string | null = null;
     let body = "";
     let lastMessageId: string;
+    let scopeCell = "";
     if (!last) {
       if (event.turnId && this.outbox.forTurn(peerAgentId, event.turnId)) {
         this.log.info(`turn ${event.turnId} of ${peerAgentId} already recorded; replay ignored`);
@@ -306,6 +391,7 @@ export class Delivery {
       taskId = result.header?.task ?? null;
       round = result.header?.round ?? null;
       candidate = result.shas.length >= 2 ? result.shas.join("..") : result.snapshot ? "snapshot" : null;
+      scopeCell = result.cells.Scope ?? "";
       kind = result.valid ? "HANDBACK_VALID" : "TURN_ENDED_INVALID_HANDOFF";
       reasons = result.valid ? [] : [describeOutcome(event.outcome), ...result.reasons];
       codes = result.valid ? [] : [...canceled, ...result.codes];
@@ -316,11 +402,23 @@ export class Delivery {
       this.log.info(`delivery ${id.slice(0, 12)} already recorded for ${peerAgentId}; replay`);
     } else {
       const warnings = roundWarnings({ peerAgentId, leadAgentId, taskId, round }, this.outbox.records());
-      const briefCodes = firstTurn ? await this.briefCodes(peerAgentId, leadAgentId, page, entries, paseo) : null;
+      const brief = firstTurn ? ((await this.firstBrief(peerAgentId, leadAgentId, page, entries, paseo)) ?? null) : null;
+      const briefCodes = brief === null ? null : checkBrief(brief);
+      // Owned scope: the newest Lead message in this read that names one, else the first brief, else
+      // the scope stored on an earlier receipt of this Peer.
+      const messages = entries.map((entry) => leadMessage(entry, leadAgentId)).filter((text): text is string => text !== null);
+      const newScope = [...messages.reverse(), ...(brief === null ? [] : [brief])].map(ownedScope).find((scope) => scope.length);
+      const owned = newScope ?? this.outbox.records().filter((record) => record.peerAgentId === peerAgentId && record.ownedScope).at(-1)?.ownedScope ?? [];
+      const outside = outsideScope(scopeCell, owned);
+      if (outside.length) {
+        const more = outside.length > SCOPE_WARNING_PATHS ? ` (+${outside.length - SCOPE_WARNING_PATHS} more)` : "";
+        warnings.push(`declared change outside the brief's Owned scope: ${outside.slice(0, SCOPE_WARNING_PATHS).join(", ")}${more}`);
+      }
       const toolCalls = entries.filter((entry) => entry.item.type === "tool_call" && !entry.item.agentMessage).length;
       const sessionCalls = this.outbox.records().reduce((sum, record) => sum + (record.peerAgentId === peerAgentId ? (record.toolCalls ?? 0) : 0), toolCalls);
       if (sessionCalls >= TOOL_CALL_LIMIT) warnings.push(`peer session at ${sessionCalls} tool calls (limit ${TOOL_CALL_LIMIT}); context-reset or a new Peer advised`);
-      if (briefCodes?.length) warnings.push(`brief failed check-brief: ${briefCodes.join(", ")}`);
+      // The Lead already got BRIEF_INVALID for this Peer: do not repeat the warning.
+      if (briefCodes?.length && !this.outbox.get(briefDeliveryId(peerAgentId))) warnings.push(`brief failed check-brief: ${briefCodes.join(", ")}`);
       await this.outbox.append({
         deliveryId: id,
         peerAgentId,
@@ -337,6 +435,7 @@ export class Delivery {
         ...(codes.length ? { codes } : {}),
         ...(warnings.length ? { warnings } : {}),
         ...(briefCodes ? { briefCodes } : {}),
+        ...(newScope ? { ownedScope: newScope } : {}),
         toolCalls,
         body,
         ...(trailing.length ? { trailing } : {}),
@@ -386,29 +485,24 @@ export class Delivery {
   }
 
   /**
-   * check-brief codes for the brief that opened this Peer's session: the Lead's agent-message in
-   * the Peer's first user message. Empty when the brief passes; null when no brief was found, so
-   * nothing is reported. A failure to read the start of the timeline must not stop the delivery.
+   * The brief that opened this Peer's session: the Lead's agent-message in the Peer's first user
+   * message. Null when that prompt is not from this Lead; undefined when no first prompt was read.
+   * A failure to read the start of the timeline must not stop the delivery.
    */
-  private async briefCodes(peerAgentId: string, leadAgentId: string, page: TimelinePage, tail: TimelineEntry[], paseo: DeliveryPaseo): Promise<string[] | null> {
+  private async firstBrief(peerAgentId: string, leadAgentId: string, page: TimelinePage, tail: TimelineEntry[], paseo: DeliveryPaseo): Promise<string | null | undefined> {
     let entries = tail;
     if (page.hasOlder) {
       try {
         const start = await paseo.agents.ref(peerAgentId).timeline.refetch({ direction: "after", cursor: { epoch: page.epoch, seq: 0 }, limit: PAGE_LIMIT });
-        if (start.reset || start.staleCursor || start.epoch !== page.epoch) return null;
+        if (start.reset || start.staleCursor || start.epoch !== page.epoch) return undefined;
         entries = start.entries;
       } catch (error) {
         this.log.error(`brief of ${peerAgentId} not read: ${describe(error)}`);
-        return null;
+        return undefined;
       }
     }
-    // Paseo shows a prompt that is only an agent message as a tool_call row with `agentMessage`
-    // (body already unescaped); a prompt with role instructions before the envelope stays a user_message.
     const first = entries.find((entry) => entry.item.type === "user_message" || entry.item.agentMessage);
-    if (!first) return null;
-    const message = first.item.agentMessage;
-    const brief = message ? (message.event === "message" && message.sender.id === leadAgentId ? message.text : null) : briefOf(first.item.text ?? "", leadAgentId);
-    return brief === null ? null : checkBrief(brief);
+    return first ? leadMessage(first, leadAgentId) : undefined;
   }
 
   /** The last assistant text already recorded for a Peer: the newest receipt's trailing text, else its body. */

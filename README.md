@@ -84,11 +84,12 @@ Runtime layout, resume selection, environment variables and the legacy `seatwork
 | `agents/*.md` | Supervisor, Lead, and Peer prompts |
 | `agents/contract/COMMON.md`, `setup/role_prompt.py` | Shared role invariants, combined prompt loader/size check and the ACP session primer shared by all proxies |
 | `setup/role-agent` | Role launcher: native Claude/Pi/OMP, and the ACP instruction proxy for Amp, Devin, Copilot, Cursor, Kiro, Droid and Antigravity |
-| `setup/{amp,devin,copilot,cursor,kiro}-acp`, `setup/claude-sdk`, `setup/droid-guard`, `setup/kiro-*.json` | Per-backend launchers, the Droid seat guard hook and Kiro agent configs |
+| `setup/{amp,devin,copilot,cursor,kiro}-acp`, `setup/claude-sdk`, `setup/claude-guard`, `setup/droid-guard`, `setup/kiro-*.json` | Per-backend launchers, the Claude Peer and Droid seat guard hooks (command-text guards, not a sandbox) and Kiro agent configs |
 | `setup/codex-room` | Select runtime/resume and generate Codex config |
 | `setup/setup-seats.sh`, `setup/normalize-profiles.jq`, `examples/paseo-providers.json` | Seat checker, profile normalizer and provider catalog |
 | `setup/check-brief`, `setup/check-handoff`, `setup/fail-on-base` | Mechanical gates for briefs, handoffs and reproducible-bug fixes |
-| `.agents/skills/*/SKILL.md` | Lead skills: Dual-Lane review, context reset, seat recovery, rework escalation, handling reopen/dependency requests; Peer skill: waiting on long jobs; installed per project by `setup-seats.sh --project` into `.agents/skills/`, `.claude/skills/` and `.kiro/skills/` |
+| `setup/verify` | The kit's four verification checks in one command; last line `VERIFY OK` |
+| `.agents/skills/*/SKILL.md` | Lead skills: Dual-Lane review, context reset, seat recovery, rework escalation, handling reopen/dependency requests, proof (acceptance order and external handoffs); Peer skill: waiting on long jobs; installed per project by `setup-seats.sh --project` into `.agents/skills/`, `.claude/skills/` and `.kiro/skills/` |
 | `plugins/epistex-delivery/`, `docs/setup/delivery-plugin.md` | Required Paseo `>=0.15.0 <0.16` server plugin that relays a Peer's end-of-turn handback to its Lead; installed through `setup-seats.sh --install-plugin` after Human approval |
 | `.pi/settings.json`, `.omp/config.yml` | Checkout-scoped Pi/OMP compaction settings |
 | `examples/AGENTS_MD_SNIPPET.md`, `examples/WORKSPACE_PROTOCOL.md`, `examples/LEAD_INITIAL_PROMPT.md`, `examples/target-repo/` | Contract, policy, Lead startup and verify templates for target repos |
@@ -102,7 +103,8 @@ Role prompts maintain stable behavior; the product repo's `AGENTS.md` holds shar
 specific constraints to the Peer. Keep logs and receipts outside Git. Use templates in `examples/`
 according to the target repo's hygiene; do not commit process documents into every repo.
 
-Kit verification commands: [AGENTS.md § Verification](AGENTS.md#verification). Tests use fixtures
+Kit verification commands: [AGENTS.md § Verification](AGENTS.md#verification), or `setup/verify`
+for all four. Tests use fixtures
 and temporary config/state; they do not replace auth, model, backend launch, actual CWD, or live
 recovery checks.
 
@@ -150,7 +152,7 @@ recovery checks.
   the kit has not been verified live with a remote Peer.
 - `setup/codex-room` preserves private runtime data and canonical config, disables native
   multi-agent features, and rejects ambiguous or symlinked runtimes. These contracts are covered by
-  `tests/test_codex_room_runtime.py` and `tests/test_codex_room.py`; see the [runtime guide](docs/setup/codex-runtime.md).
+  `tests/test_codex_room.py`; see the [runtime guide](docs/setup/codex-runtime.md).
 - Codex Peer sandbox: `codex-peer` profiles must set `modeId: auto-review`; that mode keeps `.git` read-only,
   so a committed candidate needs Human-authorized `full-access`. Details and measurement:
   [Peer sandbox and worktrees](docs/setup/codex-runtime.md#peer-sandbox-and-worktrees).

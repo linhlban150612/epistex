@@ -11,7 +11,7 @@ export interface OutboxCursor {
   seq: number;
 }
 
-export type DeliveryKind = "HANDBACK_VALID" | "TURN_ENDED_INVALID_HANDOFF" | "TURN_ENDED_NO_MESSAGE" | "PERMISSION_REQUESTED";
+export type DeliveryKind = "HANDBACK_VALID" | "TURN_ENDED_INVALID_HANDOFF" | "TURN_ENDED_NO_MESSAGE" | "PERMISSION_REQUESTED" | "BRIEF_INVALID";
 
 export interface DeliveryRecord {
   deliveryId: string;
@@ -29,12 +29,14 @@ export interface DeliveryRecord {
   messageId: string | null;
   cursor: OutboxCursor | null;
   reasons: string[];
-  /** Machine-readable reasons: HEADER_MISSING, CELL_MISSING:<name>, CANDIDATE_IDENTITY, TURN_CANCELED, NO_MESSAGE. Absent on older receipts. */
+  /** Machine-readable reasons: HEADER_MISSING, CELL_MISSING:<name>, CANDIDATE_IDENTITY, PROOF_CLASS, TURN_CANCELED, NO_MESSAGE. Absent on older receipts. */
   codes?: string[];
   /** Notes for the Lead that do not change `kind`: round above the rework limit, task reused across Peers. */
   warnings?: string[];
   /** check-brief codes of the Lead's brief, on the Peer's first receipt only; empty when the brief passes. Absent when no brief was read. */
   briefCodes?: string[];
+  /** Path globs of the `Owned scope` field in the newest Lead brief read for this receipt; later receipts of the Peer reuse it. */
+  ownedScope?: string[];
   /** Tool calls the Peer made in the timeline read for this receipt; summed per Peer for the session warning. Absent on older receipts. */
   toolCalls?: number;
   body: string;

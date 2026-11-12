@@ -38,8 +38,14 @@
   "CELL_MISSING:Unknown / risk",
   "CELL_MISSING:Ownership"
  ],
+ "bad-no-proof-class.txt": [
+  "PROOF_CLASS"
+ ],
  "bad-one-space.txt": [
   "CELL_MISSING:Outcome"
+ ],
+ "bad-proof-class-value.txt": [
+  "PROOF_CLASS"
  ],
  "bad-renamed-cells.txt": [
   "CELL_MISSING:Candidate",
@@ -76,6 +82,7 @@
  "ok-snapshot.txt": [],
  "ok-stopped.txt": [],
  "ok-table.txt": [],
+ "ok-unicode-space.txt": [],
  "truncated.txt": [
   "CELL_MISSING:Scope",
   "CELL_MISSING:Verification",

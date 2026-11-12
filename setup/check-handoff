@@ -7,12 +7,20 @@ Usage: check-handoff <brief.json> <handoff.txt> [--repo <path>] [--rerun]
 Prints READY_FOR_REVIEW or FAIL with reasons; exit 0/1. Never prints ACCEPTED:
 behaviour, tests, public contract, open findings and cessation stay with the Lead.
 
+Commit mode (brief commit_allowed=true): base and candidate commits, the diff between them, and
+no uncommitted or untracked file left in the worktree while its HEAD is the candidate.
+Snapshot mode (commit_allowed=false): each sha256 checksum in the Candidate cell must match a file
+the cell names, the worktree HEAD must still be the base, and the changed files are the worktree
+changes against the base (tracked and untracked). A named Git diff file must list the same files.
+Without a base commit the file list comes from the diff file; without both the gate reports UNSUPPORTED.
+
 --parse-only runs the parser without a brief or repository and reports the handoff shape
 (header, cells, hex tokens in Candidate, checksum snapshot, reason codes). plugins/epistex-delivery/server/handoff.ts
 ports the same parser; tests/fixtures/handoffs/ keeps both in parity.
 """
 
 import argparse
+import hashlib
 import json
 import pathlib
 import re
@@ -24,17 +32,26 @@ CELLS = ("Outcome", "Candidate", "Scope", "Verification", "Unknown / risk", "Own
 # a number ("1.", "1)", "(1)") and Markdown emphasis, in any order.
 PREFIX = r"(?:[ \t|>#]|[-+*][ \t]+|[0-9]+[.)][ \t]*|\([0-9]+\)[ \t]*|\*\*|__|[*_`])*"
 EMPH = r"(?:\*\*|__|[*_`])"
+# Codex writes Unicode spaces (em space, no-break space) between a cell name and its text.
+WS = " \t\u00a0\u2000-\u200b\u202f\u205f\u3000"
+
+
+def ws(pattern):
+    """The pattern with every `[ \\t…]` class widened to the Unicode spaces of WS."""
+    return pattern.replace(r"[ \t", "[" + WS)
+
+
 # Round is the first token after "Round:"; a trailing note such as "(not changed by me)" is tolerated.
-HEADER = re.compile(r"^%sTask ID%s?[ \t]*:%s?[ \t]*(?P<task>.+?)[ \t]*\|[ \t]*%s?Round%s?[ \t]*:%s?[ \t]*(?P<round>[^\s|]+)"
-                    % (PREFIX, EMPH, EMPH, EMPH, EMPH, EMPH))
+HEADER = re.compile(ws(r"^%sTask ID%s?[ \t]*:%s?[ \t]*(?P<task>.+?)[ \t]*\|[ \t]*%s?Round%s?[ \t]*:%s?[ \t]*(?P<round>[^\s|]+)"
+                       % (PREFIX, EMPH, EMPH, EMPH, EMPH, EMPH)))
 # Cell name at line start after optional markup. The name is exact (any case, free spacing around
 # "/"), then: closing emphasis, one parenthesised note, and a colon, a table bar, two spaces, one
 # space after closing emphasis, or the end of the line. One plain space does not end the name, so a
 # renamed cell ("Candidate identity:", "Scope / coverage", "Risks") and a sentence do not match.
-CELL_START = re.compile(
+CELL_START = re.compile(ws(
     r"^%s(?P<name>%s)%s?(?:[ \t]*\([^()\n]*\))?%s?"
     r"(?:[ \t]*:%s?[ \t]*|[ \t]*\|[ \t]*|[ \t]{2,}|(?<=[*_`])[ \t]+|[ \t]*$)"
-    % (PREFIX, "|".join(re.escape(c).replace(r"\ /\ ", r"[ \t]*/[ \t]*") for c in CELLS), EMPH, EMPH, EMPH),
+    % (PREFIX, "|".join(re.escape(c).replace(r"\ /\ ", r"[ \t]*/[ \t]*") for c in CELLS), EMPH, EMPH, EMPH)),
     re.I)
 CANONICAL = {c.replace(" ", "").lower(): c for c in CELLS}
 SHA = re.compile(r"\b[0-9a-f]{7,40}\b")
@@ -43,6 +60,9 @@ PATH = re.compile(r"[\w.~-]*/[\w.-]+|\b[\w-]+\.[A-Za-z][A-Za-z0-9]{0,7}\b")
 SNAPSHOT = re.compile(r"snapshot|checksum|uncommitted|no candidate SHA", re.I)
 NO_CANDIDATE = re.compile(r"\b(?:none|n/a|no (?:candidate|commits?|writes?|changes?|diff)|not committed|nothing (?:written|committed|changed))\b"
                           r"|không (?:có )?(?:candidate|commit|ghi|thay đổi)", re.I)
+# Sub-label of the Verification cell: how far the Peer's own evidence goes.
+PROOF_CLASSES = ("observed", "e2e", "tests-only", "none")
+PROOF = re.compile(ws(r"\bProof class%s?[ \t]*:%s?[ \t]*[*_`]*(%s)\b" % (EMPH, EMPH, "|".join(PROOF_CLASSES))), re.I)
 STOPPED = re.compile(r"\b(?:BLOCKED|REOPEN_REQUEST|DEPENDENCY_REQUEST)\b")
 EXIT = re.compile(r"\b(?:exit(?:\s+(?:status|code))?|rc|status)\s*[:=]?\s*(\d+)\b", re.I)
 # A reported run is a deliberate baseline run when its line names the base, a stash or a
@@ -64,7 +84,7 @@ def parse_handoff(text):
                 header = {"task": match["task"].strip("*_ \t"), "round": match["round"].rstrip("*_`")}
             continue
         match = CELL_START.match(line)
-        name = CANONICAL.get(re.sub(r"[ \t]", "", match["name"]).lower()) if match else None
+        name = CANONICAL.get(re.sub(ws(r"[ \t]"), "", match["name"]).lower()) if match else None
         if name and name not in cells:  # a later line that repeats a cell name is text of the current cell
             current = name
             cells[current] = clean(line[match.end():])
@@ -78,7 +98,8 @@ def classify_handoff(text):
 
     `shas` are the hex tokens in the Candidate cell; they are not resolved to commits here,
     so `valid` means "looks like a complete handback", not READY_FOR_REVIEW. `codes` are the
-    machine-readable form of `reasons`: HEADER_MISSING, CELL_MISSING:<name>, CANDIDATE_IDENTITY.
+    machine-readable form of `reasons`: HEADER_MISSING, CELL_MISSING:<name>, CANDIDATE_IDENTITY,
+    PROOF_CLASS.
     """
     header, cells = parse_handoff(text)
     reasons, codes = [], []
@@ -100,7 +121,13 @@ def classify_handoff(text):
     if header is not None and not missing and len(shas) < 2 and not snapshot and not stopped and not base_only:
         reasons.append(f"Candidate cell needs base SHA and candidate SHA (found {len(shas)})")
         codes.append("CANDIDATE_IDENTITY")
-    return {"header": header, "cells": cells, "missing": missing, "shas": shas, "snapshot": snapshot,
+    # A handoff with a candidate states its proof class; a stopped turn or one without a candidate has none.
+    proof = PROOF.search(cells.get("Verification", ""))
+    proof = proof[1].lower() if proof else None
+    if header is not None and not missing and (len(shas) >= 2 or snapshot) and not stopped and not base_only and proof is None:
+        reasons.append("Verification cell needs 'Proof class: " + " | ".join(PROOF_CLASSES) + "'")
+        codes.append("PROOF_CLASS")
+    return {"header": header, "cells": cells, "missing": missing, "shas": shas, "snapshot": snapshot, "proof": proof,
             "reasons": reasons, "codes": codes, "valid": not reasons}
 
 
@@ -151,6 +178,133 @@ def split_paths(text):
             if clean(token) and re.search(r"[/.]", clean(token)) and not re.search(r"[()]", clean(token))}
 
 
+def is_commit(repo, sha):
+    return not subprocess.run(["git", "-C", str(repo), "cat-file", "-e", f"{sha}^{{commit}}"],
+                              capture_output=True).returncode
+
+
+def worktree_changes(worktree, base):
+    """Paths that differ between a commit and the worktree: staged, unstaged and untracked (not ignored)."""
+    paths = set()
+    for line in git(worktree, "diff", "--name-status", "-M", base).splitlines():
+        paths.update(line.split("\t")[1:])
+    paths.update(git(worktree, "ls-files", "--others", "--exclude-standard").splitlines())
+    return paths
+
+
+DIFF_HEADER = re.compile(r"(?m)^diff --git a/(.+?) b/(.+)$")
+
+
+def snapshot_identity(cell, worktree):
+    """Verify the checksum + path identities of a Candidate cell.
+
+    Returns (reasons, paths in a named Git diff or None, verified snapshot files inside the worktree).
+    A sandboxed Peer can write only inside its worktree, so its snapshot file may be there: such a
+    file is evidence, not a change.
+    """
+    reasons, files, diff_files, inside = [], {}, None, set()
+    for token in re.split(r"\s+", cell):
+        # Markup and sentence marks in any order: "`candidate.diff`," and "(candidate.diff)."
+        token = token.strip("`'\"*()[]<>,;:").rstrip(".").rstrip("`'\"*()[]<>,;:")
+        if "/" not in token and "." not in token:
+            continue
+        path = pathlib.Path(token) if pathlib.Path(token).is_absolute() else pathlib.Path(worktree) / token
+        try:
+            if path.is_file():
+                files[token] = path.read_bytes()
+        except OSError:
+            continue
+    digests = {hashlib.sha256(data).hexdigest(): name for name, data in files.items()}
+    checksums = SHA256.findall(cell)
+    if not checksums:
+        reasons.append("snapshot candidate needs a sha256 checksum with the path of the snapshot or diff file")
+    for checksum in checksums:
+        if checksum not in digests:
+            reasons.append(f"checksum {checksum[:12]}… matches no readable file named in the Candidate cell")
+            continue
+        name = digests[checksum]
+        if not pathlib.Path(name).is_absolute():
+            inside.add(pathlib.PurePosixPath(name).as_posix())
+        else:
+            try:
+                inside.add(pathlib.Path(name).resolve().relative_to(pathlib.Path(worktree).resolve()).as_posix())
+            except ValueError:
+                pass
+        found = DIFF_HEADER.findall(files[name].decode("utf-8", "replace"))
+        if found:
+            diff_files = (diff_files or set()) | {path for pair in found for path in pair}
+    return reasons, diff_files, inside
+
+
+def check_snapshot(brief, cells, repo, reasons):
+    """Changed files of an uncommitted candidate (None when they cannot be established), where to
+    rerun, and the snapshot files inside the worktree."""
+    cell = cells["Candidate"]
+    worktree = pathlib.Path(brief.get("worktree") or repo)
+    identity, diff_files, evidence = snapshot_identity(cell, worktree)
+    reasons += identity
+    in_git = not subprocess.run(["git", "-C", str(worktree), "rev-parse", "--is-inside-work-tree"],
+                                capture_output=True).returncode
+    base = None
+    if in_git:
+        named = [brief["base_sha"]] if brief.get("base_sha") else SHA.findall(SHA256.sub("", cell))
+        base = next((sha for sha in named if is_commit(worktree, sha)), None)
+        if brief.get("base_sha") and base is None:
+            reasons.append(f"brief base_sha {brief['base_sha'][:12]} is not a commit in {worktree}")
+    if base is None:
+        if diff_files is None:
+            reasons.append("snapshot candidate without a Git base commit or a Git diff file: UNSUPPORTED; "
+                           "verify the file list by hand")
+        return diff_files, None, evidence
+    base = git(worktree, "rev-parse", base).strip()
+    head = git(worktree, "rev-parse", "HEAD").strip()
+    if head != base:
+        reasons.append(f"commit_allowed=false but worktree HEAD {head[:12]} != base {base[:12]}")
+    actual = worktree_changes(worktree, base) - evidence
+    if diff_files is not None:
+        for path in sorted(actual - diff_files):
+            reasons.append(f"worktree change not in the candidate diff file (not frozen): {path}")
+        for path in sorted(diff_files - actual):
+            reasons.append(f"candidate diff file names a path the worktree does not change: {path}")
+    for key in ("branch", "worktree"):
+        if brief.get(key) and brief[key] not in cell:
+            reasons.append(f"Candidate cell does not name brief {key} {brief[key]!r}")
+    return actual, worktree, evidence
+
+
+def check_commits(brief, cells, repo, reasons):
+    """Changed files between the base and candidate commits, or None when the identity fails."""
+    candidate_cell = cells["Candidate"]
+    # Keep only hex tokens that resolve to commits: branch names, timestamps and checksums also look like hex.
+    shas = [sha for sha in SHA.findall(candidate_cell) if is_commit(repo, sha)]
+    if len(shas) < 2:
+        if SNAPSHOT.search(candidate_cell) or SHA256.search(candidate_cell):
+            reasons.append("snapshot candidate, but the brief requires a commit (commit_allowed=true)")
+        else:
+            reasons.append(f"Candidate cell needs base SHA and candidate SHA that resolve to commits in {repo} (found {len(shas)})")
+        return None, None, None
+    base = git(repo, "rev-parse", shas[0]).strip()
+    candidate = git(repo, "rev-parse", shas[1]).strip()
+    brief_base = brief.get("base_sha")
+    if brief_base and git(repo, "rev-parse", brief_base).strip() != base:
+        reasons.append(f"base {base[:12]} != brief base_sha {brief_base[:12]}")
+    if subprocess.run(["git", "-C", str(repo), "merge-base", "--is-ancestor", base, candidate],
+                      capture_output=True).returncode:
+        reasons.append(f"base {base[:12]} is not an ancestor of candidate {candidate[:12]}")
+    for key in ("branch", "worktree"):
+        if brief.get(key) and brief[key] not in candidate_cell:
+            reasons.append(f"Candidate cell does not name brief {key} {brief[key]!r}")
+    # Work that is not in the candidate commit: uncommitted or untracked files, or later commits.
+    worktree = pathlib.Path(brief.get("worktree") or repo)
+    head = git(worktree, "rev-parse", "HEAD", check=False).strip()
+    if head == candidate:
+        for path in sorted(worktree_changes(worktree, candidate)):
+            reasons.append(f"uncommitted change in the worktree, not in the candidate: {path}")
+    elif brief.get("worktree"):
+        reasons.append(f"worktree HEAD {head[:12] or '?'} != candidate {candidate[:12]}: uncommitted work not checked")
+    return diff_paths(repo, base, candidate), worktree if head == candidate else None, candidate
+
+
 def check(brief, handoff, repo, rerun):
     reasons = []
     header, cells = parse_handoff(handoff)
@@ -165,33 +319,13 @@ def check(brief, handoff, repo, rerun):
         reasons.append("missing cells: " + ", ".join(missing))
         return reasons
 
-    if not brief.get("commit_allowed", True):
-        reasons.append("snapshot mode (commit_allowed=false): UNSUPPORTED; verify checksums by hand")
+    candidate, evidence = None, set()
+    if brief.get("commit_allowed", True):
+        actual, rerun_in, candidate = check_commits(brief, cells, repo, reasons)
+    else:
+        actual, rerun_in, evidence = check_snapshot(brief, cells, repo, reasons)
+    if actual is None:
         return reasons
-
-    candidate_cell = cells["Candidate"]
-    # Keep only hex tokens that resolve to commits: branch names, timestamps and checksums also look like hex.
-    shas = [sha for sha in SHA.findall(candidate_cell)
-            if not subprocess.run(["git", "-C", str(repo), "cat-file", "-e", f"{sha}^{{commit}}"],
-                                  capture_output=True).returncode]
-    if len(shas) < 2:
-        if SNAPSHOT.search(candidate_cell):
-            reasons.append("snapshot candidate: UNSUPPORTED; verify checksums by hand")
-        else:
-            reasons.append(f"Candidate cell needs base SHA and candidate SHA that resolve to commits in {repo} (found {len(shas)})")
-        return reasons
-    base, candidate = shas[0], shas[1]
-    base = git(repo, "rev-parse", base).strip()
-    candidate = git(repo, "rev-parse", candidate).strip()
-    brief_base = brief.get("base_sha")
-    if brief_base and git(repo, "rev-parse", brief_base).strip() != base:
-        reasons.append(f"base {base[:12]} != brief base_sha {brief_base[:12]}")
-    if subprocess.run(["git", "-C", str(repo), "merge-base", "--is-ancestor", base, candidate],
-                      capture_output=True).returncode:
-        reasons.append(f"base {base[:12]} is not an ancestor of candidate {candidate[:12]}")
-    for key in ("branch", "worktree"):
-        if brief.get(key) and brief[key] not in candidate_cell:
-            reasons.append(f"Candidate cell does not name brief {key} {brief[key]!r}")
 
     scope = cells["Scope"]
     match = re.search(r"Changed:(.*?)(?:Read:|$)", scope, re.S)
@@ -200,10 +334,10 @@ def check(brief, handoff, repo, rerun):
         declared = set()
     else:
         declared = split_paths(match.group(1))
-    actual = diff_paths(repo, base, candidate)
     for path in sorted(actual - declared):
         reasons.append(f"changed but not declared in Scope/Changed: {path}")
-    for path in sorted(declared - actual):
+    # A Peer may list its own snapshot file as changed: it is evidence, not part of the diff.
+    for path in sorted(declared - actual - evidence):
         reasons.append(f"declared in Scope/Changed but not in diff: {path}")
     owned = brief.get("owned_scope") or []
     excluded = brief.get("excluded_scope") or []
@@ -230,13 +364,12 @@ def check(brief, handoff, repo, rerun):
             reasons.append(f"required check reported non-zero exit: {command}")
 
     if rerun:
-        worktree = pathlib.Path(brief.get("worktree") or repo)
-        head = git(worktree, "rev-parse", "HEAD").strip()
-        if head != candidate:
-            reasons.append(f"rerun skipped: worktree HEAD {head[:12]} != candidate {candidate[:12]}")
+        if rerun_in is None:
+            where = f"worktree HEAD is not candidate {candidate[:12]}" if candidate else "no Git worktree for the snapshot"
+            reasons.append(f"rerun skipped: {where}")
         else:
             for command in brief.get("required_checks") or []:
-                result = subprocess.run(command, shell=True, cwd=worktree, text=True, capture_output=True)
+                result = subprocess.run(command, shell=True, cwd=rerun_in, text=True, capture_output=True)
                 if result.returncode:
                     tail = (result.stdout + result.stderr).strip().splitlines()[-3:]
                     reasons.append(f"rerun exit {result.returncode}: {command}: " + " | ".join(tail))

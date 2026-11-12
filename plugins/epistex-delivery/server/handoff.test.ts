@@ -44,7 +44,8 @@ test("real receipts: both parsers agree and no HANDBACK_VALID receipt becomes in
     const result = classifyHandoff(receipt.body);
     writeFileSync(scratch, receipt.body);
     assert.deepEqual(result, python(scratch), name);
-    if (receipt.kind === "HANDBACK_VALID") assert.equal(result.valid, true, name);
+    // Receipts older than the Proof class label may lack it; nothing else may fail.
+    if (receipt.kind === "HANDBACK_VALID") assert.deepEqual(result.codes.filter((code) => code !== "PROOF_CLASS"), [], name);
   }
   rmSync(path.dirname(scratch), { recursive: true });
 });
@@ -54,7 +55,8 @@ test("valid.txt: header, six cells, two SHAs", () => {
   assert.equal(result.valid, true);
   assert.deepEqual(result.header, { task: "T-1", round: "1" });
   assert.deepEqual(Object.keys(result.cells), ["Outcome", "Candidate", "Scope", "Verification", "Unknown / risk", "Ownership"]);
-  assert.equal(result.cells.Verification, "`true` exit 0\noutput: (none)");
+  assert.equal(result.cells.Verification, "`true` exit 0\noutput: (none)\nProof class: tests-only");
+  assert.equal(result.proof, "tests-only");
   assert.deepEqual(result.shas, [
     "3f2a9c1d4e5b6a7f8091a2b3c4d5e6f708192a3b",
     "9c3b6e5f4a2d1c0b8e7f6a5d4c3b2a1908f7e6d5",

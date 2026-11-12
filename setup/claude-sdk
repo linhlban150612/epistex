@@ -3,6 +3,7 @@
 import json
 import os
 import pathlib
+import shlex
 import shutil
 import subprocess
 import sys
@@ -15,6 +16,34 @@ ROLES = ("supervisor", "lead", "peer")
 # Paseo owns topology; AGENTS.md forbids schedules and heartbeats. Paseo's initialize carries no tool
 # fields, so this CLI deny-list survives the SDK handshake.
 DISALLOWED = ("Agent", "Task", "Workflow", "CronCreate", "CronDelete", "CronList", "ScheduleWakeup", "RemoteTrigger")
+
+GUARD = pathlib.Path(__file__).resolve().parent / "claude-guard"
+
+
+def guard_settings(args: list[str]) -> list[str]:
+    """Claude arguments with the Peer guard as a PreToolUse hook for Bash, through `--settings`.
+
+    A `--settings` value already in the arguments (a file path or JSON text) keeps its content; the
+    hook is added to it. A value that is not a JSON object stops the launch: no guess.
+    """
+    hook = {"matcher": "Bash", "hooks": [{"type": "command", "command": shlex.quote(str(GUARD)), "timeout": 10}]}
+    settings: dict = {}
+    args = list(args)
+    if "--settings" in args:
+        at = args.index("--settings")
+        if at + 1 >= len(args):
+            raise SystemExit("claude-sdk: --settings has no value")
+        value = args[at + 1]
+        try:
+            settings = json.loads(value if value.lstrip().startswith("{") else pathlib.Path(value).read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            raise SystemExit(f"claude-sdk: cannot read --settings to add the Peer guard: {error}")
+        if not isinstance(settings, dict) or not isinstance(settings.get("hooks", {}), dict) \
+                or not isinstance(settings.get("hooks", {}).get("PreToolUse", []), list):
+            raise SystemExit("claude-sdk: --settings must be a JSON object with hooks.PreToolUse as a list")
+        del args[at:at + 2]
+    settings.setdefault("hooks", {}).setdefault("PreToolUse", []).append(hook)
+    return ["--settings", json.dumps(settings), *args]
 
 
 def prime_claude(line: bytes, instructions: str) -> bytes:
@@ -43,6 +72,9 @@ def main() -> int:
     if shutil.which("claude") is None:
         raise SystemExit("agent executable not found: claude")
     deny = ["--disallowed-tools", ",".join(DISALLOWED)]
+    if role == "peer" and args != ["--version"]:
+        # A guard for this backend, not a sandbox: see setup/claude-guard.
+        args = guard_settings(args)
     if not stream:
         # The SDK initialize request replaces a CLI prompt, so this path serves only plain CLI use.
         command = ["claude", *args] if args == ["--version"] else ["claude", "--append-system-prompt", instructions, *deny, *args]

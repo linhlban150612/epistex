@@ -34,6 +34,7 @@
 
 - Run `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests` for implementation changes.
 - Run `python3 -c 'compile(open("setup/codex-room").read(), "setup/codex-room", "exec")'`, `bash -n setup/setup-seats.sh` and `git diff --check`.
+- `setup/verify` runs these four checks in one command; its last line is `VERIFY OK` only when all pass.
 - Do not run the installed-provider check against live config in isolated tests; report it pending
   when the configured Supervisor provider is not installed.
 - For launch/auth/model/tool-policy changes, verify actual Paseo launches for the affected roles;

@@ -24,6 +24,11 @@ function fakePaseo(agents: Record<string, AgentSnapshot | null>, pages: Record<s
   let failSend: Error | null = null;
   const paseo: DeliveryPaseo = {
     agents: {
+      list: async ({ filter }) => ({
+        entries: Object.values(agents)
+          .filter((agent): agent is AgentSnapshot => !!agent && Object.entries(filter.labels).every(([key, value]) => agent.labels?.[key] === value))
+          .map((agent) => ({ agent })),
+      }),
       ref: (agentId) => ({
         refresh: async () => {
           const agent = agents[agentId];
@@ -580,5 +585,85 @@ test("tool calls are counted per Peer across receipts; at the limit the receipt 
     assert.equal(record.toolCalls, 50);
     assert.equal(record.kind, "HANDBACK_VALID");
     assert.match(second.sent[0].text, /^warning: peer session at 150 tool calls \(limit 150\); context-reset or a new Peer advised$/m);
+  });
+});
+
+test("Lead turn end: a new Peer's failed brief is delivered at once as BRIEF_INVALID, once, and not repeated at the first handback", async () => {
+  const row = (text: string): TimelineEntry => ({ item: { type: "tool_call", agentMessage: { event: "message", sender: { id: "lead-1" }, text } }, seqEnd: 1 });
+  const child = (id: string): AgentSnapshot => ({ id, provider: "codex-peer", status: "running", labels: { "paseo.parent-agent-id": "lead-1" } });
+  const leadTurn = peerTurn({ agent: { ...peerTurn().agent, id: "lead-1", parentAgentId: null, provider: "amp-lead" } });
+  const good = "Task ID: T-2\nRound: 1\nBaseline: base 3f2a9c1d4e5b6a7f8091a2b3c4d5e6f708192a3b\nOwned scope: src/**\nAuthority: edit files in owned scope\n";
+  await scratch(async (delivery, outbox, lines) => {
+    const pages = { "peer-1": [{ epoch: "e1", entries: [row("Task ID: T-1 | Round: 1. Read a.txt.")] }], "peer-2": [{ epoch: "e1", entries: [row(good)] }], "peer-3": [{ epoch: "e1", entries: [] }] };
+    const fake = fakePaseo({ "lead-1": leadIdle, "peer-1": child("peer-1"), "peer-2": child("peer-2"), "peer-3": child("peer-3"), other: { id: "other", provider: "codex-peer", status: "running" } }, pages);
+    await delivery.onTurnEnded(leadTurn, fake.paseo);
+    assert.equal(fake.sent.length, 1, "only the failed brief is reported");
+    assert.equal(fake.sent[0].agentId, "lead-1");
+    assert.equal(
+      fake.sent[0].text,
+      `[epistex-delivery]\ndelivery-id: ${outbox.records()[0].deliveryId}\nkind: BRIEF_INVALID\npeer: peer-1  task: T-1  round: 1\n` +
+        "codes: OWNED_SCOPE_MISSING, AUTHORITY_MISSING, BASELINE_MISSING\n" +
+        "reasons: the brief you sent to this Peer failed setup/check-brief; this is not a handoff; the Peer still works on that brief",
+    );
+    assert.equal(outbox.cursor("peer-1"), null, "the early check does not move the Peer's cursor");
+
+    // The Lead's next turn end: peer-1 and peer-2 are not read again; peer-3 (no prompt yet) is.
+    const before = fake.refetches.length;
+    await delivery.onTurnEnded(leadTurn, fake.paseo);
+    assert.deepEqual(fake.refetches.slice(before).map((r) => r.agentId), ["peer-3"]);
+    assert.equal(fake.sent.length, 1);
+
+    // First handback of peer-1: briefCodes are stored, the warning is not sent a second time.
+    pages["peer-1"] = [{ epoch: "e1", entries: [row("Task ID: T-1 | Round: 1. Read a.txt."), assistant(VALID, 9)] }];
+    await delivery.onTurnEnded(peerTurn(), fake.paseo);
+    const handback = outbox.records().at(-1)!;
+    assert.equal(handback.kind, "HANDBACK_VALID");
+    assert.deepEqual(handback.briefCodes, ["OWNED_SCOPE_MISSING", "AUTHORITY_MISSING", "BASELINE_MISSING"]);
+    assert.doesNotMatch(fake.sent.at(-1)!.text, /check-brief/);
+    assert.ok(!lines.some((line) => line.startsWith("error")), lines.join("\n"));
+  });
+  await scratch(async (delivery, outbox, lines) => {
+    // A daemon whose agent list fails: logged, and the pending deliveries are still flushed.
+    const fake = fakePaseo({ "lead-1": leadIdle });
+    fake.paseo.agents.list = async () => {
+      throw new Error("no list");
+    };
+    await delivery.onTurnEnded(leadTurn, fake.paseo);
+    assert.equal(outbox.records().length, 0);
+    assert.ok(lines.some((line) => /early brief check skipped: no list/.test(line)));
+  });
+});
+
+test("declared changes outside the brief's Owned scope warn the Lead; the newest Lead message with a scope wins", async () => {
+  const row = (text: string, seqEnd: number): TimelineEntry => ({ item: { type: "tool_call", agentMessage: { event: "message", sender: { id: "lead-1" }, text } }, seqEnd });
+  const brief = (scope: string) => `Task ID: T-1\nRound: 1\nBaseline: base 3f2a9c1d4e5b6a7f8091a2b3c4d5e6f708192a3b\nOwned scope:\n${scope}\nAuthority: edit files in owned scope\n`;
+  await scratch(async (delivery, outbox) => {
+    // valid.txt declares `Changed: src/a.py src/b.py`.
+    const fake = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [{ epoch: "e1", entries: [row(brief("- `src/a.py`\n- docs/"), 1), assistant(VALID, 9)] }] });
+    await delivery.onTurnEnded(peerTurn(), fake.paseo);
+    assert.equal(outbox.records()[0].kind, "HANDBACK_VALID", "a scope warning does not change the kind");
+    assert.deepEqual(outbox.records()[0].ownedScope, ["src/a.py", "docs/"]);
+    assert.match(fake.sent[0].text, /^warning: declared change outside the brief's Owned scope: src\/b\.py$/m);
+
+    // A later turn with no new brief reuses the stored scope.
+    const second = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [{ epoch: "e1", entries: [row("rework the parser", 10), assistant(VALID.replace("Round: 1", "Round: 2"), 12, { messageId: "m2", turnId: "t2" })] }] });
+    await delivery.onTurnEnded(peerTurn({ turnId: "t2" }), second.paseo);
+    assert.equal(outbox.records()[1].ownedScope, undefined);
+    assert.match(second.sent[0].text, /Owned scope: src\/b\.py$/m);
+
+    // A new brief widens the scope: no warning.
+    const third = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [{ epoch: "e1", entries: [row(brief("  src/**"), 13), assistant(VALID.replace("Round: 1", "Round: 3"), 15, { messageId: "m3", turnId: "t3" })] }] });
+    await delivery.onTurnEnded(peerTurn({ turnId: "t3" }), third.paseo);
+    assert.deepEqual(outbox.records()[2].ownedScope, ["src/**"]);
+    assert.doesNotMatch(third.sent[0].text, /Owned scope/);
+  });
+  await scratch(async (delivery, outbox) => {
+    // A directory name owns the files below it; a scope in prose (no path) is never compared.
+    for (const [peer, scope] of [["peer-1", "- src/"], ["peer-2", "- the parser only"]] as const) {
+      const fake = fakePaseo({ "lead-1": leadIdle }, { [peer]: [{ epoch: "e1", entries: [row(brief(scope), 1), assistant(VALID, 9)] }] });
+      await delivery.onTurnEnded(peerTurn({ agent: { ...peerTurn().agent, id: peer } }), fake.paseo);
+      assert.doesNotMatch(fake.sent[0].text, /warning:/);
+    }
+    assert.deepEqual(outbox.records().map((record) => record.ownedScope), [["src/"], undefined]);
   });
 });

@@ -6,7 +6,8 @@ Usage: eval/report [results-dir]
 
 --receipts reads the delivery plugin's receipt store (default ${PASEO_HOME:-~/.paseo}/epistex-delivery),
 or a directory of eval/extract-receipts fixtures, and reports Lead-side handback metrics per Peer
-seat, per model and per invalid reason code. It only reads the receipts.
+seat, per model and per invalid reason code, and the early brief warnings (`BRIEF_INVALID`) the
+Lead got for those seats. It only reads the receipts.
 --agents is a JSON list of agents (id, provider, model, cwd) that names the Peer seat of each receipt.
 Test seats are left out unless --include-test-seats is given: Peer cwd /tmp/epistex-live-*, or a
 task ID T-<n>, MODE-OK or NO_SPIKE_TOOL.
@@ -88,7 +89,10 @@ def codes_of(record):
 
 
 def report_receipts(directory, exclude, agents, include_test_seats):
-    records = [r for r in load_receipts(directory) if r["kind"] in HANDBACK_KINDS]
+    everything = load_receipts(directory)
+    records = [r for r in everything if r["kind"] in HANDBACK_KINDS]
+    # One early warning per Peer whose brief failed check-brief; it is not a handback.
+    early = [r for r in everything if r["kind"] == "BRIEF_INVALID"]
     seats = defaultdict(list)
     for r in records:
         seat = agents.get(r["peerAgentId"], {})
@@ -150,6 +154,12 @@ def report_receipts(directory, exclude, agents, include_test_seats):
     print(f"| Seats whose first receipt is valid | {starts_valid}/{len(seats)} |")
     print(f"| Seats whose last receipt is valid | {ends_valid}/{len(seats)} |")
     print(f"| Briefs that pass check-brief | {sum(not b for b in briefs)}/{len(briefs)} checked |")
+    warned = [r for r in early if (r["leadAgentId"], r["peerAgentId"]) in seats]
+    print(f"| Early brief warnings (BRIEF_INVALID) | {len(warned)} of {len(seats)} seats; "
+          f"{len(early) - len(warned)} more for Peers not in this report |")
+    brief_codes = Counter(code for r in warned for code in r.get("codes") or [])
+    if brief_codes:
+        print(f"| Early brief warning codes | {', '.join(f'{k} {v}' for k, v in sorted(brief_codes.items()))} |")
     print(f"| Tool calls per seat median / max | {int(statistics.median(calls)) if calls else 0} / {max(calls, default=0)} "
           f"({len(calls)} seats counted) |")
     print(f"| Body size median / max (B) | {int(statistics.median(sizes)) if sizes else 0} / {max(sizes, default=0)} |")

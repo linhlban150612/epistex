@@ -80,6 +80,11 @@ how the Lead will review it; include its path and checksum. Otherwise include fu
 the final message and use the Lead's truncated-handoff retrieval procedure if necessary.
 Distinguish required from optional checks; do not summarize as "tests pass".
 
+When you hand off a candidate, put one `Proof class:` label in the Verification cell:
+`e2e` (you ran the changed behaviour through its real entry point), `observed` (you ran the
+changed code and saw its result), `tests-only` (only automated tests ran), `none` (nothing ran).
+Do not claim a class above what you ran; the handoff is rejected without the label.
+
 Signs of a hollow proof; check yourself before handoff:
 
 - the test matches the implementation instead of the behavior
@@ -129,7 +134,7 @@ Task ID: … | Round: …
 Outcome            exactly one: complete | partial | BLOCKED | REOPEN_REQUEST | DEPENDENCY_REQUEST; Done: …; Not done: …
 Candidate          base SHA + candidate SHA + branch + worktree; or baseline and candidate snapshot/diff, each with checksum + path if not committing
 Scope              Changed: concrete paths in the diff; Read: concrete paths, not in the diff
-Verification       commands + exit status + REAL output/excerpts; authorized full-output path + checksum if used; deliberately skipped checks
+Verification       Proof class: e2e | observed | tests-only | none; commands + exit status + REAL output/excerpts; authorized full-output path + checksum if used; deliberately skipped checks
 Unknown / risk     assumptions you are standing on, decisions that need the Human; transitional code you added, each with its removal condition, or `none`
 Ownership          stopped writing and returned scope to the Lead, or which scope you still hold and why
 ```

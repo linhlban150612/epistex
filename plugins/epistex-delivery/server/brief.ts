@@ -49,6 +49,13 @@ function hasBaseline(text: string): boolean {
   });
 }
 
+/** Task ID and Round number a brief states, each null when the brief does not state it. */
+export function briefIdentity(brief: string): { taskId: string | null; round: string | null } {
+  const text = brief.replace(/\r\n?/g, "\n");
+  const taskId = fieldValue(text, LABELS["Task ID"])?.split(/[ \t]*[|;,][ \t]*/)[0].replace(/^[*_`]+|[*_`.]+$/g, "");
+  return { taskId: taskId || null, round: ROUND_NUMBER.exec(text)?.[1] ?? null };
+}
+
 /** Shape codes of a text brief, as `setup/check-brief - --json` reports them; empty when the brief passes. */
 export function checkBrief(brief: string): string[] {
   const text = brief.replace(/\r\n?/g, "\n");
@@ -79,4 +86,59 @@ export function briefOf(userMessage: string, leadAgentId: string): string | null
     }
   }
   return null;
+}
+
+/** Python's split_paths in setup/check-handoff: path-like tokens without Markdown quotes and sentence marks. */
+function splitPaths(text: string, globs = false): string[] {
+  // A glob keeps its stars: `src/**` is not Markdown emphasis.
+  const quotes = globs ? /^[`'"()[\]]+|[`'"()[\]]+$/g : /^[`'"*()[\]]+|[`'"*()[\]]+$/g;
+  const clean = (token: string) => {
+    for (;;) {
+      const stripped = token.replace(quotes, "").replace(/[.:;,]+$/, "");
+      if (stripped === token) return token;
+      token = stripped;
+    }
+  };
+  const paths = text.split(/[\s,;]+/).map(clean).filter((token) => token && /[/.]/.test(token) && !/[()]/.test(token));
+  return [...new Set(paths)];
+}
+
+/**
+ * Path globs of the brief's `Owned scope` field: its line and the indented or list lines after it.
+ * Empty when the field is absent or is prose without a path, so such a brief is never compared.
+ */
+export function ownedScope(brief: string): string[] {
+  const text = brief.replace(/\r\n?/g, "\n");
+  const match = field(LABELS["Owned scope"]).exec(text);
+  if (!match) return [];
+  const lines = [match[1]];
+  for (const line of text.slice(match.index + match[0].length).split("\n").slice(1)) {
+    if (!/^(?:[ \t]+\S|[-*+][ \t])/u.test(line)) break;
+    lines.push(line);
+  }
+  return splitPaths(lines.join("\n"), true);
+}
+
+/** glob_to_regex of setup/check-handoff, plus: a pattern that names a directory owns the files below it. */
+function inScope(file: string, pattern: string): boolean {
+  const norm = (value: string) => value.replace(/^\.\//, "");
+  const glob = norm(pattern).replace(/\/+$/, "");
+  let source = "";
+  for (let at = 0; at < glob.length; at += 1) {
+    if (glob.startsWith("**", at)) {
+      source += ".*";
+      at += 1;
+    } else source += glob[at] === "*" ? "[^/]*" : glob[at] === "?" ? "[^/]" : glob[at].replace(/[.+^${}()|[\]\\]/g, "\\$&");
+  }
+  return new RegExp(`^${source}(?:/.*)?$`, "u").test(norm(file));
+}
+
+/**
+ * Paths the handoff's Scope cell declares as changed that no Owned scope glob covers. This compares
+ * text with text: what the Peer really changed is checked by setup/check-handoff against Git.
+ */
+export function outsideScope(scopeCell: string, owned: string[]): string[] {
+  const changed = /Changed:([\s\S]*?)(?:Read:|$)/.exec(scopeCell);
+  if (!changed || !owned.length) return [];
+  return splitPaths(changed[1]).filter((file) => !owned.some((pattern) => inScope(file, pattern))).sort();
 }

@@ -52,6 +52,16 @@ tool bị chặn; launch thường không có. `claude-sdk` thêm `--disallowed-
 `Workflow`, `CronCreate`, `CronDelete`, `CronList`, `ScheduleWakeup`, `RemoteTrigger`: Paseo quản lý
 topology và seat không tạo schedule/heartbeat. Kiểm danh sách tool bằng launch thật.
 
+Riêng seat Peer, `claude-sdk` thêm `--settings` với một hook `PreToolUse` cho `Bash`:
+`setup/claude-guard`. Hook từ chối (exit 2) ba dạng lệnh: `rm` có cờ recursive và force trên đường
+dẫn ngoài workspace (`$CLAUDE_PROJECT_DIR`, hoặc Git top level của `cwd`; `/tmp/<x>` và
+`/var/tmp/<x>` được phép; đường dẫn có `$VAR` hoặc `$(…)` bị từ chối), `git push` với `--force`,
+`-f`, `--force-with-lease`, `--mirror` hoặc `+refspec`, và `git reset --hard`. Nếu Paseo đã truyền
+`--settings`, launcher giữ nội dung đó và thêm hook; giá trị không đọc được làm launch dừng.
+Đây là guard theo backend, không phải sandbox: hook so khớp chữ của lệnh, chỉ có ở Claude Peer,
+và không chặn lệnh bị giấu (file script, `xargs`, `find -delete`, tool khác). Mọi seat vẫn chạy cùng
+một Unix user. Kiểm hook bằng launch thật: yêu cầu Peer chạy `git reset --hard` trong một repo thử.
+
 Sau `paseo reload`, tạo phiên mới với model, `thinking=low` và mode lấy từ discovery.
 Yêu cầu agent in heading role **từ system instructions đang hoạt động**, không đọc file prompt
 để thay bằng chứng. Lead phải có heading `# Lead — Project Lead & binding technical arbiter`,

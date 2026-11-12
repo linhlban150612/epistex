@@ -5,5 +5,6 @@ Candidate          base 3f2a9c1d4e5b6a7f8091a2b3c4d5e6f708192a3b candidate 9c3b6
 Scope              Changed: src/a.py src/b.py; Read: README.md
 Verification       `true` exit 0
 output: (none)
+Proof class: tests-only
 Unknown / risk     none
 Ownership          stopped writing, scope returned

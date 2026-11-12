@@ -11,6 +11,7 @@ Changed: src/a.py; Read: README.md
 
 ### Verification
 `true` exit 0
+- Proof class: `e2e`
 
 ### Unknown / risk
 none

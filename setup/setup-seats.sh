@@ -245,6 +245,16 @@ else
   # acceptEdits and default stop a non-interactive Claude Peer on its first Bash permission request.
   jq -e 'all(.daemon.agentProfiles[]? | select(.provider == "claude-peer"); .modeId == "bypassPermissions")
   ' "$paseo_config" >/dev/null || fail "claude-peer: every profile needs modeId bypassPermissions"
+  if jq -e '.agents.providers["claude-peer"].enabled == true' "$paseo_config" >/dev/null; then
+    # claude-sdk passes this PreToolUse hook to the Claude Peer seat; a hook that cannot run denies nothing.
+    guard="$kit/setup/claude-guard" allow=0 deny=0
+    printf '{"tool_name":"Bash","tool_input":{"command":"git status"},"cwd":"/"}' |
+      CLAUDE_PROJECT_DIR=/ "$guard" >/dev/null 2>&1 || allow=$?
+    printf '{"tool_name":"Bash","tool_input":{"command":"git reset --hard"},"cwd":"/"}' |
+      CLAUDE_PROJECT_DIR=/ "$guard" >/dev/null 2>&1 || deny=$?
+    (( allow == 0 && deny == 2 )) ||
+      fail 'claude-peer: setup/claude-guard must be executable, allow git status and deny git reset --hard with exit 2'
+  fi
   # Paseo does not inherit the caller's mode into an agent of another provider: create_agent without modeId fails.
   for pair in amp-peer:local cursor-peer:agent kiro-peer:epistex_peer omp-peer:full \
       kiro-lead:epistex_lead kiro-supervisor:epistex_supervisor; do

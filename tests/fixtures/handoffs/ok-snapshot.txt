@@ -3,6 +3,6 @@ Task ID: T-1 | Round: 1
 Outcome: complete; Done: x; Not done: none
 Candidate: no commit; candidate diff sha256 0a184d9dc3b8fa90d6a48f5cc8ce41074537be65a5e848a714844125a55aeb01 path /tmp/out/candidate.diff
 Scope: Changed: src/a.py; Read: README.md
-Verification: `true` exit 0
+Verification: `true` exit 0; Proof class: tests-only
 Unknown / risk: none
 Ownership: stopped writing, scope returned

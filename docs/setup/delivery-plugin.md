@@ -17,12 +17,12 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
 - **Parser.** `server/handoff.ts` ports `parse_handoff`/`classify_handoff` from
   `setup/check-handoff`. `check-handoff --parse-only <file> --json` is the parity oracle:
   `tests/fixtures/handoffs/` runs through both (`node --test` in the plugin, driven by
-  `tests/test_delivery_plugin.py`); `expected.json` there holds the reason codes of each accepted
+  `tests/test_kit_tools.py`); `expected.json` there holds the reason codes of each accepted
   markup form (`ok-*`) and each rejection (`bad-*`). Real receipts stay outside Git:
   `eval/extract-receipts --out .amp/in/receipts` writes them and the parity test reads
   `$EPISTEX_RECEIPTS` (default `.amp/in/receipts`), skipped when the folder is absent. An invalid
   receipt carries `codes` (`HEADER_MISSING`, `CELL_MISSING:<name>`, `CANDIDATE_IDENTITY`,
-  `TURN_CANCELED`, `NO_MESSAGE`) in the record and as a `codes:` line before `reasons:`.
+  `PROOF_CLASS`, `TURN_CANCELED`, `NO_MESSAGE`) in the record and as a `codes:` line before `reasons:`.
 - **Round warnings** (`roundWarnings` in `server/delivery.ts`). A receipt whose round is a plain
   number above 3 carries `warning: round <n> exceeds rework limit 3; REOPEN or context-reset
   required`. A Peer's first receipt for a task, at a round above one that another Peer of the same
@@ -33,8 +33,24 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
   row with `agentMessage` from this Lead (how Paseo 0.15.4 shows a prompt that is only an agent
   message), or the Lead's `agent-message` envelope inside a `user_message` (role instructions before
   it are left out). It stores the codes in `briefCodes`; an empty list is a pass. A failed brief adds
-  `warning: brief failed check-brief: <codes>`. The warning arrives with the first handback, not
-  before the Peer starts. A first prompt that is not this Lead's agent message is not checked.
+  `warning: brief failed check-brief: <codes>`. A first prompt that is not this Lead's agent
+  message is not checked.
+- **Early brief warning** (`warnBriefs`). The same check also runs when the Lead's own turn ends,
+  which is the turn that briefed the Peer: the plugin lists the Lead's children
+  (`agents.list`, label `paseo.parent-agent-id`, first 200) and reads the first prompt of each
+  child that has no receipt yet. A failed brief becomes one `BRIEF_INVALID` delivery to the Lead
+  (`codes:` and `reasons:` lines, no body; id from the Peer id; `task:` and `round:` from the
+  brief, `?` when the brief does not state them), so the Lead learns it while the
+  Peer still works. The Peer is not stopped. The first handback then stores `briefCodes` but does
+  not repeat the warning. Each Peer is read once per plugin process; a daemon without
+  `agents.list`, or a list that fails, skips this check and the first-handback warning remains.
+- **Scope warning** (`ownedScope`, `outsideScope` in `server/brief.ts`). The plugin takes the path
+  globs of the brief's `Owned scope` field (the newest Lead message that names one, stored as
+  `ownedScope` and reused by later receipts of the Peer). A path under `Changed:` in the handoff's
+  `Scope` cell that no glob covers adds `warning: declared change outside the brief's Owned scope:
+  <paths>`. A directory name ending in `/` owns the files below it; a scope in prose, without a
+  path, is not compared. This compares text with text only: the plugin does not read Git, so
+  `setup/check-handoff` stays the gate for the files that really changed.
 - **Tool-call count**. Each receipt stores `toolCalls`, the `tool_call` entries read for it,
   without delivered agent messages. When
   the sum for one Peer reaches 150 (`TOOL_CALL_LIMIT`), the receipt carries `warning: peer session

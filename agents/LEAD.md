@@ -160,8 +160,7 @@ Read ยง Handoff in the Peer prompt. Review only the delivery body; incomplete โ
 skill (one retrieval or a handoff-only resend).
 Check task/round, outcome, six cells and candidate; never reconstruct cells from the timeline.
 
-Before closing, you may run `setup/check-handoff <brief.json> <handoff.txt> --rerun`: prints
-`READY_FOR_REVIEW` or `FAIL`, never acceptance, and does not replace the diff read below.
+Order, `setup/check-handoff` and external handoffs: `proof` skill (`.agents/skills/proof/SKILL.md`).
 
 - [ ] For commits: base/candidate are non-empty, valid (`git cat-file -e "$base^{commit}"`, likewise
       candidate; always quote variables),

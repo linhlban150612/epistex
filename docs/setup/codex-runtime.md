@@ -71,8 +71,14 @@ Paseo mode `auto-review` gives the Codex Peer a workspace-write sandbox without 
 `auto` leaves a non-interactive Peer read-only (`Read-only file system` on every write, including `./verify`).
 Writable roots are the session cwd only, and the sandbox keeps `.git` read-only, so `git commit` fails with
 `index.lock: Read-only file system` in a linked worktree and in a full clone alike. With `auto-review` the Peer
-can only hand off an uncommitted snapshot, which `setup/check-handoff` reports as UNSUPPORTED. A committed
+can only hand off an uncommitted snapshot: a diff file with its sha256 checksum and path, written inside the
+worktree. `setup/check-handoff` verifies it when the brief has `commit_allowed: false`. A committed
 candidate needs `full-access` (no sandbox); the Human decides this per project in `WORKSPACE_PROTOCOL.md`.
+
+The snapshot gate counts every untracked file that Git does not ignore. A Codex launch writes
+`skills/system/` into the session cwd, and a check can leave build output (for example `__pycache__/`).
+Add such paths to the worktree's `.git/info/exclude` (or `.gitignore`) before the round; otherwise the gate
+reports them as changes that are not frozen.
 
 ## Supervisor pin
 

@@ -391,13 +391,57 @@ print(json.dumps({"effective":append, "args":args}))
                         text=True, capture_output=True, env=env, timeout=10)
                     self.assertEqual(result.returncode, 0, result.stderr)
                     args, first, second = map(json.loads, result.stdout.splitlines())
-                    self.assertEqual(args, ["--disallowed-tools", ",".join(claude_sdk.DISALLOWED),
+                    # Only the Peer seat gets the destructive-command guard, as a settings hook.
+                    guard = ["--settings", json.dumps({"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [
+                        {"type": "command", "command": str(ROOT / "setup/claude-guard"), "timeout": 10}]}]}})] \
+                        if role == "peer" else []
+                    self.assertEqual(args, ["--disallowed-tools", ",".join(claude_sdk.DISALLOWED), *guard,
                                             "--input-format", "stream-json", "--output-format", "stream-json"])
                     instructions = ((ROOT / "agents/contract/COMMON.md").read_text().rstrip() + "\n\n"
                                     + (ROOT / "agents" / f"{role.upper()}.md").read_text())
                     self.assertEqual(first["request"]["appendSystemPrompt"], "keep me\n\n" + instructions)
                     self.assertEqual(first["request_id"], "init")
                     self.assertEqual(second, user)
+
+    def test_claude_guard_denies_destructive_peer_commands_only(self):
+        with tempfile.TemporaryDirectory() as folder:
+            # The guard reads the command text only, so the workspace path does not have to exist.
+            work = pathlib.Path("/srv/epistex-guard-test/repo")
+            env = {**os.environ, "CLAUDE_PROJECT_DIR": str(work)}
+            scratch = json.dumps({"tool_name": "Bash", "tool_input": {"command": "rm -rf . ; rm -rf .."}, "cwd": folder})
+            result = subprocess.run([str(ROOT / "setup/claude-guard")], input=scratch, text=True, capture_output=True,
+                                    timeout=10, env={**os.environ, "CLAUDE_PROJECT_DIR": folder})
+            self.assertEqual(result.returncode, 2, "a workspace below /tmp is still not removed")
+            for command, code in (
+                    ("rm -rf build", 0), ("rm -rf ./sub/out && ls", 0), ("cd sub && rm -fr out", 0),
+                    (f"rm -rf {work}/sub/cache", 0), ("rm -rf /tmp/epistex-scratch", 0), ("rm -r old; rm -f a.txt", 0),
+                    ("git push origin HEAD", 0), ("git reset --soft HEAD~1; git reset -- a.py", 0),
+                    ("rg -n 'rm -rf /' docs; echo git reset --hard", 0),
+                    ("rm -rf ../other", 2), ("rm -rf /", 2), ("rm -rf ~/notes", 2), ("rm -rf /tmp", 2),
+                    ("rm -rf .", 2), ("cd .. && rm -rf repo2", 2), ('rm -rf "$TARGET"', 2),
+                    ("cd \"$DIR\" && rm -rf out", 2), ("sudo rm --recursive --force /var/lib/x", 2),
+                    ("git push --force origin main", 2), ("git -C /x push -f", 2),
+                    ("git push --force-with-lease", 2), ("git push origin +main", 2),
+                    ("git fetch && git reset --hard origin/main", 2), ('bash -c "git reset --hard"', 2),
+                    ("echo 'unbalanced && rm -rf /", 2)):
+                with self.subTest(command=command):
+                    payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}, "cwd": str(work)})
+                    result = subprocess.run([str(ROOT / "setup/claude-guard")], input=payload, text=True,
+                                            capture_output=True, timeout=10, env=env)
+                    self.assertEqual(result.returncode, code, result.stderr)
+                    if code:
+                        self.assertIn("in a Peer seat", result.stderr)
+            for payload, code in (('{"tool_name":"Read","tool_input":{"file_path":"/etc/passwd"}}', 0), ("not json", 2)):
+                result = subprocess.run([str(ROOT / "setup/claude-guard")], input=payload, text=True,
+                                        capture_output=True, timeout=10, env=env)
+                self.assertEqual(result.returncode, code, result.stderr)
+        # An existing --settings value keeps its content; a value that is not JSON stops the launch.
+        merged = claude_sdk.guard_settings(["--model", "x", "--settings", '{"env": {"A": "1"}, "hooks": {"PreToolUse": [{"matcher": "Edit"}]}}'])
+        settings = json.loads(merged[1])
+        self.assertEqual((merged[0], merged[2:], settings["env"]), ("--settings", ["--model", "x"], {"A": "1"}))
+        self.assertEqual([entry["matcher"] for entry in settings["hooks"]["PreToolUse"]], ["Edit", "Bash"])
+        with self.assertRaises(SystemExit):
+            claude_sdk.guard_settings(["--settings", "/nonexistent/settings.json"])
 
     def test_launchers_load_common_from_kit_and_reject_missing_or_oversized_contract(self):
         with tempfile.TemporaryDirectory() as folder:

@@ -5,7 +5,7 @@ Usage: eval/run-scenario <scenario.json> --provider <seat/model> [--thinking low
        --target-repo <path> [--base-branch eval-base] [--results eval/results]
        [--wait-timeout 20m] [--keep-worktree]
 
-The script plays the Lead-side harness: it creates a fresh worktree, writes brief.json,
+The script plays the Lead-side harness: it creates a fresh shared clone of the target repo, writes brief.json,
 launches the Peer with the rendered brief, retrieves the handoff (last assistant message),
 runs setup/check-handoff (--rerun) and setup/fail-on-base, and records a result JSON.
 It never prints ACCEPTED: the gate output is READY_FOR_REVIEW or FAIL.

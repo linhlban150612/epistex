@@ -12,8 +12,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 SKILL_DIRS = (".agents/skills", ".claude/skills", ".kiro/skills")
 SCRIPT = ROOT / "setup" / "setup-seats.sh"
 CATALOG = set("""archive_agent archive_workspace browser_back browser_click browser_close_tab browser_drag browser_evaluate browser_fill browser_forward browser_hover browser_keypress browser_list_tabs browser_logs browser_navigate browser_new_tab browser_reload browser_resize browser_screenshot browser_scroll browser_select browser_snapshot browser_type browser_upload browser_wait cancel_agent capture_terminal create_agent create_heartbeat create_schedule create_terminal create_workspace delete_heartbeat delete_schedule get_agent_activity get_agent_status inspect_provider inspect_schedule kill_agent kill_terminal list_agents list_hosts list_models list_pending_permissions list_profiles list_providers list_schedules list_terminals list_workspace_scripts list_workspaces pause_schedule rename_workspace respond_to_permission resume_schedule run_schedule_once schedule_logs send_agent_prompt send_terminal_keys set_agent_mode start_workspace_script stop_workspace_script update_agent update_schedule""".split())
-KEEP_LEAD = set("""list_workspaces list_providers list_models list_profiles create_agent send_agent_prompt cancel_agent archive_agent list_pending_permissions respond_to_permission set_agent_mode""".split())
-KEEP_SUPERVISOR = KEEP_LEAD | {"create_workspace", "get_agent_activity", "get_agent_status", "list_agents", "list_hosts"}
+KEEP_LEAD = set("""list_workspaces list_providers list_models list_profiles create_agent send_agent_prompt cancel_agent archive_agent""".split())
+KEEP_SUPERVISOR = KEEP_LEAD | {"create_workspace", "get_agent_activity", "list_agents", "list_hosts",
+                               "list_pending_permissions", "respond_to_permission", "set_agent_mode"}
 DENY_LEAD = CATALOG - KEEP_LEAD
 DENY_SUPERVISOR = CATALOG - KEEP_SUPERVISOR
 
@@ -84,8 +85,8 @@ class SetupSeatsTest(unittest.TestCase):
         return self.run_check("--check")
 
     def test_example_catalog_passes_without_changing_files(self):
-        self.assertEqual((len(CATALOG), len(KEEP_LEAD), len(DENY_LEAD)), (62, 11, 51))
-        self.assertEqual((len(KEEP_SUPERVISOR), len(DENY_SUPERVISOR)), (16, 46))
+        self.assertEqual((len(CATALOG), len(KEEP_LEAD), len(DENY_LEAD)), (62, 8, 54))
+        self.assertEqual((len(KEEP_SUPERVISOR), len(DENY_SUPERVISOR)), (15, 47))
         match = re.search(r"expected_deny_lead='(\[.*?\])'", SCRIPT.read_text())
         self.assertIsNotNone(match, "checker deny-list constant not found")
         self.assertEqual(set(json.loads(match.group(1))), DENY_LEAD)
@@ -216,7 +217,7 @@ class SetupSeatsTest(unittest.TestCase):
              .__setitem__("isDefault", False), "omp-peer: wrong GPT-6 Luna"),
             ("OMP default effort", lambda d: next(m for m in seat(d, "omp-peer")["models"] if m["isDefault"])
              ["thinkingOptions"][0].__setitem__("isDefault", False),
-             "omp-peer/pi-peer: default must be Hugging Face DeepSeek V4.1 Flash 1017, low effort"),
+             "omp-peer: default must be Hugging Face DeepSeek V4.1 Flash 1017, low effort"),
             ("Pi DeepSeek profile missing", lambda d: drop(d, hf_deepseek), "pi-peer: wrong DeepSeek 1017 models/profiles"),
             ("OMP DeepSeek profile missing", lambda d: drop(d, or_deepseek), "omp-peer: wrong DeepSeek 1017 models/profiles"),
             ("OMP Luna profile missing", lambda d: drop(d, "omp-peer--openai-codex-gpt-6-luna--medium"),
@@ -405,10 +406,16 @@ class SetupSeatsTest(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(name + ": wrong launcher", result.stderr)
 
-        with self.subTest("claude-peer compaction is always required"):
+        with self.subTest("a disabled or absent backend seat other than Codex is not checked"):
             data = copy.deepcopy(self.data)
-            for name in ("claude-lead", "claude-peer"):
-                data["agents"]["providers"][name].update(enabled=False, env={})
+            others = ("claude-lead", "claude-peer", "amp-peer", "pi-peer", "omp-peer", "agy-peer")
+            for name in others:
+                data["agents"]["providers"][name].update(enabled=False, env={}, models=[])
+            data["agents"]["providers"].pop("agy-peer")
+            data["daemon"]["agentProfiles"] = [p for p in data["daemon"]["agentProfiles"] if p["provider"] not in others]
+            result = self.check_config(data)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            data["agents"]["providers"]["claude-peer"]["enabled"] = True
             result = self.check_config(data)
             self.assertIn("claude-peer: need env", result.stderr)
             self.assertNotIn("claude-lead: need env", result.stderr)

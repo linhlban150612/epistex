@@ -85,7 +85,7 @@ Refer to Authority in `AGENTS.md`; record only additional coordination decisions
   (`.agents/skills/handling-reopen/SKILL.md`) before assigning more work. Do not wait for the cap.
 - Supervisor startup context: use [the Lead initial prompt template](LEAD_INITIAL_PROMPT.md)
   to separate outcomes, verified constraints, open assumptions and decision authority.
-- Connected hosts (Paseo `paseo host add`, 0.13.0+): `disabled` by default. Only when the Human
+- Connected hosts (Paseo `paseo host add`): `disabled` by default. Only when the Human
   sets `enabled` here, with the host's `serverId` (Lead has no `list_hosts`), may the Lead create a
   Peer on that host. Then the Peer must deliver the
   candidate where the Lead can read it (pushed ref the Lead may fetch, or snapshot with checksum),

@@ -14,10 +14,7 @@
     "@paseo/create_agent",
     "@paseo/send_agent_prompt",
     "@paseo/cancel_agent",
-    "@paseo/archive_agent",
-    "@paseo/list_pending_permissions",
-    "@paseo/respond_to_permission",
-    "@paseo/set_agent_mode"
+    "@paseo/archive_agent"
   ],
   "permissions": {
     "rules": [
@@ -51,10 +48,7 @@
           "paseo/create_agent",
           "paseo/send_agent_prompt",
           "paseo/cancel_agent",
-          "paseo/archive_agent",
-          "paseo/list_pending_permissions",
-          "paseo/respond_to_permission",
-          "paseo/set_agent_mode"
+          "paseo/archive_agent"
         ],
         "effect": "allow"
       }

@@ -57,10 +57,10 @@ use `injectIntoProviders`; that field is not the current provider policy mechani
 
 ### Paseo tools policy for Lead and Supervisor
 
-Lead uses `paseoTools.disabledTools` to block the catalog and keeps exactly 11 tools:
+Lead uses `paseoTools.disabledTools` to block the catalog and keeps exactly 8 tools (54 blocked):
 `list_workspaces`, `list_providers`, `list_models`, `list_profiles`, `create_agent`, `send_agent_prompt`,
-`cancel_agent`, `archive_agent`,
-`list_pending_permissions`, `respond_to_permission`, `set_agent_mode`. Supervisor also keeps `create_workspace`, `get_agent_activity`, `get_agent_status`, `list_agents` and `list_hosts` (16 tools kept; 46 blocked), while Lead keeps 11 tools (51 blocked). Lead does not have `get_agent_activity`, `get_agent_status` and `list_agents`, so Lead waits for notifications instead of polling or reading the Peer timeline; nor `list_hosts`, so Lead does not discover connected hosts. Kiro and Droid Supervisor/Lead use the same policy.
+`cancel_agent`, `archive_agent`. Supervisor also keeps `create_workspace`, `get_agent_activity`, `list_agents`, `list_hosts`,
+`list_pending_permissions`, `respond_to_permission` and `set_agent_mode` (15 tools kept; 47 blocked). Lead does not have `get_agent_activity`, `get_agent_status` and `list_agents`, so Lead waits for deliveries instead of polling or reading the Peer timeline; nor `list_hosts`, so Lead does not discover connected hosts; nor the permission and mode tools, because a Lead relays a permission request and never answers it. Supervisor reads an agent's status with `list_agents`; `get_agent_status` is blocked for both. Kiro and Droid Supervisor/Lead use the same policy.
 Lead runs without approval waits: Lead profiles use a bypass mode (`claude-lead` `bypassPermissions`, `agy-lead` `yolo`, `droid-lead` `auto-high` (also `droid-supervisor`), `codex-lead` `full-access`: approval `never`, sandbox `danger-full-access`); `kiro-lead` auto-approves through agent `permissions.rules` (V3). `amp-lead` uses `local`: amp-acp has no bypass mode.
 Codex Peer profiles use `modeId: auto-review` ([why](docs/setup/codex-runtime.md#peer-sandbox-and-worktrees)); `setup-seats.sh --check` rejects `codex-peer` profiles without it. Claude Peer profiles use `modeId: bypassPermissions`: `acceptEdits` stops a non-interactive Peer on its first Bash permission request; `--check` rejects other modes.
 Paseo does not inherit a Lead's mode into a Peer of another provider: `create_agent` without `modeId` fails with `cannot inherit mode`
@@ -69,8 +69,8 @@ unless the Lead runs in an unattended mode. So every Peer profile of a provider 
 Kiro Lead and Supervisor profiles carry their fixed seat mode the same way (`epistex_lead`, `epistex_supervisor`).
 Verified live: a Claude Lead or Supervisor in mode `default` gets that error for a profile without `modeId` and
 creates the agent in the profile's mode when the profile carries one.
-Groups blocked for Lead: 11 schedule/heartbeat, 22 browser, 5 terminal, 13 workspace/agent/provider/host;
-for Supervisor the workspace/agent/provider group is down to 8 (see the list in the
+Groups blocked for Lead: 11 schedule/heartbeat, 22 browser, 5 terminal, 16 workspace/agent/provider/host/permission;
+for Supervisor that last group is down to 9 (see the list in the
 [provider example](examples/paseo-providers.json)). Paseo `>=0.15.0 <0.16` is required: the mandatory [delivery plugin](docs/setup/delivery-plugin.md) is verified on that range (reason: [known limitations](README.md#cautions-and-known-limitations)); the daemon and CLI must be the same version.
 `speak` cannot be blocked and is outside the catalog. A test pins the 62-name catalog to force a review
 when Paseo is upgraded. The `--check` script confirms the exact deny-list on every enabled provider.
@@ -206,13 +206,22 @@ This separates state and MCP permissions. It is not a sandbox against a maliciou
 user, share skills/plugins and still have a shell. The Peer prompt forbids calling Paseo; hiding the Paseo MCP
 does not absolutely stop a shell from calling the CLI.
 
+## 9. Operations
+
+Lead always creates a Peer with the role provider (`codex-peer` or a `*-peer` provider in `docs/setup/`);
+never the original backend provider. Pass `modeId` and `thinkingOptionId` explicitly when you create an agent. A running
+agent does not pick up provider changes; after you edit `~/.paseo/config.json`, run `paseo reload` and
+create a new session. Common + role instructions have a combined ceiling of 16 KiB, checked
+by setup and launchers; after an edit, run `setup-seats.sh --check` again.
+
 ## ACP proxy seats
 
-Common part for Devin, Copilot and Cursor ([devin.md](docs/setup/devin.md),
+Common part for the Peer-only ACP seats Devin, Copilot and Cursor ([devin.md](docs/setup/devin.md),
 [copilot.md](docs/setup/copilot.md), [cursor.md](docs/setup/cursor.md)). ACP agent sources:
 the [ACP registry](https://github.com/agentclientprotocol/registry) and [Kiro ACP](https://kiro.dev/docs/acp).
 
-Seat launch commands compared with the registry (checked 2026-11-12). The seat launch starts the
+Seat launch commands of all seven ACP backends compared with the registry (checked 2026-11-12);
+Amp, Antigravity, Droid and Kiro have their own guides. The seat launch starts the
 backend that is on Paseo's PATH; the registry version is not a pin of the seat.
 
 | Backend | Registry entry and version | Registry launch | Seat launch |
@@ -240,11 +249,3 @@ backend that is on Paseo's PATH; the registry version is not a pin of the seat.
   including deferred discovery; a Peer must not see Paseo tools. Do not enable delegation in a smoke test.
   A native backend tool/subagent is not the same as Paseo MCP; role/tool visibility is not
   an OS sandbox. The Codex checker and diagnostics do not replace live verification.
-
-## 9. Operations
-
-Lead always creates a Peer with the role provider (`codex-peer` or a `*-peer` provider in `docs/setup/`);
-never the original backend provider. Pass `modeId` and `thinkingOptionId` explicitly when you create an agent. A running
-agent does not pick up provider changes; after you edit `~/.paseo/config.json`, run `paseo reload` and
-create a new session. Common + role instructions have a combined ceiling of 16 KiB, checked
-by setup and launchers; after an edit, run `setup-seats.sh --check` again.

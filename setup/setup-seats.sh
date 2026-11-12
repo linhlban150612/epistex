@@ -104,7 +104,7 @@ if [[ -n "$project" ]]; then
   fi
 fi
 
-for name in codex-room role-agent kiro-acp claude-sdk amp-acp devin-acp copilot-acp cursor-acp; do
+for name in codex-room role-agent kiro-acp claude-sdk amp-acp devin-acp copilot-acp cursor-acp claude-guard droid-guard; do
   wrapper="$kit/setup/$name"
   if [[ ! -f "$wrapper" ]]; then
     fail "missing $wrapper"
@@ -161,14 +161,14 @@ else
       .agents.providers[$seat].env.CLAUDE_CODE_AUTO_COMPACT_WINDOW == "100000"
     ' "$paseo_config" >/dev/null || fail "$seat: need env CLAUDE_CODE_AUTO_COMPACT_WINDOW=100000"
   done < <(jq -r '
-    ([.agents.providers | to_entries[] |
-      select((.key | startswith("claude-")) and .value.enabled == true) | .key]
-      + ["claude-peer"]) | unique[]
+    .agents.providers | to_entries[] |
+      select((.key | startswith("claude-")) and .value.enabled == true) | .key
   ' "$paseo_config")
 
-  expected_deny_lead='["archive_workspace","browser_back","browser_click","browser_close_tab","browser_drag","browser_evaluate","browser_fill","browser_forward","browser_hover","browser_keypress","browser_list_tabs","browser_logs","browser_navigate","browser_new_tab","browser_reload","browser_resize","browser_screenshot","browser_scroll","browser_select","browser_snapshot","browser_type","browser_upload","browser_wait","capture_terminal","create_heartbeat","create_schedule","create_terminal","create_workspace","delete_heartbeat","delete_schedule","get_agent_activity","get_agent_status","inspect_provider","inspect_schedule","kill_agent","kill_terminal","list_agents","list_hosts","list_schedules","list_terminals","list_workspace_scripts","pause_schedule","rename_workspace","resume_schedule","run_schedule_once","schedule_logs","send_terminal_keys","start_workspace_script","stop_workspace_script","update_agent","update_schedule"]'
-  # Lead waits for notifications, so it has no status, list or activity tools to poll with. Supervisor keeps them.
-  expected_deny_supervisor=$(jq -c 'map(select(. != "create_workspace" and . != "get_agent_activity" and . != "get_agent_status" and . != "list_agents" and . != "list_hosts"))' <<<"$expected_deny_lead")
+  expected_deny_lead='["archive_workspace","browser_back","browser_click","browser_close_tab","browser_drag","browser_evaluate","browser_fill","browser_forward","browser_hover","browser_keypress","browser_list_tabs","browser_logs","browser_navigate","browser_new_tab","browser_reload","browser_resize","browser_screenshot","browser_scroll","browser_select","browser_snapshot","browser_type","browser_upload","browser_wait","capture_terminal","create_heartbeat","create_schedule","create_terminal","create_workspace","delete_heartbeat","delete_schedule","get_agent_activity","get_agent_status","inspect_provider","inspect_schedule","kill_agent","kill_terminal","list_agents","list_hosts","list_pending_permissions","list_schedules","list_terminals","list_workspace_scripts","pause_schedule","rename_workspace","respond_to_permission","resume_schedule","run_schedule_once","schedule_logs","send_terminal_keys","set_agent_mode","start_workspace_script","stop_workspace_script","update_agent","update_schedule"]'
+  # Lead waits for deliveries and never answers a permission: no status, list, activity, permission or mode tools.
+  # Supervisor keeps them, except get_agent_status (list_agents gives the status).
+  expected_deny_supervisor=$(jq -c '. - ["create_workspace","get_agent_activity","list_agents","list_hosts","list_pending_permissions","respond_to_permission","set_agent_mode"]' <<<"$expected_deny_lead")
 
   while IFS= read -r provider; do
     [[ -n "$provider" ]] || continue
@@ -182,6 +182,10 @@ else
   done < <(jq -r '.agents.providers | to_entries[] | select(.value.enabled == true and .value.paseoTools.enabled == true) | .key' "$paseo_config")
   jq -e '.daemon.mcp.enabled != false and .daemon.mcp.injectIntoAgents == true' \
     "$paseo_config" >/dev/null || fail 'Paseo MCP injection is not enabled'
+  # A backend seat other than Codex is checked only when the config has it and does not disable it (SETUP.md §4).
+  seat_on() {
+    jq -e --arg seat "$1" '.agents.providers | has($seat) and .[$seat].enabled != false' "$paseo_config" >/dev/null
+  }
   for seat in amp-supervisor claude-supervisor codex-supervisor; do
     jq -e --arg seat "$seat" '.agents.providers[$seat].enabled == false' "$paseo_config" >/dev/null && continue
     case "$seat" in
@@ -262,25 +266,13 @@ else
       all(.daemon.agentProfiles[]? | select(.provider == $provider); .modeId == $mode)
     ' "$paseo_config" >/dev/null || fail "${pair%%:*}: every profile needs modeId ${pair#*:}"
   done
-  jq -e '
-    .agents.providers["omp-peer"].models |
-    [ .[] | select(.id == "openai-codex/gpt-6-luna") ] == [{
-      "id": "openai-codex/gpt-6-luna", "label": "GPT-6 Luna", "isDefault": false,
-      "thinkingOptions": [
-        {"id": "low", "label": "Low", "isDefault": true},
-        {"id": "medium", "label": "Medium", "isDefault": false}
-      ]
-    }]
-  ' "$paseo_config" >/dev/null || fail 'omp-peer: wrong GPT-6 Luna model/effort pin'
-  jq -e '
-    ([.agents.providers["omp-peer"].models[] | select(.isDefault == true) |
-      {id, effort: [.thinkingOptions[] | select(.isDefault == true) | .id]}]) ==
-      [{"id": "huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017", "effort": ["low"]}] and
-    ([.agents.providers["pi-peer"].models[] | select(.isDefault == true) |
-      {id, effort: [.thinkingOptions[] | select(.isDefault == true) | .id]}]) ==
-      [{"id": "huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017", "effort": ["low"]}]
-  ' "$paseo_config" >/dev/null || fail 'omp-peer/pi-peer: default must be Hugging Face DeepSeek V4.1 Flash 1017, low effort'
   for seat in pi-peer omp-peer; do
+    seat_on "$seat" || continue
+    jq -e --arg seat "$seat" '
+      [.agents.providers[$seat].models[] | select(.isDefault == true) |
+        {id, effort: [.thinkingOptions[] | select(.isDefault == true) | .id]}] ==
+        [{"id": "huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017", "effort": ["low"]}]
+    ' "$paseo_config" >/dev/null || fail "$seat: default must be Hugging Face DeepSeek V4.1 Flash 1017, low effort"
     jq -e --arg seat "$seat" '
       .agents.providers[$seat].models as $models |
       any($models[]; .id == "openrouter/deepseek/deepseek-v4.1-flash-1017") and
@@ -295,33 +287,47 @@ else
         .model != "openrouter/deepseek/deepseek-v4.1-flash")
     ' "$paseo_config" >/dev/null || fail "$seat: wrong DeepSeek 1017 models/profiles"
   done
-  for effort in low medium; do
-    jq -e --arg effort "$effort" '
-      [.daemon.agentProfiles[]? |
-        select(.id == ("omp-peer--openai-codex-gpt-6-luna--" + $effort))] |
-      length == 1 and all(.[];
-        .provider == "omp-peer" and .model == "openai-codex/gpt-6-luna" and
-        .thinkingOptionId == $effort)
-    ' "$paseo_config" >/dev/null || fail "omp-peer: missing or wrong GPT-6 Luna $effort profile"
-  done
-  jq -e --arg command "$kit/setup/role-agent" '
-    .agents.providers["agy-peer"] as $p |
-    $p.extends == "acp" and $p.enabled == true and
-    $p.label == "Antigravity Peer Seat" and
-    $p.command == [$command, "peer", "agy"] and
-    $p.paseoTools.enabled == false and
-    $p.env == {} and
-    ([ $p.models[] | select(.isDefault == true) | .id ]) == ["gemini-3.8-flash-low"] and
-    ([ $p.models[].id ] | sort) == ["gemini-3.8-flash-low", "gemini-3.8-flash-medium", "gemini-4-argon-low", "gemini-4-argon-medium"]
-  ' "$paseo_config" >/dev/null || fail 'agy-peer: wrong launcher, permissions or model pins'
-  for model in gemini-3.8-flash-low gemini-3.8-flash-medium gemini-4-argon-low gemini-4-argon-medium; do
-    jq -e --arg model "$model" '
-      [.daemon.agentProfiles[]? | select(.id == ("agy-peer--" + ($model | gsub("\\.";"-"))))] |
-      length == 1 and all(.[];
-        .provider == "agy-peer" and .model == $model and .modeId == "auto_edit" and
-        .modeId != "yolo" and (has("thinkingOptionId") | not))
-    ' "$paseo_config" >/dev/null || fail "agy-peer: missing or wrong $model profile"
-  done
+  if seat_on omp-peer; then
+    jq -e '
+      .agents.providers["omp-peer"].models |
+      [ .[] | select(.id == "openai-codex/gpt-6-luna") ] == [{
+        "id": "openai-codex/gpt-6-luna", "label": "GPT-6 Luna", "isDefault": false,
+        "thinkingOptions": [
+          {"id": "low", "label": "Low", "isDefault": true},
+          {"id": "medium", "label": "Medium", "isDefault": false}
+        ]
+      }]
+    ' "$paseo_config" >/dev/null || fail 'omp-peer: wrong GPT-6 Luna model/effort pin'
+    for effort in low medium; do
+      jq -e --arg effort "$effort" '
+        [.daemon.agentProfiles[]? |
+          select(.id == ("omp-peer--openai-codex-gpt-6-luna--" + $effort))] |
+        length == 1 and all(.[];
+          .provider == "omp-peer" and .model == "openai-codex/gpt-6-luna" and
+          .thinkingOptionId == $effort)
+      ' "$paseo_config" >/dev/null || fail "omp-peer: missing or wrong GPT-6 Luna $effort profile"
+    done
+  fi
+  if seat_on agy-peer; then
+    jq -e --arg command "$kit/setup/role-agent" '
+      .agents.providers["agy-peer"] as $p |
+      $p.extends == "acp" and $p.enabled == true and
+      $p.label == "Antigravity Peer Seat" and
+      $p.command == [$command, "peer", "agy"] and
+      $p.paseoTools.enabled == false and
+      $p.env == {} and
+      ([ $p.models[] | select(.isDefault == true) | .id ]) == ["gemini-3.8-flash-low"] and
+      ([ $p.models[].id ] | sort) == ["gemini-3.8-flash-low", "gemini-3.8-flash-medium", "gemini-4-argon-low", "gemini-4-argon-medium"]
+    ' "$paseo_config" >/dev/null || fail 'agy-peer: wrong launcher, permissions or model pins'
+    for model in gemini-3.8-flash-low gemini-3.8-flash-medium gemini-4-argon-low gemini-4-argon-medium; do
+      jq -e --arg model "$model" '
+        [.daemon.agentProfiles[]? | select(.id == ("agy-peer--" + ($model | gsub("\\.";"-"))))] |
+        length == 1 and all(.[];
+          .provider == "agy-peer" and .model == $model and .modeId == "auto_edit" and
+          .modeId != "yolo" and (has("thinkingOptionId") | not))
+      ' "$paseo_config" >/dev/null || fail "agy-peer: missing or wrong $model profile"
+    done
+  fi
   if jq -e '.agents.providers | has("agy-lead") and .["agy-lead"].enabled != false' "$paseo_config" >/dev/null; then
     jq -e --arg command "$kit/setup/role-agent" '
       .agents.providers["agy-lead"] as $p |
@@ -428,15 +434,17 @@ else
       length == 1 and all(.[]; .provider == "amp-lead" and .model == "medium" and .modeId == "local")
     ' "$paseo_config" >/dev/null || fail 'amp-lead: missing or wrong medium profile'
   fi
-  jq -e --arg command "$kit/setup/role-agent" '
-    .agents.providers["amp-peer"] |
-    .extends == "acp" and .command == [$command,"peer","amp"] and
-    .paseoTools.enabled == false and .env == {} and ([.models[].id]) == ["low"]
-  ' "$paseo_config" >/dev/null || fail 'amp-peer: wrong launcher, tools or model'
-  jq -e '
-    [.daemon.agentProfiles[]? | select(.id == "amp-peer--low")] |
-    length == 1 and all(.[]; .provider == "amp-peer" and .model == "low")
-  ' "$paseo_config" >/dev/null || fail 'amp-peer: missing or wrong low profile'
+  if seat_on amp-peer; then
+    jq -e --arg command "$kit/setup/role-agent" '
+      .agents.providers["amp-peer"] |
+      .extends == "acp" and .command == [$command,"peer","amp"] and
+      .paseoTools.enabled == false and .env == {} and ([.models[].id]) == ["low"]
+    ' "$paseo_config" >/dev/null || fail 'amp-peer: wrong launcher, tools or model'
+    jq -e '
+      [.daemon.agentProfiles[]? | select(.id == "amp-peer--low")] |
+      length == 1 and all(.[]; .provider == "amp-peer" and .model == "low")
+    ' "$paseo_config" >/dev/null || fail 'amp-peer: missing or wrong low profile'
+  fi
   for role in peer lead supervisor; do
     seat="kiro-$role"
     kiro_default=claude-sonnet-5.5

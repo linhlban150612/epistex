@@ -12,14 +12,17 @@ Prints OK or FAIL with reasons; exit 0 or 1. It checks shape only, not whether t
 """
 import argparse
 import importlib.machinery
+import importlib.util
 import json
 import pathlib
 import re
 import sys
 
 sys.dont_write_bytecode = True  # the kit folder stays clean
-handoff = importlib.machinery.SourceFileLoader(
-    "check_handoff", str(pathlib.Path(__file__).resolve().parent / "check-handoff")).load_module()
+_loader = importlib.machinery.SourceFileLoader(
+    "check_handoff", str(pathlib.Path(__file__).resolve().parent / "check-handoff"))
+handoff = importlib.util.module_from_spec(importlib.util.spec_from_loader("check_handoff", _loader))
+_loader.exec_module(handoff)
 PREFIX, EMPH = handoff.PREFIX, handoff.EMPH
 # Label at line start after optional markup, an optional note in parentheses, then the value; or
 # label with a colon inside a line, after a sentence or segment mark ("Project: x / Task ID: y").

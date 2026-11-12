@@ -122,8 +122,8 @@ After finishing or clearly recording what is unfinished, return the six-cell han
 current session for your Lead to retrieve and review. Identify the current task and assigned round;
 do not change the round. If no round is assigned, report `BLOCKED` with `Round: not assigned`;
 do not choose a default or start writing. The Lead reads only your last message and checks task, round and exact
-candidate. Keep it within 4000 characters where possible so the finish notification is complete;
-do not drop required cells or evidence to fit. A notification or idle status is not acceptance.
+candidate. Keep it within 4000 characters where possible; do not drop required cells or evidence
+to fit. A delivery or idle status is not acceptance.
 
 Six cells, every turn, including failed turns. The handoff must be your **last message** of the
 turn, complete in that one message: no tool call or text after it, no cell only earlier in the turn.

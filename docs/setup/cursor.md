@@ -30,6 +30,7 @@ launcher đặt `reasoning_effort=medium` bằng cùng giao thức.
 Launcher kiểm tra đủ bốn giá trị trong phản hồi Cursor trước khi nhận prompt. Nếu Cursor gửi
 `current_model_update` hoặc `config_option_update` mâu thuẫn với lựa chọn đã xác nhận, launcher
 hủy xác nhận đó và chặn prompt tiếp theo cho đến khi chọn lại model và xác nhận đủ bốn giá trị.
+Session khôi phục bằng `session/resume` không được launcher theo dõi, nên prompt của session đó bị từ chối; hãy dùng `session/load` hoặc tạo phiên mới.
 Nếu chọn model thất bại hoặc Cursor trả giá trị khác, launcher chặn prompt. Không fallback sang Auto,
 Composer, high hoặc Fast. Giữ nguyên hai profile low/medium; không thêm `thinkingOptionId`.
 

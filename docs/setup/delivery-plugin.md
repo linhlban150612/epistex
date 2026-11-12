@@ -83,7 +83,8 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
 - **Send.** The record is appended and fsynced and the cursor advanced before sending. A message
   is sent only while its recipient is `idle`/`error`, with `{sourceAgentId: <peer>,
   activeTurnBehavior: "steer", messageId: <delivery-id>}`; otherwise it stays `pending` and the
-  recipient's own turn end flushes it. `send()` resolves on acceptance only, so delivery is at
+  recipient's own turn end flushes it. This includes a `closed` recipient: its deliveries wait for
+  the end of the turn that its next prompt starts. `send()` resolves on acceptance only, so delivery is at
   least once and the recipient processes each `delivery-id` once.
 - **Reconcile.** Hooks are not replayed and the plugin is a child process, so the first
   lifecycle hook of each plugin process (`agent.turn.after` or `agent.permission.before`; memoised,

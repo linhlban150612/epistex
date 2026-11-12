@@ -1,4 +1,5 @@
 import importlib.machinery
+import importlib.util
 import json
 import os
 import pathlib
@@ -11,10 +12,19 @@ import threading
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-proxy = importlib.machinery.SourceFileLoader("role_agent", str(ROOT / "setup" / "role-agent")).load_module()
+
+
+def load_script(name, path):
+    loader = importlib.machinery.SourceFileLoader(name, str(path))
+    module = importlib.util.module_from_spec(importlib.util.spec_from_loader(name, loader))
+    loader.exec_module(module)
+    return module
+
+
+proxy = load_script("role_agent", ROOT / "setup" / "role-agent")
 DROID_SETTINGS = {"hooks": {"PreToolUse": [{"matcher": "*", "hooks": [
     {"type": "command", "command": str(ROOT / "setup/droid-guard") + " peer", "timeout": 10}]}]}}
-claude_sdk = importlib.machinery.SourceFileLoader("claude_sdk", str(ROOT / "setup" / "claude-sdk")).load_module()
+claude_sdk = load_script("claude_sdk", ROOT / "setup" / "claude-sdk")
 
 
 class ProfilesTest(unittest.TestCase):

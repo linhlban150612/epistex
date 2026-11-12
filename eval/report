@@ -14,7 +14,16 @@ task ID T-<n>, MODE-OK or NO_SPIKE_TOOL.
 """
 import argparse, json, os, pathlib, re, statistics, sys
 from collections import Counter, defaultdict
+import importlib.util
 from importlib.machinery import SourceFileLoader
+
+
+def load_script(name, path):
+    """Import a kit script that has no .py suffix."""
+    loader = SourceFileLoader(name, str(path))
+    module = importlib.util.module_from_spec(importlib.util.spec_from_loader(name, loader))
+    loader.exec_module(module)
+    return module
 
 TEST_CWD = re.compile(r"^/tmp/epistex-live-")
 TEST_TASK = re.compile(r"^`?(?:T-\d+|MODE-OK|NO_SPIKE_TOOL)`?$")
@@ -110,8 +119,7 @@ def report_receipts(directory, exclude, agents, include_test_seats):
     print("|---|---|---|---|---|---|---|---|---|---|")
     kinds, outcomes, sizes, ends_valid = Counter(), Counter(), [], 0
     starts_valid, briefs, calls = 0, [], []
-    classify = SourceFileLoader("check_handoff", str(pathlib.Path(__file__).resolve().parents[1] / "setup/check-handoff")
-                                ).load_module().classify_handoff
+    classify = load_script("check_handoff", pathlib.Path(__file__).resolve().parents[1] / "setup/check-handoff").classify_handoff
     models, codes = defaultdict(Counter), Counter()
     for (lead, peer), items in sorted(seats.items(), key=lambda kv: min(r["createdAt"] for r in kv[1])):
         items.sort(key=lambda r: r["createdAt"])

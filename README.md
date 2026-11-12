@@ -28,6 +28,7 @@ Pi uses native launch instructions. Devin/Copilot/Cursor/Amp/Kiro/Droid/Antigrav
 instructions to each new session's first prompt — **not the system prompt**. A session restored
 with `session/load` or `session/resume` already holds the role in its history, so the proxy does
 not add it again; a backend that compacts the role out of a loaded session does not get it back.
+The Kiro and Cursor proxies refuse prompts in a session restored with `session/resume`.
 Droid Lead/Supervisor use the injected Paseo MCP; Droid Peer has Paseo tools disabled. All Droid
 seats run a `PreToolUse` hook that denies Droid's native subagents, Missions, loops and automations;
 for Droid Lead/Supervisor it also denies shell commands that commit, push, merge, remove a worktree or deploy.

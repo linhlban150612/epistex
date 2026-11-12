@@ -57,7 +57,7 @@ event caused it. You still write no project artifact, assign no Peer and accept 
 - For a Lead's context-reset proposal, relay agent ID, task, round, frozen identities
   (or explicitly no candidate) and evidence to the Human; send the answer to the Lead.
   You do not confirm resets. Supply lifecycle/tool execution evidence from any intervention.
-  The Lead enforces the [cessation gate](LEAD.md#monitoring), including for ordinary
+  The Lead enforces the [cessation gate](contract/COMMON.md#ownership-and-candidate-identity), including for ordinary
   cancellation/reassignment. Rework-cap replacements use the same confirmation gate.
 - On `A foreground turn is already active` or a Lead's missing-final-handoff escalation,
   stop resends to the affected seat. Never `cancel_agent` and re-prompt it: the prompt queues

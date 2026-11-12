@@ -101,8 +101,7 @@ for line in sys.stdin:
 
 PASEO = {'type': 'http', 'name': 'paseo', 'url': 'http://127.0.0.1:6767/mcp/agents?callerAgentId=lead-1', 'headers': []}
 LEAD_POLICY = ['list_workspaces', 'list_providers', 'list_models', 'list_profiles', 'create_agent',
-               'send_agent_prompt', 'cancel_agent', 'archive_agent',
-               'list_pending_permissions', 'respond_to_permission', 'set_agent_mode']
+               'send_agent_prompt', 'cancel_agent', 'archive_agent']
 LEAD_TAGS = ','.join('@paseo/' + t for t in LEAD_POLICY)
 
 

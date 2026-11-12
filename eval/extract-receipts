@@ -17,7 +17,16 @@ Read every changed label by hand before you commit it. Paths under /home/<user> 
 /home/user; the script reports bodies that look like they hold a credential and does not write them.
 """
 import argparse, json, pathlib, re, sys
+import importlib.util
 from importlib.machinery import SourceFileLoader
+
+
+def load_script(name, path):
+    """Import a kit script that has no .py suffix."""
+    loader = SourceFileLoader(name, str(path))
+    module = importlib.util.module_from_spec(importlib.util.spec_from_loader(name, loader))
+    loader.exec_module(module)
+    return module
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 TAGS = ("User", "Shell", "Thought", "Other", "Read", "Edit", "Search", "Tasks", "Assistant", "Message received",
@@ -92,7 +101,7 @@ def main():
             print(f"  differ: {delivery}", file=sys.stderr)
         records = {i: records.get(i, logs[i]) for i in logs}
     agents = {a["id"]: a for a in json.loads(args.agents.read_text())} if args.agents else {}
-    classify = SourceFileLoader("check_handoff", str(ROOT / "setup/check-handoff")).load_module().classify_handoff \
+    classify = load_script("check_handoff", ROOT / "setup/check-handoff").classify_handoff \
         if args.label else None
     args.out.mkdir(parents=True, exist_ok=True)
     written, flagged = 0, []

@@ -60,11 +60,11 @@ kiro-cli agent validate --path ~/.kiro/agents/epistex_lead.json
 ```
 
 Provider: `extends=acp`, command `["<KIT>/setup/role-agent","lead","kiro"]`,
-`paseoTools.enabled=true` với đúng 51 `disabledTools` của Lead policy trong
+`paseoTools.enabled=true` với đúng 54 `disabledTools` của Lead policy trong
 [SETUP.md](../../SETUP.md); Paseo enforce danh sách đó ở server. Agent file chỉ cho phép
-tag native của Peer (`read`, `write`, `shell`, `web`) cộng đúng 11 tool Lead dạng
+tag native của Peer (`read`, `write`, `shell`, `web`) cộng đúng 8 tool Lead dạng
 `@paseo/<tool>`. Không có `allowedTools`/`toolsSettings`: quyền nằm trong `permissions.rules` của agent
-(allow `fs_read`, `fs_write`, `shell`, `web_fetch`, `web_search`; Lead thêm `mcp` match đúng 11
+(allow `fs_read`, `fs_write`, `shell`, `web_fetch`, `web_search`; Lead thêm `mcp` match đúng 8
 `paseo/<tool>`), nên Lead tự duyệt mọi tool (bypass) và Peer không bị hỏi quyền mỗi lần gọi. Policy
 built-in của Kiro (vd chặn ghi settings của chính Kiro) và deny ở scope khác vẫn thắng; tool khác vẫn
 hỏi qua ACP permission request. Không có `knowledge`: V3 không quảng bá tool này thành
@@ -88,7 +88,7 @@ bị refuse. Peer vẫn reject mọi MCP server.
 Kiro V3 quảng bá tool qua `_kiro/tools/didChange` dạng **tag**: category builtin (`read`, `write`,
 `shell`, `web`) và `@paseo/<tool>` cho MCP tool mà agent `tools` chọn (live: server trả thêm
 `kill_agent`/`list_agents` vẫn bị Kiro lọc khỏi tag). Adapter yêu cầu tag ⊆ `tools` của agent file
-và, với session có Paseo, đủ 11 tag `@paseo/<tool>`. `_kiro/mcp/status` là snapshot đầy đủ; Kiro báo
+và, với session có Paseo, đủ tag `@paseo/<tool>` của mọi tool Paseo trong agent file (Lead: 8, Supervisor: 15). `_kiro/mcp/status` là snapshot đầy đủ; Kiro báo
 `connected` **trước** `didChange` mang tag MCP, nên adapter đợi một `didChange` mới hơn snapshot (tối đa
 30 s) rồi mới kết luận. Tag lạ (kể cả `subagent`, bare `kill_agent`, `@paseo/<tool bị chặn>`, server
 khác) hoặc thiếu tool Paseo làm session thất bại thay vì expose. V3 tải MCP tool theo yêu cầu: model
@@ -97,7 +97,7 @@ chỉ thấy `tool_load`/`tool_call`, và catalog của `tool_load` chỉ gồm 
 `disabledTools` không chặn được nó; launch thường không có `speak` trong catalog Lead/Supervisor. Nếu
 `@paseo/speak` xuất hiện thành tag, seat fail closed; đổi allowlist cần Human quyết định.
 
-Seat `kiro-supervisor`: `role-agent supervisor kiro`, `setup/kiro-supervisor.json`, installed agent `~/.kiro/agents/epistex_supervisor.json`, Supervisor Paseo tool policy (16 tool, [SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)). Live (CLI 3.1.0, Paseo 0.15.3): `kiro-supervisor` Sonnet/low thấy đúng 16 tool Paseo và gọi `list_hosts` không bị hỏi quyền.
+Seat `kiro-supervisor`: `role-agent supervisor kiro`, `setup/kiro-supervisor.json`, installed agent `~/.kiro/agents/epistex_supervisor.json`, Supervisor Paseo tool policy (15 tool, [SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)). Live (CLI 3.1.0, Paseo 0.15.3): `kiro-supervisor` Sonnet/low gọi `list_hosts` không bị hỏi quyền. Live 2026-11-12 (Paseo 0.15.4): `kiro-supervisor` Sonnet/low thấy đúng 15 tool Paseo.
 
 ## Model/effort qua standard config options
 
@@ -159,7 +159,7 @@ hành vi V3 đã quan sát live (default `high`, ignored value vẫn success, ta
 đến muộn) và kiểm role/CWD, effort pin, ignored model/effort, model reset, hidden options/extension,
 cancellation, permission relay, unsafe inventory/mode giữa chừng, override, backend rejection và
 early exit. Không thay live model smoke tests. Lead chưa có probe tự động: đã kiểm thủ công với
-HTTP MCP loopback giả lập Paseo (11 tag, model switch, probe load refuse prompt).
+HTTP MCP loopback giả lập Paseo (tag Paseo, model switch, probe load refuse prompt).
 
 Lead launch bốn profile qua Paseo sau frozen-candidate review; lấy actual session/model/effort,
 raw `config_option_update`, `_kiro/tools/didChange` và `_kiro/mcp/status` hoặc chạy metadata probe trên chính
@@ -168,7 +168,7 @@ liệt kê tools thực sự thấy và in `pwd`; không coi đọc lại file p
 Peer phải nhận `# Peer — independent co-worker`, project CWD, không Paseo/subagent tools.
 Trạng thái live (CLI 2.33.1 đến 3.1.0; 3.2.1: launch `kiro-peer` Sonnet/low, heading role, CWD, không Paseo tools): bốn profile `kiro-peer` và `kiro-lead`/`kiro-supervisor`
 Sonnet/low launch với đúng mode/model/effort, nhận `# Common contract` cộng heading role, CWD là project;
-Peer chỉ có native tools; catalog Lead có đúng 11 tool `paseo::*`, không có `speak`;
+Peer chỉ có native tools; catalog Lead có đúng 8 tool `paseo::*` (kiểm lại 2026-11-12, Paseo 0.15.4), không có `speak`;
 Lead gọi `list_workspaces` không bị hỏi quyền; `kiro-lead` tạo `kiro-peer` qua `create_agent`;
 handback đi qua [delivery plugin](delivery-plugin.md), không qua native notification. Chưa live-cover `session/cancel`,
 `session/resume` và `session/load` qua lifecycle Paseo. Chưa kiểm qua Paseo thì chỉ kết luận ACP metadata/fixture verified, không kết luận seat đã được chấp nhận.

@@ -594,7 +594,7 @@ test("Lead turn end: a new Peer's failed brief is delivered at once as BRIEF_INV
   const leadTurn = peerTurn({ agent: { ...peerTurn().agent, id: "lead-1", parentAgentId: null, provider: "amp-lead" } });
   const good = "Task ID: T-2\nRound: 1\nBaseline: base 3f2a9c1d4e5b6a7f8091a2b3c4d5e6f708192a3b\nOwned scope: src/**\nAuthority: edit files in owned scope\n";
   await scratch(async (delivery, outbox, lines) => {
-    const pages = { "peer-1": [{ epoch: "e1", entries: [row("Task ID: T-1 | Round: 1. Read a.txt.")] }], "peer-2": [{ epoch: "e1", entries: [row(good)] }], "peer-3": [{ epoch: "e1", entries: [] }] };
+    const pages = { "peer-1": [{ epoch: "e1", entries: [row("Project / Task ID: demo / T-1 | Round: 1. Read a.txt.")] }], "peer-2": [{ epoch: "e1", entries: [row(good)] }], "peer-3": [{ epoch: "e1", entries: [] }] };
     const fake = fakePaseo({ "lead-1": leadIdle, "peer-1": child("peer-1"), "peer-2": child("peer-2"), "peer-3": child("peer-3"), other: { id: "other", provider: "codex-peer", status: "running" } }, pages);
     await delivery.onTurnEnded(leadTurn, fake.paseo);
     assert.equal(fake.sent.length, 1, "only the failed brief is reported");
@@ -614,7 +614,7 @@ test("Lead turn end: a new Peer's failed brief is delivered at once as BRIEF_INV
     assert.equal(fake.sent.length, 1);
 
     // First handback of peer-1: briefCodes are stored, the warning is not sent a second time.
-    pages["peer-1"] = [{ epoch: "e1", entries: [row("Task ID: T-1 | Round: 1. Read a.txt."), assistant(VALID, 9)] }];
+    pages["peer-1"] = [{ epoch: "e1", entries: [row("Project / Task ID: demo / T-1 | Round: 1. Read a.txt."), assistant(VALID, 9)] }];
     await delivery.onTurnEnded(peerTurn(), fake.paseo);
     const handback = outbox.records().at(-1)!;
     assert.equal(handback.kind, "HANDBACK_VALID");

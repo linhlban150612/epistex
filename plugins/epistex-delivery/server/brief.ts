@@ -52,8 +52,10 @@ function hasBaseline(text: string): boolean {
 /** Task ID and Round number a brief states, each null when the brief does not state it. */
 export function briefIdentity(brief: string): { taskId: string | null; round: string | null } {
   const text = brief.replace(/\r\n?/g, "\n");
-  const taskId = fieldValue(text, LABELS["Task ID"])?.split(/[ \t]*[|;,][ \t]*/)[0].replace(/^[*_`]+|[*_`.]+$/g, "");
-  return { taskId: taskId || null, round: ROUND_NUMBER.exec(text)?.[1] ?? null };
+  const value = fieldValue(text, LABELS["Task ID"])?.split(/[ \t]*[|;,][ \t]*/)[0];
+  // `Project / Task ID: demo / T-1`: the handoff header carries the task part only.
+  const task = /Project[ \t]*\/[ \t]*Task ID/i.test(text) ? value?.split(/[ \t]+\/[ \t]+/).pop() : value;
+  return { taskId: task?.replace(/^[*_`]+|[*_`.]+$/g, "") || null, round: ROUND_NUMBER.exec(text)?.[1] ?? null };
 }
 
 /** Shape codes of a text brief, as `setup/check-brief - --json` reports them; empty when the brief passes. */

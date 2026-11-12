@@ -99,21 +99,23 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
 ## Paseo API the plugin relies on
 
 Read from the installed `@getpaseo/{plugin,server,client,protocol}` packages and the live daemon.
+A source path starts with its package directory (`plugin/`, `protocol/`, `client/`, `cli/`); a path
+without that prefix is below `server/dist/server/server/` of `@getpaseo/server`, not in this kit.
 
 | Topic | Fact | Source |
 |---|---|---|
-| Plugin entry | `index.server.ts`/`.tsx` (legacy `index.ts`), default export `contribute(server) => cleanup`; `cleanup` must be a function. `contribute` receives no `PaseoApi`: `paseo` arrives in the hook context `(payload, {paseo, signal})`. | `plugin-process.js` |
-| Hooks | `server.addHook(name, handler)` (0.15+); `server.on`/`before` are deprecated and removed after 2027-04-30. `agent.turn.after` (legacy alias `agent.turn_ended`) and `agent.permission.before`. | `plugin/dist/server/lifecycle.d.ts` |
+| Plugin entry | `index.server.ts`/`.tsx` (a legacy `index.ts`/`.tsx` entry is rejected with a migration error), default export `contribute(server) => cleanup`; `cleanup` must be a function. `contribute` receives no `PaseoApi`: `paseo` arrives in the hook context `(payload, {paseo, signal})`. | `plugins/compiler-build.js`, `plugins/bundle-evaluator.js`, `plugins/plugin-process.js` |
+| Hooks | `server.addHook(name, handler)` (hook names added in v0.14); `server.on`/`before` are deprecated and removed after 2027-04-30. `agent.turn.after` (legacy alias `agent.turn_ended`) and `agent.permission.before`. | `plugin/dist/server/lifecycle.d.ts`, `plugin/dist/server/lifecycle.js` |
 | Hook payload | `{agent: {id, workspaceId, parentAgentId, provider, cwd, title}, turnId, outcome: {kind: completed\|failed\|canceled, ...}, timeline: []}`. `timeline` is deprecated and always empty, so the handler must `timeline.refetch`. | `plugins/lifecycle/index.js` |
-| Hook emission | Emitted for every `turn_completed`/`turn_failed`/`turn_canceled` stream event, including background completions; `internal` agents emit nothing. A throwing handler is logged, never replayed. | `plugins/lifecycle/index.js` |
-| Process model | Each plugin is a forked child process on the Paseo session socket (`ipc://plugin/<id>`); a daemon restart restarts the plugin. | `plugin-process.js`, `runtime.js` |
+| Hook emission | Emitted for every live `turn_completed`/`turn_failed`/`turn_canceled` stream event, including background completions (a repeat for an already finalized turn and history replay emit nothing); `internal` agents emit nothing. A throwing handler is logged, never replayed. | `plugins/lifecycle/index.js`, `agent/agent-manager.js` |
+| Process model | Each plugin is a forked child process on the Paseo session socket (`ipc://plugin/<id>`); a daemon restart restarts the plugin. | `plugins/plugin-process.js`, `plugins/runtime.js` |
 | Parent link | `agent.parentAgentId` = label `paseo.parent-agent-id`, set on agents created through MCP `create_agent`. | `protocol/dist/agent-labels.js` |
-| Lead detection | `agent.provider` is the agent-profile id, e.g. `claude-lead`, `droid-lead--gpt-6-1-sol--medium`. | `paseo agent ls --json` |
-| Agent status | `paseo.agents.ref(id).refresh()` / `agents.list()` give `labels`, `parentAgentId`, `provider`, `status ∈ {initializing, idle, running, error, closed}`. | `client/dist/index.d.ts` |
+| Lead detection | `agent.provider` is the agent-profile id, e.g. `claude-lead`, `droid-lead`. `paseo agent ls --json` prints it as `<id>/<model>`, e.g. `claude-lead/claude-opus-5-5`. | `plugins/lifecycle/index.js`, `paseo agent ls --json` |
+| Agent status | `paseo.agents.ref(id).refresh()` / `agents.list()` give `labels`, `provider`, `status ∈ {initializing, idle, running, error, closed}`. A snapshot has no `parentAgentId` field; read `labels["paseo.parent-agent-id"]`. | `client/dist/index.d.ts`, `protocol/dist/messages.js`, `protocol/dist/agent-lifecycle.js` |
 | Timeline read | `timeline.refetch({direction: tail\|before\|after, cursor?, limit})` → `{entries, endCursor, hasNewer, epoch, reset, staleCursor, ...}`; cursor `{epoch, seq}`; a timeline replacement changes `epoch`. `assistant_message` items carry `text` and `messageId?`. | `protocol/dist/messages.js` |
-| Send | `ref(id).send(text, {sourceAgentId?, messageId?, activeTurnBehavior?})` resolves when the daemon accepts. `ActiveTurnBehavior` is `interrupt`\|`steer`; there is no queue-until-idle value. With `sourceAgentId`, messages coalesce for 2 quiet seconds, then steer into or replace a running turn. Native `notifyOnFinish` uses the same path. | `session.js`, `agent/agent-messages/delivery.js`, `agent-manager.js` |
-| Manifest / build | `paseo-plugin.json` with `requirements.paseo`; esbuild cjs `node20`, `@getpaseo/plugin*` and `zod` host-provided, imports outside the plugin directory rejected. | `plugins/manifest.js`, `plugins/compiler-build.js` |
-| Install | `paseo plugin install <dir>` writes a `directory` source into `plugins` in `~/.paseo/config.json`; loading requires top-level `pluginsEnabled: true`. | `cli/dist/commands/plugin/index.js` |
+| Send | `ref(id).send(text, {sourceAgentId?, messageId?, activeTurnBehavior?})` resolves when the daemon accepts. `ActiveTurnBehavior` is `interrupt`\|`steer`; there is no queue-until-idle value. With `sourceAgentId`, messages coalesce for 2 quiet seconds, then steer into or replace a running turn. Native `notifyOnFinish` uses the same path. | `session.js`, `agent/agent-messages/delivery.js`, `agent/agent-manager.js`, `agent/finish-subscriptions/index.js` |
+| Manifest / build | `paseo-plugin.json` with `requirements.paseo`; esbuild cjs `node20`, `@getpaseo/plugin*` and `zod` host-provided, imports outside the plugin directory rejected. | `plugins/manifest.js`, `plugins/compiler-build.js`, `plugins/compiler-esbuild.js` |
+| Install | `paseo plugin install <dir>` writes a `directory` source into `plugins` in `~/.paseo/config.json`; loading requires top-level `pluginsEnabled: true`. | `plugins/index.js`, `cli/dist/commands/plugin/index.js` |
 
 ## Security and operational caveats
 

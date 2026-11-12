@@ -13,6 +13,7 @@ Paseo provider → setup/codex-room <role> (sync runtime, then exec Codex)
        role-instructions.md generated, COMMON.md + selected role
        auth.json            → canonical Codex home
        skills/, plugins/    → canonical Codex home
+       model-instructions.md, hooks.json → canonical Codex home, when present there
        sessions/logs/...    private mutable state
   → Codex at the wrapper-selected working directory
 ```

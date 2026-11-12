@@ -3,8 +3,6 @@
 Common entry point: steps 1–8 install the two Codex seats (Lead/Peer) and check a real launch. Each
 other backend reuses these common steps, then follows its own file:
 
-For Codex runtime selection and resume, see the [Codex runtime guide](docs/setup/codex-runtime.md).
-
 | Backend | Guide |
 |---|---|
 | Claude Lead/Peer | [docs/setup/claude.md](docs/setup/claude.md) |
@@ -17,6 +15,7 @@ For Codex runtime selection and resume, see the [Codex runtime guide](docs/setup
 | GitHub Copilot Peer through ACP | [docs/setup/copilot.md](docs/setup/copilot.md) |
 | Cursor Peer through ACP | [docs/setup/cursor.md](docs/setup/cursor.md) |
 
+For Codex runtime selection and resume, see the [Codex runtime guide](docs/setup/codex-runtime.md).
 Context compaction and limits for each backend: [context-compaction.md](docs/setup/context-compaction.md).
 
 ## 1. Put the kit and project at stable paths
@@ -169,7 +168,7 @@ bash <KIT>/setup/setup-seats.sh --check
 The script does not edit the global config; a run without `--check` only sets the executable bit (chmod is needed)
 and, with `--project <PROJECT>`, installs the kit skills into that project (step 6); the runtime is prepared when
 Paseo starts the seat. `--check` fails if the config/provider is missing or has a
-wrong model, effort or tool permission, or if a prompt or template names a skill the kit does not have; it needs Bash, jq, Python 3.11+, Git, dirname, wc, grep, sort, diff, cp, mkdir and
+wrong model, effort or tool permission, or if a prompt or template names a skill the kit does not have; it needs Bash, jq, Python 3.11+, Git, dirname, chmod, grep, sort, diff, cp, mkdir and
 `${CODEX_BIN:-codex}`, and does not need Paseo on PATH. `PASEO_HOME`/`PASEO_CONFIG` select a config at a non-default
 location; if you use `CODEX_BIN`, set the same value for the checker and the providers. A passing result
 does not prove auth, the daemon, model availability or a successful launch: those are steps 2 and 8.
@@ -192,7 +191,7 @@ and ask behavioral questions about failure limits, non-Git candidate identities 
 writer cessation. Do not put the expected answers in the smoke prompt.
 Also check `find ~/.codex-runtime/epistex -maxdepth 3 -name config.toml`.
 
-The two roles must have separate runtimes. `auth.json`, `skills` and `plugins` are symlinks; `config.toml` is a
+The two roles must have separate runtimes. `auth.json`, `skills` and `plugins` (and `model-instructions.md`, `hooks.json` when the canonical home has them) are symlinks; `config.toml` is a
 separate generated copy that holds `model_instructions_file` pointing to runtime `role-instructions.md`
 (common contract + role prompt), with `[agents].enabled`,
 `[features].multi_agent` and `[features].multi_agent_v2` all `false`: Paseo is the only owner of

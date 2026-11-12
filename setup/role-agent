@@ -134,7 +134,7 @@ def main() -> int:
         raise SystemExit("usage: role-agent <supervisor|lead|peer> <claude|pi|omp|devin|copilot|cursor|amp|agy|droid|kiro> (devin and copilot: peer only)")
     role, agent = sys.argv[1:3]
     if agent == "kiro":
-        if role not in ("lead", "peer", "supervisor") or sys.argv[3:]:
+        if sys.argv[3:]:
             raise SystemExit("Kiro supports only the scoped Supervisor, Lead and Peer seats, without extra launch flags")
         os.execv(sys.executable, [sys.executable, str(ROOT / "setup/kiro-acp"), role])
     if agent == "claude":

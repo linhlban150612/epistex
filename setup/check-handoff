@@ -136,6 +136,10 @@ def glob_to_regex(pattern):
     i = 0
     while i < len(pattern):
         ch = pattern[i]
+        if pattern.startswith("**/", i):
+            out += "(?:.*/)?"
+            i += 3
+            continue
         if pattern.startswith("**", i):
             out += ".*"
             i += 2

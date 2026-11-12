@@ -19,7 +19,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 ROLE = "peer"
 NAME = "Kiro Peer"
 MODE = "epistex_peer"
-# Exact Paseo 0.11 injection: {"type":"http","name":"paseo","url":"http://<loopback>:<port>
+# Exact Paseo injection: {"type":"http","name":"paseo","url":"http://<loopback>:<port>
 # /mcp/agents?callerAgentId=<id>","headers":[] or one Bearer Authorization header}.
 PASEO_HOSTS = ("127.0.0.1", "localhost", "::1")
 MODELS = ("claude-opus-5.5", "claude-sonnet-5.5")
@@ -31,29 +31,29 @@ EXTENSIONS = ("_kiro/session/context", "_kiro/session/compact")
 
 
 def mcp_error(servers):
-    """Peer accepts no MCP server; Lead accepts [] probes or Paseo's injected loopback server."""
+    """Peer accepts no MCP server; Lead and Supervisor accept [] probes or Paseo's injected loopback server."""
     if ROLE == "peer":
         return "Kiro Peer does not accept injected MCP servers" if servers else None
     if (not isinstance(servers, list) or len(servers) > 1
             or (servers and not isinstance(servers[0], dict))):
-        return "Kiro Lead requires an injected Paseo MCP server list"
+        return f"{NAME} requires an injected Paseo MCP server list"
     if not servers:
         return None  # Paseo probe session; prompts stay refused.
     server = servers[0]
     if (set(server) != {"type", "name", "url", "headers"} or server["type"] != "http"
             or server["name"] != "paseo" or not isinstance(server["url"], str)):
-        return "Kiro Lead accepts only the Paseo HTTP MCP server"
+        return f"{NAME} accepts only the Paseo HTTP MCP server"
     try:
         url = urllib.parse.urlsplit(server["url"])
         port = url.port
         query = urllib.parse.parse_qs(url.query, keep_blank_values=True, strict_parsing=True)
     except ValueError:
-        return "Kiro Lead rejected a malformed Paseo MCP URL"
+        return f"{NAME} rejected a malformed Paseo MCP URL"
     if (url.scheme != "http" or url.hostname not in PASEO_HOSTS or port is None
             or url.username is not None or url.password is not None or url.path != "/mcp/agents"
             or url.fragment or set(query) != {"callerAgentId"}
             or len(query["callerAgentId"]) != 1 or not query["callerAgentId"][0]):
-        return "Kiro Lead accepts only the loopback Paseo /mcp/agents endpoint"
+        return f"{NAME} accepts only the loopback Paseo /mcp/agents endpoint"
     headers = server["headers"]
     if headers == []:
         return None
@@ -61,7 +61,7 @@ def mcp_error(servers):
             or set(headers[0]) != {"name", "value"} or headers[0]["name"] != "Authorization"
             or not isinstance(headers[0]["value"], str) or not headers[0]["value"].startswith("Bearer ")
             or not headers[0]["value"][len("Bearer "):].strip()):
-        return "Kiro Lead accepts only Paseo's bearer Authorization header"
+        return f"{NAME} accepts only Paseo's bearer Authorization header"
     return None
 
 
@@ -250,8 +250,8 @@ def main():
 
     def prompt_gate(sid):
         session = sessions.get(sid)
-        if session and ROLE == "lead" and not session.get("paseo"):
-            return "Kiro Lead session has no injected Paseo MCP server; prompts are refused"
+        if session and ROLE != "peer" and not session.get("paseo"):
+            return f"{NAME} session has no injected Paseo MCP server; prompts are refused"
         if (not session or not session.get("ready") or busy(sid) or not valid(sid)
                 or inventory(sid) != "ok"):
             return f"{NAME} session/mode/model/effort/tool policy is not confirmed"

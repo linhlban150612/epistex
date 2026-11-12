@@ -127,7 +127,10 @@ function inScope(file: string, pattern: string): boolean {
   const glob = norm(pattern).replace(/\/+$/, "");
   let source = "";
   for (let at = 0; at < glob.length; at += 1) {
-    if (glob.startsWith("**", at)) {
+    if (glob.startsWith("**/", at)) {
+      source += "(?:.*/)?";
+      at += 2;
+    } else if (glob.startsWith("**", at)) {
       source += ".*";
       at += 1;
     } else source += glob[at] === "*" ? "[^/]*" : glob[at] === "?" ? "[^/]" : glob[at].replace(/[.+^${}()|[\]\\]/g, "\\$&");

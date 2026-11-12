@@ -375,6 +375,20 @@ class KiroACPTest(unittest.TestCase):
             self.assertIn('result', c.call('session/load', sessionId='seat', cwd=str(self.cwd), mcpServers=[]))
             self.assertEqual(self.prompt(c)['error']['message'], refusal)
 
+    def test_supervisor_probe_session_refuses_prompts_and_names_its_seat(self):
+        shutil.copyfile(ROOT / 'setup/kiro-supervisor.json', self.home / '.kiro/agents/epistex_supervisor.json')
+        tools = json.loads((ROOT / 'setup/kiro-supervisor.json').read_text())['tools']
+        tags = ','.join(t for t in tools if t.startswith('@paseo/'))
+        c = self.client('supervisor', EXTRA_TOOLS=tags)
+        self.assertIn('result', self.new(c, [PASEO]))
+        self.assertEqual(self.prompt(c)['result']['observed']['mode'], 'epistex_supervisor')
+        c = self.client('supervisor')
+        self.assertIn('result', self.new(c))
+        self.assertEqual(self.prompt(c)['error']['message'],
+                         'Kiro Supervisor session has no injected Paseo MCP server; prompts are refused')
+        self.assertEqual(self.new(c, [{**PASEO, 'name': 'other'}])['error']['message'],
+                         'Kiro Supervisor accepts only the Paseo HTTP MCP server')
+
     def test_lead_rejects_every_other_mcp_server_shape(self):
         url = lambda u: {**PASEO, 'url': u}
         header = lambda h: {**PASEO, 'headers': h}

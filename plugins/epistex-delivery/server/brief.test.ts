@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
-import { briefOf, checkBrief } from "./brief.ts";
+import { briefOf, checkBrief, outsideScope } from "./brief.ts";
 
 const ROOT = path.resolve(import.meta.dirname, "../../..");
 // Real seat logs hold project text, so they stay outside Git.
@@ -76,4 +76,10 @@ test("real briefs: both checkers agree on every Lead brief in the seat logs", { 
     }
   }
   assert.ok(briefs > 0);
+});
+
+test("outsideScope: `**/` also matches no directory, as glob_to_regex of setup/check-handoff", () => {
+  const scope = "Changed: README.md docs/a/b.md src/a.py src/a/b.py other.txt\nRead: none";
+  assert.deepEqual(outsideScope(scope, ["**/*.md", "src/**/*.py"]), ["other.txt"]);
+  assert.deepEqual(outsideScope("Changed: srcx/a.py lib/a.py", ["src/**/*.py", "lib/"]), ["srcx/a.py"]);
 });

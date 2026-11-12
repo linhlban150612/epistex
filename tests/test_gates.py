@@ -415,6 +415,17 @@ class ClassifyTest(unittest.TestCase):
     def classify(self, stdout, stderr=""):
         return self.module.classify(subprocess.CompletedProcess([], 1, stdout, stderr))
 
+    def test_scope_globs_agree_between_the_gates(self):
+        handoff = {"__name__": "check_handoff"}
+        exec(compile(CHECK_HANDOFF.read_text(), str(CHECK_HANDOFF), "exec"), handoff)
+        cases = [("src/**", "src/a/b.py", True), ("src/**", "other.py", False), ("**/*.md", "README.md", True),
+                 ("**/*.md", "docs/a/b.md", True), ("src/**/*.py", "src/a.py", True), ("src/**/*.py", "src/a/b.py", True),
+                 ("src/**/*.py", "srcx/a.py", False), ("*.py", "src/a.py", False), ("**/secrets/*", "secrets/key", True)]
+        for pattern, path, expected in cases:
+            with self.subTest(pattern=pattern, path=path):
+                self.assertEqual(bool(handoff["glob_to_regex"](pattern).match(path)), expected)
+                self.assertEqual(bool(self.module.glob_to_regex(pattern).match(path)), expected)
+
     def test_classify_failure_causes(self):
         cases = {
             "ASSERTION": [

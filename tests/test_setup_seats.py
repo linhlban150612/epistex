@@ -7,7 +7,6 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from collections import Counter
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SKILL_DIRS = (".agents/skills", ".claude/skills", ".kiro/skills")
@@ -29,7 +28,7 @@ class SetupSeatsTest(unittest.TestCase):
         for directory in ("setup", "agents", "examples", ".agents", ".pi", ".omp", "plugins"):
             shutil.copytree(ROOT / directory, self.kit / directory)
         self.script = self.kit / "setup" / "setup-seats.sh"
-        for name in ("bash", "jq", "dirname", "wc", "chmod", "grep", "sort", "diff", "cp", "mkdir", "git"):
+        for name in ("bash", "jq", "dirname", "chmod", "grep", "sort", "diff", "cp", "mkdir", "git"):
             target = shutil.which(name)
             if target is None:
                 raise RuntimeError(f"test prerequisite missing: {name}")

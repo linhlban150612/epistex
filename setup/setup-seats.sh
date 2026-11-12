@@ -29,7 +29,7 @@ done
 # Installing or removing the plugin edits the Human's config.json through the daemon: never in --check.
 [[ -z "$plugin_action" || "$dry" == 0 ]] || usage
 
-for name in bash jq python3 dirname wc grep sort diff cp mkdir git; do
+for name in bash jq python3 dirname chmod grep sort diff cp mkdir git; do
   command -v "$name" >/dev/null || fail "need $name on PATH"
 done
 (( errs == 0 )) || exit 1
@@ -104,7 +104,7 @@ if [[ -n "$project" ]]; then
   fi
 fi
 
-for name in codex-room role-agent kiro-acp claude-sdk devin-acp copilot-acp cursor-acp; do
+for name in codex-room role-agent kiro-acp claude-sdk amp-acp devin-acp copilot-acp cursor-acp; do
   wrapper="$kit/setup/$name"
   if [[ ! -f "$wrapper" ]]; then
     fail "missing $wrapper"
@@ -173,7 +173,7 @@ else
   while IFS= read -r provider; do
     [[ -n "$provider" ]] || continue
     case "$provider" in
-      *-lead|codex-lead) expected_deny=$expected_deny_lead ;;
+      *-lead) expected_deny=$expected_deny_lead ;;
       *-supervisor) expected_deny=$expected_deny_supervisor ;;
       *) fail "$provider: enabled Paseo seat must be a Lead or Supervisor"; continue ;;
     esac
@@ -350,12 +350,10 @@ else
       .env == {} and ([.models[].id]) == ["swe-2-high"] and
       all(.models[]; ([.thinkingOptions[].id] | sort) == ["high"])
     ' "$paseo_config" >/dev/null || fail 'devin-peer: wrong launcher, tools or model'
-    for seat in devin-peer; do
-      jq -e --arg seat "$seat" '
-        [.daemon.agentProfiles[]? | select(.id == ($seat + "--swe-2-high--high"))] |
-        length == 1 and all(.[]; .provider == $seat and .model == "swe-2-high" and .thinkingOptionId == "high")
-      ' "$paseo_config" >/dev/null || fail "$seat: missing or wrong swe-2-high profile"
-    done
+    jq -e '
+      [.daemon.agentProfiles[]? | select(.id == "devin-peer--swe-2-high--high")] |
+      length == 1 and all(.[]; .provider == "devin-peer" and .model == "swe-2-high" and .thinkingOptionId == "high")
+    ' "$paseo_config" >/dev/null || fail "devin-peer: missing or wrong swe-2-high profile"
   fi
   # Droid env is empty (stored login) or a per-seat key plus its own Droid home: Droid rejects
   # sessions when a key and the stored login in ~/.factory belong to different orgs.

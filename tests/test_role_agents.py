@@ -392,6 +392,81 @@ for line in sys.stdin:
                 self.assertIn("not confirmed", replies[2]["error"]["message"])
                 self.assertEqual(replies[4]["result"]["speed"], "standard")
 
+    def test_antigravity_refuses_prompts_when_the_model_is_not_the_selected_one(self):
+        backend = '''
+import json, os, sys
+state = {"model": "gemini-3.8-flash", "thought_level": "high"}
+offered = os.environ["OFFERED"].split(",")
+options = lambda: [{"id": k, "currentValue": v} for k, v in state.items()]
+for line in sys.stdin:
+    r = json.loads(line); p = r.get("params", {}); method = r.get("method")
+    if method == "initialize":
+        result = {"argv": sys.argv[1:]}
+    elif method in ("session/new", "session/load"):
+        result = {"sessionId": p.get("sessionId", "seat"), "configOptions": options()}
+    elif method == "session/set_model":
+        model = p["modelId"]
+        if model not in offered:
+            print(json.dumps({"jsonrpc": "2.0", "id": r["id"], "error": {
+                "code": -32602, "message": f"Model '{model}' is not available for the current authentication method."}}), flush=True)
+            continue
+        if not os.environ.get("IGNORE"):
+            state["model"], state["thought_level"] = model.rsplit("-", 1)
+        print(json.dumps({"jsonrpc": "2.0", "id": r["id"], "result": {}}), flush=True)
+        if not os.environ.get("SILENT"):
+            print(json.dumps({"jsonrpc": "2.0", "method": "session/update", "params": {"sessionId": p["sessionId"],
+                "update": {"sessionUpdate": "config_option_update", "configOptions": options()}}}), flush=True)
+        continue
+    elif method == "session/prompt":
+        result = {"ran": "-".join(state.values()), "prompt": p["prompt"]}
+    else:
+        result = {}
+    print(json.dumps({"jsonrpc": "2.0", "id": r["id"], "result": result}), flush=True)
+'''
+        prompt = ("session/prompt", {"sessionId": "seat", "prompt": [{"type": "text", "text": "task"}]})
+        select = lambda model: ("session/set_model", {"sessionId": "seat", "modelId": model})
+        with tempfile.TemporaryDirectory() as folder:
+            executable = pathlib.Path(folder) / "agy"
+            executable.write_text(f"#!{sys.executable}\n" + backend)
+            executable.chmod(0o755)
+
+            def run(requests, offered="gemini-4-argon-low,gemini-3.8-flash-low", **env):
+                result = subprocess.run(
+                    [sys.executable, str(ROOT / "setup/role-agent"), "lead", "agy"],
+                    input="".join(json.dumps({"jsonrpc": "2.0", "id": i, "method": m, "params": p}) + "\n"
+                                  for i, (m, p) in enumerate(requests)),
+                    text=True, capture_output=True, timeout=60, env={**os.environ, "PATH": folder, "OFFERED": offered, **env})
+                self.assertEqual(result.returncode, 0, result.stderr)
+                return {r["id"]: r for r in map(json.loads, result.stdout.splitlines()) if "id" in r}
+
+            new = ("session/new", {"cwd": "/work/project", "mcpServers": []})
+            with self.subTest("selected model runs; role and session cwd are in the first prompt"):
+                replies = run([("initialize", {}), new, select("gemini-4-argon-low"), prompt])
+                self.assertEqual(replies[0]["result"]["argv"], ["acp"])
+                self.assertEqual(replies[3]["result"]["ran"], "gemini-4-argon-low")
+                text = replies[3]["result"]["prompt"][0]["text"]
+                self.assertTrue(text.startswith("Session working directory: /work/project."))
+                self.assertIn("# Lead", text)
+            with self.subTest("the real failure: the login does not offer the model and the backend keeps its default"):
+                replies = run([new, select("gemini-4-argon-low"), prompt, select("gemini-3.8-flash-low"), prompt],
+                              offered="gemini-3.8-flash-low")
+                self.assertIn("not available", replies[1]["error"]["message"])
+                self.assertIn("the backend refused model gemini-4-argon-low", replies[2]["error"]["message"])
+                self.assertEqual(replies[4]["result"]["ran"], "gemini-3.8-flash-low")
+            with self.subTest("the backend accepts the selection and keeps another model"):
+                replies = run([new, select("gemini-4-argon-low"), prompt], IGNORE="1")
+                self.assertIn("model gemini-4-argon-low was selected but the backend reports", replies[2]["error"]["message"])
+            with self.subTest("no selection: the session default is not judged"):
+                self.assertEqual(run([new, prompt])[1]["result"]["ran"], "gemini-3.8-flash-high")
+            with self.subTest("the backend never reports the state after a selection"):
+                # The seat waits for the report, then refuses: an unconfirmed model does not run.
+                replies = run([("session/load", {"sessionId": "seat", "cwd": "/w", "mcpServers": []}),
+                               select("gemini-4-argon-low"), prompt], SILENT="1")
+                self.assertIn("was selected but the backend reports", replies[2]["error"]["message"])
+            result = subprocess.run([sys.executable, str(ROOT / "setup/role-agent"), "peer", "agy", "--dangerously-skip-permissions"],
+                                    input="", text=True, capture_output=True, env={**os.environ, "PATH": folder}, timeout=10)
+            self.assertIn("do not skip permissions", result.stderr)
+
     def test_launchers_reject_unsupported_roles_and_flags(self):
         with tempfile.TemporaryDirectory() as folder:
             for backend, roles in (("devin", ("lead",)), ("copilot", ("lead", "supervisor"))):

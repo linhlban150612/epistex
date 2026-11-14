@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+"""Start an Antigravity seat through `agy acp`, inject role instructions and confirm the model.
+
+Paseo continues a session when the backend refuses the requested model: the session then runs the
+backend's default model. The seat refuses prompts for a session whose model selection the backend
+refused, or whose reported model and effort differ from the last model the client selected.
+A seat model ID is `<model>-<effort>` (`gemini-4-argon-low`) or a model with no effort option.
+"""
+
+import importlib.machinery
+import json
+import pathlib
+import shutil
+import subprocess
+import sys
+import threading
+
+sys.dont_write_bytecode = True
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROLES = ("supervisor", "lead", "peer")
+SESSION_STARTS = ("session/new", "session/load", "session/resume")
+CONFIRM_WAIT = 10  # Seconds a prompt waits for the backend to report the model it selected.
+
+
+def parse(line: bytes):
+    try:
+        message = json.loads(line)
+    except (ValueError, UnicodeDecodeError):
+        return None
+    return message if isinstance(message, dict) else None
+
+
+def reported(options) -> dict:
+    """`model` and `thought_level` values of a configOptions list; a missing option is absent."""
+    values = {}
+    for option in options if isinstance(options, list) else []:
+        if isinstance(option, dict) and option.get("id") in ("model", "thought_level"):
+            values[option["id"]] = option.get("currentValue")
+    return values
+
+
+def matches(wanted: str, actual: dict) -> bool:
+    model, effort = actual.get("model"), actual.get("thought_level")
+    return isinstance(model, str) and wanted in (model, f"{model}-{effort}")
+
+
+def run(role: str, args: list[str]) -> int:
+    role_agent = importlib.machinery.SourceFileLoader("role_agent", str(ROOT / "setup/role-agent")).load_module()
+    role_agent.load_prompt(role)  # Fail before starting a backend if the contract is unavailable.
+    if shutil.which("agy") is None:
+        raise SystemExit("agent executable not found: agy")
+    child = subprocess.Popen(["agy", "acp", *args], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    assert child.stdin is not None and child.stdout is not None
+    to_client = threading.Lock()
+    state = threading.Lock()
+    starts: dict = {}  # Request id of a session start -> the session id it named, if any.
+    selections: dict = {}  # Request id of a model selection -> (session id, model id).
+    wanted: dict = {}  # Session id -> the last model the client selected.
+    refused: dict = {}  # Session id -> the backend's reason for refusing that selection.
+    actual: dict = {}  # Session id -> the model and effort the backend reports.
+    pending: dict = {}  # Session id -> the selection a prompt must wait for: its answer and the state report.
+
+    def emit(data: bytes) -> None:
+        with to_client:
+            sys.stdout.buffer.write(data)
+            sys.stdout.buffer.flush()
+
+    def observe(sid, options, confirms: bool = False, responded: bool = False) -> None:
+        """Record a reported state. A selection is confirmed by its own answer plus a report made for it:
+        options in that answer, or a config_option_update after the request (before or after the answer)."""
+        values = reported(options)
+        if not isinstance(sid, str):
+            return
+        with state:
+            if values:
+                actual.setdefault(sid, {}).update(values)
+            wait = pending.get(sid)
+            if wait is None:
+                return
+            wait["reported"] = wait["reported"] or (confirms and bool(values))
+            wait["responded"] = wait["responded"] or responded
+            if not (wait["reported"] and wait["responded"]):
+                return
+            del pending[sid]
+        wait["event"].set()
+
+    def release(sid) -> None:
+        with state:
+            wait = pending.pop(sid, None)
+        if wait:
+            wait["event"].set()
+
+    def output() -> None:
+        for line in child.stdout:
+            message = parse(line)
+            if message is None:
+                emit(line)
+                continue
+            ident, result, params = message.get("id"), message.get("result"), message.get("params")
+            if "method" not in message and ident is not None:
+                with state:
+                    started = ident in starts
+                    named = starts.pop(ident, None)
+                    selection = selections.pop(ident, None)
+                if started and isinstance(result, dict):
+                    observe(result.get("sessionId", named), result.get("configOptions"))
+                if selection:
+                    sid, model = selection
+                    if "error" in message:
+                        error = message["error"]
+                        with state:
+                            if wanted.get(sid) == model:
+                                refused[sid] = error.get("message") if isinstance(error, dict) else str(error)
+                        release(sid)
+                    else:
+                        # `session/set_model` answers {}; the state is then in a config_option_update.
+                        observe(sid, result.get("configOptions") if isinstance(result, dict) else None,
+                                confirms=True, responded=True)
+            update = params.get("update") if isinstance(params, dict) else None
+            if isinstance(update, dict) and update.get("sessionUpdate") == "config_option_update":
+                observe(params.get("sessionId"), update.get("configOptions"), confirms=True)
+            emit(line)
+        with state:
+            waiting = list(pending)
+        for sid in waiting:  # The backend exited: release a prompt that waits.
+            release(sid)
+
+    forwarding = threading.Thread(target=output)
+    forwarding.start()
+    primer = role_agent.Primer(role)
+    cwd = None
+
+    def blocked(sid) -> str | None:
+        with state:
+            wait = pending.get(sid)
+        if wait:
+            wait["event"].wait(timeout=CONFIRM_WAIT)
+        with state:
+            if sid in refused:
+                return f"the backend refused model {wanted.get(sid)}: {refused[sid]}"
+            if sid in wanted and not matches(wanted[sid], actual.get(sid, {})):
+                return f"model {wanted[sid]} was selected but the backend reports {actual.get(sid) or 'no model'}"
+        return None
+
+    try:
+        for line in sys.stdin.buffer:
+            message = parse(line)
+            method = message.get("method") if message else None
+            params = message.get("params") if message else None
+            params = params if isinstance(params, dict) else {}
+            sid = params.get("sessionId")
+            # The session cwd line of the first prompt is kept from the registry server, which ran shell commands elsewhere.
+            cwd = role_agent.session_cwd(line) or cwd
+            if method in SESSION_STARTS and "id" in message:
+                with state:
+                    starts[message["id"]] = sid
+            elif "id" in (message or {}) and isinstance(sid, str) and (
+                    method == "session/set_model" or
+                    (method == "session/set_config_option" and params.get("configId") == "model")):
+                model = params.get("modelId", params.get("value"))
+                model = model if isinstance(model, str) else str(model)
+                with state:
+                    # A prompt after this request waits for the backend's answer and its report of the state.
+                    selections[message["id"]] = (sid, model)
+                    wanted[sid] = model
+                    refused.pop(sid, None)
+                    pending[sid] = {"event": threading.Event(), "reported": False, "responded": False}
+            elif method == "session/prompt":
+                reason = blocked(sid)
+                if reason:
+                    emit((json.dumps({"jsonrpc": "2.0", "id": message.get("id"), "error": {
+                        "code": -32602, "message": f"Antigravity seat: {reason}; select a model the login offers"}}) + "\n").encode())
+                    continue
+            child.stdin.write(role_agent.prime(line, primer, cwd))
+            child.stdin.flush()
+    except BrokenPipeError:
+        pass
+    finally:
+        child.stdin.close()
+    forwarding.join()
+    return child.wait()
+
+
+def main() -> int:
+    if len(sys.argv) < 2 or sys.argv[1] not in ROLES:
+        raise SystemExit("usage: agy-acp <supervisor|lead|peer> [agy acp args...]")
+    if any(arg.startswith("--dangerously-skip-permissions") for arg in sys.argv[2:]):
+        raise SystemExit("Antigravity seats do not skip permissions; select the mode in the agent profile")
+    return run(sys.argv[1], sys.argv[2:])
+
+
+if __name__ == "__main__":
+    sys.exit(main())

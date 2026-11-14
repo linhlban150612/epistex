@@ -104,7 +104,7 @@ if [[ -n "$project" ]]; then
   fi
 fi
 
-for name in codex-room role-agent kiro-acp claude-sdk amp-acp devin-acp copilot-acp cursor-acp claude-guard droid-guard; do
+for name in codex-room role-agent kiro-acp claude-sdk amp-acp agy-acp devin-acp copilot-acp cursor-acp claude-guard droid-guard; do
   wrapper="$kit/setup/$name"
   if [[ ! -f "$wrapper" ]]; then
     fail "missing $wrapper"

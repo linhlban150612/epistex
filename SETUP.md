@@ -230,7 +230,7 @@ backend that is on Paseo's PATH; the registry version is not a pin of the seat.
 | Backend | Registry entry and version | Registry launch | Seat launch |
 |---|---|---|---|
 | Amp | `amp-acp` 0.12.0 | `amp-acp` | Same |
-| Antigravity | `antigravity-acp` 1.5.0 | `agy_acp_server.par --uid=` | `agy acp`: the ACP server of the `agy` CLI, not the registry binary ([antigravity.md](docs/setup/antigravity.md)) |
+| Antigravity | `antigravity-acp` 1.5.0 | `agy_acp_server.par --uid=` | `agy acp` through `setup/agy-acp`: the ACP server of the `agy` CLI, not the registry binary ([antigravity.md](docs/setup/antigravity.md)) |
 | Copilot | `github-copilot-cli` 1.0.109 | `copilot --acp` | Same |
 | Cursor | `cursor` 2026.11.11 | `cursor-agent acp` | Same |
 | Devin | `devin` 3000.12.43 | `devin acp` | Same |

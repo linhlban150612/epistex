@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Start a role-configured agent; inject ACP instructions. Claude, Kiro, Amp, Devin, Copilot and Cursor use seat-local launchers."""
+"""Start a role-configured agent; inject ACP instructions. Claude, Kiro, Amp, Devin, Copilot, Cursor and Antigravity use seat-local launchers."""
 
 import json
 import os
@@ -18,7 +18,6 @@ from role_prompt import Primer, load_prompt
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ROLES = ("supervisor", "lead", "peer")
 ACP = {
-    "agy": ["agy", "acp"],
     "droid": ["droid", "exec", "--output-format", "acp-daemon"],
 }
 # The ACP registry entry for Droid sets these: a seat must not replace its binary during a session.
@@ -130,7 +129,7 @@ def run_acp(command: list[str], role: str, pin_cwd: bool = False) -> int:
 
 
 def main() -> int:
-    if len(sys.argv) < 3 or sys.argv[1] not in ROLES or sys.argv[2] not in (*ACP, "claude", "pi", "omp", "kiro", "amp", "devin", "copilot", "cursor"):
+    if len(sys.argv) < 3 or sys.argv[1] not in ROLES or sys.argv[2] not in (*ACP, "claude", "pi", "omp", "kiro", "amp", "agy", "devin", "copilot", "cursor"):
         raise SystemExit("usage: role-agent <supervisor|lead|peer> <claude|pi|omp|devin|copilot|cursor|amp|agy|droid|kiro> (devin: supervisor or peer; copilot: peer only)")
     role, agent = sys.argv[1:3]
     if agent == "kiro":
@@ -139,7 +138,7 @@ def main() -> int:
         os.execv(sys.executable, [sys.executable, str(ROOT / "setup/kiro-acp"), role])
     if agent == "claude":
         os.execv(sys.executable, [sys.executable, str(ROOT / "setup/claude-sdk"), role, *sys.argv[3:]])
-    if agent in ("amp", "devin", "copilot", "cursor"):
+    if agent in ("amp", "agy", "devin", "copilot", "cursor"):
         os.execv(sys.executable, [sys.executable, str(ROOT / f"setup/{agent}-acp"), role, *sys.argv[3:]])
     if agent == "omp":
         command = ["omp", *omp_args(role, sys.argv[3:])]
@@ -155,8 +154,7 @@ def main() -> int:
         os.execvp(command[0], command)
     if agent == "droid":
         return run_droid(role, sys.argv[3:])
-    # The Antigravity server runs shell commands in its own skills directory, not the session cwd.
-    return run_acp([*ACP[agent], *sys.argv[3:]], role, pin_cwd=agent == "agy")
+    return run_acp([*ACP[agent], *sys.argv[3:]], role)
 
 
 def run_droid(role: str, args: list[str]) -> int:

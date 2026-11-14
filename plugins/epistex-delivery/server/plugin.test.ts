@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { contribute, type Logger, type TurnEndedEvent } from "./plugin.ts";
+import { contribute, type Logger, type OpenRequest, type TurnEndedEvent } from "./plugin.ts";
 
 function recorder() {
   const lines: string[] = [];
@@ -86,4 +86,45 @@ test("compatible server: both hooks registered and routed, handler errors logged
   ]);
   cleanup();
   assert.equal(unsubscribed, 2);
+});
+
+test("onOpen: its hook is registered apart from delivery; a failing or absent tool hook leaves delivery on", async () => {
+  const request = { agentId: "a1", provider: "droid-lead", tools: [] } as unknown as OpenRequest;
+  const withTool = { ...request, tools: [{ name: "x" }] } as unknown as OpenRequest;
+  const build = (rejectOpen: boolean) => {
+    const handlers = new Map<string, (payload: unknown) => Promise<unknown>>();
+    const server = {
+      addHook: (name: string, handler: (payload: unknown) => Promise<unknown>) => {
+        if (rejectOpen && name === "agent.open.before") throw new Error(`Unknown hook: ${name}`);
+        handlers.set(name, handler);
+        return () => handlers.delete(name);
+      },
+    };
+    return { handlers, server };
+  };
+
+  const ok = build(false);
+  const first = recorder();
+  const cleanup = contribute(ok.server, { log: first.log, onOpen: (r) => (r.provider === "droid-lead" ? withTool : undefined) });
+  assert.deepEqual([...ok.handlers.keys()], ["agent.turn.after", "agent.permission.before", "agent.open.before"]);
+  assert.equal(await ok.handlers.get("agent.open.before")!({ request }), withTool);
+  assert.equal(await ok.handlers.get("agent.open.before")!({ request: { ...request, provider: "droid-peer" } }), undefined, "another seat keeps its request");
+  cleanup();
+  assert.equal(ok.handlers.size, 0);
+
+  const throwing = build(false);
+  const second = recorder();
+  contribute(throwing.server, { log: second.log, onOpen: () => { throw new Error("boom"); } });
+  assert.equal(await throwing.handlers.get("agent.open.before")!({ request }), undefined, "a failing handler must not stop the session from opening");
+  assert.ok(second.lines.some((line) => /^error agent\.open\.before handler failed for a1: boom/.test(line)));
+
+  const rejected = build(true);
+  const third = recorder();
+  contribute(rejected.server, { log: third.log, onOpen: () => undefined });
+  assert.deepEqual([...rejected.handlers.keys()], ["agent.turn.after", "agent.permission.before"]);
+  assert.ok(third.lines.some((line) => /^error cannot register agent\.open\.before: .*delivery stays on/.test(line)));
+
+  const none = build(false);
+  contribute(none.server, { log: recorder().log });
+  assert.deepEqual([...none.handlers.keys()], ["agent.turn.after", "agent.permission.before"], "without onOpen nothing more is registered");
 });

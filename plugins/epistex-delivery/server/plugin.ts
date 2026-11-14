@@ -7,6 +7,9 @@ export type TurnEndedEvent = PluginHookPayload<"agent.turn.after">;
 export type TurnEndedHandler = (event: TurnEndedEvent, context: PluginHookContext) => Promise<void>;
 export type PermissionEvent = PluginHookPayload<"agent.permission.before">;
 export type PermissionHandler = (event: PermissionEvent, context: PluginHookContext) => Promise<void>;
+export type OpenRequest = PluginHookPayload<"agent.open.before">["request"];
+/** Returns the session request to use, or nothing to leave it as it is. */
+export type OpenHandler = (request: OpenRequest) => OpenRequest | void;
 
 export interface Logger {
   info(message: string): void;
@@ -19,6 +22,8 @@ export interface ContributeOptions {
   onTurnEnded?: TurnEndedHandler;
   /** Handler for every `agent.permission.before` hook. */
   onPermission?: PermissionHandler;
+  /** Handler for every `agent.open.before` hook: it may add agent tools to a session. */
+  onOpen?: OpenHandler;
 }
 
 export const PLUGIN_ID = "epistex-delivery";
@@ -34,6 +39,7 @@ const noop = () => {};
 
 /** The hooks the plugin needs, all or none: the Lead relies on both once native notifications are off. */
 export const HOOKS = ["agent.turn.after", "agent.permission.before"] as const;
+const OPEN_HOOK = "agent.open.before";
 
 /**
  * Register the delivery hooks. Fail closed: when the server context lacks the 0.15 lifecycle API
@@ -79,6 +85,25 @@ export function contribute(server: unknown, options: ContributeOptions = {}): ()
     unsubscribes.push(unsubscribe as () => void);
   }
   log.info(`registered ${HOOKS.join(", ")} (Paseo ${PASEO_RANGE})`);
+  // The tool hook is apart from the delivery pair: delivery must not stop when a tool cannot be offered.
+  const { onOpen } = options;
+  if (onOpen) {
+    try {
+      const unsubscribe = context.addHook(OPEN_HOOK, async ({ request }) => {
+        try {
+          return onOpen(request) ?? undefined;
+        } catch (error) {
+          log.error(`${OPEN_HOOK} handler failed for ${request.agentId}: ${describe(error)}`);
+          return undefined;
+        }
+      });
+      if (typeof unsubscribe !== "function") throw new Error("addHook did not return an unsubscribe function");
+      unsubscribes.push(unsubscribe);
+      log.info(`registered ${OPEN_HOOK}`);
+    } catch (error) {
+      log.error(`cannot register ${OPEN_HOOK}: ${describe(error)}; agent tools are not offered, delivery stays on`);
+    }
+  }
   return undo;
 }
 

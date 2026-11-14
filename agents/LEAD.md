@@ -88,8 +88,8 @@ Effort             (level passed to create_agent)
 Handoff contract   (candidate per § Ownership; six cells per § Handoff in the Peer prompt)
 ```
 
-Before sending, pipe the brief to the kit's `setup/check-brief -` and fix every `FAIL`; no shell →
-check the fields by hand.
+Create every new Peer with `epistex_assign` and fix each refusal. Tool absent → `create_agent`
+after the brief passes `setup/check-brief -`.
 
 The brief must be **neutral and blind**, not pre-solved. Settled points go in ALREADY DECIDED;
 everything else stays open:

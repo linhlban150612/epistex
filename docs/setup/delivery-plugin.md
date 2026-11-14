@@ -14,6 +14,22 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
 - **Entry and guard.** `index.server.ts` wires `server/plugin.ts`, which registers
   `agent.turn.after` and `agent.permission.before` through `server.addHook`. Without `addHook`, or
   when either hook cannot be registered, it logs the reason and registers nothing.
+- **Typed assignment.** `server/assign.ts` defines the agent tool `epistex_assign`; `index.server.ts`
+  adds it in `agent.open.before` to sessions whose provider is a Lead seat and whose purpose is
+  `interactive`. The zod schema holds the brief fields that were missed in real briefs: Task ID,
+  round 1 to 3, Peer profile id, absolute worktree, owned scope, commit required or forbidden, and a
+  baseline (commit SHA, or snapshot path with sha256). Paseo rejects input that fails the schema
+  before the tool code runs. The tool then refuses with a code and creates nothing when the profile
+  is unknown (`PROFILE_UNKNOWN`) or not a Peer seat (`PROFILE_NOT_PEER`), the worktree is not a
+  directory (`WORKTREE_MISSING`), the worktree has no HEAD (`BASELINE_UNREADABLE`), `base_sha` is
+  not HEAD (`BASELINE_STALE`), the Lead's free text fails `server/brief.ts` (the port of
+  `setup/check-brief`, for example `CELLS_REDEFINED`), or Paseo cannot create the agent
+  (`CREATE_FAILED`). Otherwise it calls `paseo.agents.create` with the profile's provider/model,
+  mode and thinking option, the worktree as `cwd`, the Lead as `parent`, and the composed brief.
+  That API has no finish notification, so the receipt is the only report. The tool hook is
+  registered apart from the delivery hooks: when it cannot be registered, delivery stays on and the
+  Lead uses `create_agent`. Rework rounds go to the same Peer with `send_agent_prompt`; the tool
+  does not cover them.
 - **Parser.** `server/handoff.ts` ports `parse_handoff`/`classify_handoff` from
   `setup/check-handoff`. `check-handoff --parse-only <file> --json` is the parity oracle:
   `tests/fixtures/handoffs/` runs through both (`node --test` in the plugin, driven by
@@ -121,6 +137,8 @@ without that prefix is below `server/dist/server/server/` of `@getpaseo/server`,
 | Hooks | `server.addHook(name, handler)` (hook names added in v0.14); `server.on`/`before` are deprecated and removed after 2027-04-30. `agent.turn.after` (legacy alias `agent.turn_ended`) and `agent.permission.before`. | `plugin/dist/server/lifecycle.d.ts`, `plugin/dist/server/lifecycle.js` |
 | Hook payload | `{agent: {id, workspaceId, parentAgentId, provider, cwd, title}, turnId, outcome: {kind: completed\|failed\|canceled, ...}, timeline: []}`. `timeline` is deprecated and always empty, so the handler must `timeline.refetch`. | `plugins/lifecycle/index.js` |
 | Hook emission | Emitted for every live `turn_completed`/`turn_failed`/`turn_canceled` stream event, including background completions (a repeat for an already finalized turn and history replay emit nothing); `internal` agents emit nothing. A throwing handler is logged, never replayed. | `plugins/lifecycle/index.js`, `agent/agent-manager.js` |
+| Agent tools | `agent.open.before` receives `{request: {agentId, provider, purpose, tools, ...}}` and may return a changed request; a tool is `{name, title, description, input: zod schema, execute(input, {agent, paseo})}` and returns `{text, isError?}`. Paseo validates `input` before `execute`. A seat sees a plugin tool only when its `paseoTools.enabled` is true. | `plugin/dist/server/index.d.ts`, live probe |
+| Agent creation | `paseo.agents.create({config: {provider: "<seat>/<model>", modeId?, thinkingOptionId?}, cwd, parent, title, prompt})` returns a handle with `id` and sets the label `paseo.parent-agent-id`; it sends no finish notification to the parent. | live probe |
 | Process model | Each plugin is a forked child process on the Paseo session socket (`ipc://plugin/<id>`); a daemon restart restarts the plugin. | `plugins/plugin-process.js`, `plugins/runtime.js` |
 | Parent link | `agent.parentAgentId` = label `paseo.parent-agent-id`, set on agents created through MCP `create_agent`. | `protocol/dist/agent-labels.js` |
 | Lead detection | `agent.provider` is the agent-profile id, e.g. `claude-lead`, `droid-lead`. `paseo agent ls --json` prints it as `<id>/<model>`, e.g. `claude-lead/claude-opus-5-5`. | `plugins/lifecycle/index.js`, `paseo agent ls --json` |
@@ -181,6 +199,8 @@ Human decisions; Git history holds their dates and earlier variants.
 8. One report channel: the Lead calls `create_agent`/`send_agent_prompt` for a Peer with
    `notifyOnFinish: false`. Native notifications put every handback into the Lead's context twice,
    cut it at 4000 characters, and can be missed (#6346). Both hooks register or neither.
+9. A Lead creates a new Peer with `epistex_assign`. `create_agent` stays in the Lead tool policy as
+   the fallback when the tool is absent, until the tool is verified on every Lead backend.
 
 ## Verification status
 
@@ -190,6 +210,14 @@ canceled turns, `PERMISSION_REQUESTED` routed to the Supervisor and answered the
 handoff in the Lead timeline with `notifyOnFinish: false`, re-anchoring after a Peer timeline
 replacement, and unwatching dead Peers on reconcile. Run logs stay outside Git in the local
 `eval/results/delivery-plugin-live-runs.md`.
+
+`epistex_assign` (2026-11-14, Paseo 0.15.4, `droid-lead` Sonnet 5.5 with a `droid-peer` Haiku 5.5
+profile): round 7 was rejected by the schema before the tool ran; a wrong `base_sha` returned
+`BASELINE_STALE` and a Lead profile returned `PROFILE_NOT_PEER`, each with no Peer created; valid
+input returned `ASSIGNED`, the receipt held the task, round 1 and `briefCodes: []`, and the Lead got
+one `HANDBACK_VALID` and no native finish notification. Not covered live: the tool on other Lead
+backends (Claude, Codex, Amp, Kiro, Antigravity, OMP, Cursor), the snapshot baseline, and a round
+above 1 for a replacement Peer.
 
 Fault injection (a busy Lead, missed turns plus reconcile, a crash between fsync and send, a Peer
 cut mid-turn) was run only on Paseo 0.14.0, below the required range, and not again on 0.15.x.

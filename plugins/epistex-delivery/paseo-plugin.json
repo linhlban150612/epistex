@@ -1,6 +1,6 @@
 {
   "id": "epistex-delivery",
   "name": "Epistex delivery",
-  "description": "The only report channel from a Peer to its Lead: delivers each end-of-turn handback and relays permission requests. Adds delivery only; no agent lifecycle, permission answers, timers or schedules.",
+  "description": "The only report channel from a Peer to its Lead: delivers each end-of-turn handback and relays permission requests. Gives Lead seats the typed epistex_assign tool, which creates a Peer only on a Lead's call. No other agent lifecycle, no permission answers, timers or schedules.",
   "requirements": { "paseo": ">=0.15.0 <0.16" }
 }

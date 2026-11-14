@@ -17,7 +17,7 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
 - **Parser.** `server/handoff.ts` ports `parse_handoff`/`classify_handoff` from
   `setup/check-handoff`. `check-handoff --parse-only <file> --json` is the parity oracle:
   `tests/fixtures/handoffs/` runs through both (`node --test` in the plugin, driven by
-  `tests/test_kit_tools.py`); `expected.json` there holds the reason codes of each accepted
+  `tests/test_kit_tools.py`, which also runs `tsc --noEmit`; so `setup/verify` covers the plugin); `expected.json` there holds the reason codes of each accepted
   markup form (`ok-*`) and each rejection (`bad-*`). Real receipts stay outside Git:
   `eval/extract-receipts --out .amp/in/receipts` writes them and the parity test reads
   `$EPISTEX_RECEIPTS` (default `.amp/in/receipts`), skipped when the folder is absent. An invalid

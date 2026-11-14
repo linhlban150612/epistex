@@ -158,6 +158,14 @@ class DeliveryPluginTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("# fail 0", result.stdout)
 
+    def test_typecheck_passes(self):
+        # node --test strips the types and runs: a type error fails only here.
+        tsc = PLUGIN / "node_modules/.bin/tsc"
+        if shutil.which("node") is None or not tsc.exists():
+            self.skipTest("node or the plugin's dev dependencies (npm install) are not installed")
+        result = subprocess.run([str(tsc), "--noEmit"], cwd=PLUGIN, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
 
 EXAMPLE = ROOT / "examples" / "target-repo"
 

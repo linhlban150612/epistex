@@ -215,9 +215,14 @@ replacement, and unwatching dead Peers on reconcile. Run logs stay outside Git i
 profile): round 7 was rejected by the schema before the tool ran; a wrong `base_sha` returned
 `BASELINE_STALE` and a Lead profile returned `PROFILE_NOT_PEER`, each with no Peer created; valid
 input returned `ASSIGNED`, the receipt held the task, round 1 and `briefCodes: []`, and the Lead got
-one `HANDBACK_VALID` and no native finish notification. Not covered live: the tool on other Lead
-backends (Claude, Codex, Amp, Kiro, Antigravity, OMP, Cursor), the snapshot baseline, and a round
-above 1 for a replacement Peer.
+one `HANDBACK_VALID` and no native finish notification. The same four calls gave the same results
+on `claude-lead` (Opus 5.5), `codex-lead` (GPT-6.1 Sol), `omp-lead` (Sonnet 5.5), `kiro-lead`
+(Sonnet 5.5), `cursor-lead` (Gemini 4 Carbon), `amp-lead` (`medium`) and `agy-lead`, each with a
+`droid-peer` profile. Kiro and Cursor
+Leads have a tool allowlist: before `epistex_assign` was in `setup/kiro-lead.json`, the Kiro Lead
+did not see the tool and the Cursor Lead stopped on a permission request. Not covered live: the
+snapshot baseline, a round above 1 for a replacement Peer, and a Lead that chooses the tool in a
+real task without a prompt that names it.
 
 Fault injection (a busy Lead, missed turns plus reconcile, a crash between fsync and send, a Peer
 cut mid-turn) was run only on Paseo 0.14.0, below the required range, and not again on 0.15.x.

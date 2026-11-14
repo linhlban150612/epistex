@@ -429,13 +429,14 @@ class KiroACPTest(unittest.TestCase):
             lead = json.loads((ROOT / 'setup/kiro-lead.json').read_text())
             peer = json.loads((ROOT / 'setup/kiro-peer.json').read_text())
             paseo = [t[len('@paseo/'):] for t in lead['tools'] if t.startswith('@')]
-            self.assertEqual(paseo, LEAD_POLICY)
+            # The plugin tool is allowed but not required: every Lead case below runs without its tag.
+            self.assertEqual(paseo, LEAD_POLICY + ['epistex_assign'])
             self.assertEqual([t for t in lead['tools'] if not t.startswith('@')], peer['tools'])
             script = (ROOT / 'setup/setup-seats.sh').read_text()
             deny = json.loads(script.split("expected_deny_lead='", 1)[1].split("'", 1)[0])
             self.assertEqual(set(deny) & set(paseo), set())
             mcp = [r for r in lead['permissions']['rules'] if r['capability'] == 'mcp']
-            self.assertEqual(mcp, [{'capability': 'mcp', 'match': ['paseo/' + t for t in LEAD_POLICY], 'effect': 'allow'}])
+            self.assertEqual(mcp, [{'capability': 'mcp', 'match': ['paseo/' + t for t in LEAD_POLICY + ['epistex_assign']], 'effect': 'allow'}])
             self.assertEqual([r for r in lead['permissions']['rules'] if r['capability'] != 'mcp'], peer['permissions']['rules'])
             self.assertEqual((lead['name'], lead['mcpServers'], lead['includeMcpJson']), ('epistex_lead', {}, False))
         missing_one = LEAD_TAGS.rsplit(',', 1)[0]  # connected Paseo server missing one policy tool
@@ -446,6 +447,10 @@ class KiroACPTest(unittest.TestCase):
                 self.assertIn('error', self.prompt(c))
         with self.subTest('Paseo tools connect after the session response'):
             c = self.client('lead', EXTRA_TOOLS=LEAD_TAGS, MCP_LATE='1')
+            self.assertIn('result', self.new(c, [PASEO]))
+            self.assertIn('result', self.prompt(c))
+        with self.subTest('the delivery plugin tool is accepted for a Lead'):
+            c = self.client('lead', EXTRA_TOOLS=LEAD_TAGS + ',@paseo/epistex_assign')
             self.assertIn('result', self.new(c, [PASEO]))
             self.assertIn('result', self.prompt(c))
         with self.subTest('late Paseo tools missing one policy tool'):

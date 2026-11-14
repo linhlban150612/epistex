@@ -14,7 +14,8 @@
     "@paseo/create_agent",
     "@paseo/send_agent_prompt",
     "@paseo/cancel_agent",
-    "@paseo/archive_agent"
+    "@paseo/archive_agent",
+    "@paseo/epistex_assign"
   ],
   "permissions": {
     "rules": [
@@ -48,7 +49,8 @@
           "paseo/create_agent",
           "paseo/send_agent_prompt",
           "paseo/cancel_agent",
-          "paseo/archive_agent"
+          "paseo/archive_agent",
+          "paseo/epistex_assign"
         ],
         "effect": "allow"
       }

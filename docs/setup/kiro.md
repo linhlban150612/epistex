@@ -62,7 +62,7 @@ kiro-cli agent validate --path ~/.kiro/agents/epistex_lead.json
 Provider: `extends=acp`, command `["<KIT>/setup/role-agent","lead","kiro"]`,
 `paseoTools.enabled=true` với đúng 54 `disabledTools` của Lead policy trong
 [SETUP.md](../../SETUP.md); Paseo enforce danh sách đó ở server. Agent file chỉ cho phép
-tag native của Peer (`read`, `write`, `shell`, `web`) cộng đúng 8 tool Lead dạng
+tag native của Peer (`read`, `write`, `shell`, `web`) cộng `@paseo/epistex_assign` (tool của [delivery plugin](delivery-plugin.md); adapter cho phép nhưng không bắt buộc tag này, nên Lead vẫn launch khi plugin không thêm được tool) và đúng 8 tool Lead dạng
 `@paseo/<tool>`. Không có `allowedTools`/`toolsSettings`: quyền nằm trong `permissions.rules` của agent
 (allow `fs_read`, `fs_write`, `shell`, `web_fetch`, `web_search`; Lead thêm `mcp` match đúng 8
 `paseo/<tool>`), nên Lead tự duyệt mọi tool (bypass) và Peer không bị hỏi quyền mỗi lần gọi. Policy

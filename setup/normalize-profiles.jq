@@ -1,7 +1,7 @@
 # Run with --argjson catalog true for the backend catalog, false for live config.
 # Only Epistex role profiles are normalized; provider definitions and state are untouched.
 def epistex_role:
-  .provider | capture("^(codex|claude|amp|agy|pi|omp|copilot|cursor|kiro|droid|devin)-(?<role>lead|peer|supervisor)$") | .role;
+  .provider | capture("^(codex|claude|amp|agy|pi|omp|copilot|cursor|kiro|droid|devin)-(?<role>lead|peer|supervisor)(-[0-9]+)?$") | .role;
 
 .agents.providers as $providers |
 .daemon.agentProfiles |= map(

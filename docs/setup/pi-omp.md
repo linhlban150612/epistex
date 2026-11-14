@@ -1,4 +1,4 @@
-# SETUP — Pi Peer và OMP Peer riêng
+# SETUP — Pi Peer và các seat OMP
 
 Dùng các bước backup, merge, protocol, reload và live verification trong
 [SETUP.md](../../SETUP.md). Kiểm executable `pi`, `omp`,
@@ -48,3 +48,32 @@ Chỉ dùng `pi-peer`/`omp-peer` để điều phối khi Human cho phép delega
 hay thay credentials; role/MCP separation không phải OS sandbox.
 
 Do not use `github-copilot/gpt-6-luna` (Copilot quota 429). Grok 4.7 uses xAI OAuth (`xai` in Pi, `xai-oauth` in OMP), not OpenRouter. OMP compaction still uses the fixed `thresholdTokens` in `.omp/config.yml`.
+
+## Seat OMP trên model Factory
+
+`omp-supervisor`, `omp-lead`, `omp-peer-1`, `omp-peer-2` và `omp-peer-3` dùng provider `factory-droid` của OMP,
+với cùng model và effort như các seat Droid ([droid.md](droid.md)). `omp-peer` ở trên giữ nguyên.
+
+| Seat | `command` | Paseo tools | Model (`factory-droid/<id>`) | Default |
+|---|---|---|---|---|
+| `omp-supervisor` | `["<KIT>/setup/role-agent","supervisor","omp"]` | 15 tool Supervisor | `claude-opus-5-5`, `claude-sonnet-5-5`, `gpt-6.1-sol`, `gemini-4-argon`; low/medium | `claude-sonnet-5-5`, low |
+| `omp-lead` | `["<KIT>/setup/role-agent","lead","omp"]` | 8 tool Lead | như `omp-supervisor` | `claude-opus-5-5`, low |
+| `omp-peer-1`…`3` | `["<KIT>/setup/role-agent","peer","omp"]` | tắt | chín model của `droid-peer`, cùng effort | `claude-haiku-5-5`, low |
+
+Mọi seat có `extends: "omp"`; mọi profile có `modeId: full`. Deny-list của Lead và Supervisor theo
+[SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor). Paseo nối MCP vào OMP bằng bridge
+riêng, nên tool Paseo xuất hiện như tool thường của OMP. `setup-seats.sh --check` kiểm launcher, tool,
+env, model/effort và đủ profile cho mỗi seat đang bật.
+
+**Login riêng cho mỗi seat.** Provider `factory-droid` của OMP dùng login lưu trong profile OMP, không
+đọc API key từ env. `env` của seat là `{}` (login mặc định trong `~/.omp/agent`, dùng chung) hoặc đúng một
+`OMP_PROFILE` (tên profile, duy nhất cho mỗi seat). Để tách login: chạy `omp --profile <tên>`, đăng nhập
+Factory bằng `/login`, rồi đặt `"env": {"OMP_PROFILE": "<tên>"}` cho seat, `paseo reload` và launch thử.
+Chưa kiểm live một seat chạy với `OMP_PROFILE`; kiểm lịch sử phiên và model discovery sau khi đặt.
+Trong config thật, `omp-peer-2` và `omp-peer-3` tắt và không có profile cho đến khi có login riêng.
+
+Trạng thái live (2026-11-14, OMP 18.20.0, Paseo 0.15.4, login mặc định): `omp-supervisor` Sonnet/low thấy
+đúng 15 tool Paseo, `omp-lead` Opus/low thấy đúng 8 tool; cả hai gọi `list_workspaces` không bị hỏi quyền
+và nhận heading role đúng. `omp-peer-1` Haiku/low nhận `# Peer — independent co-worker`, CWD đúng, không có
+tool Paseo. Tool native `task` của OMP vẫn có ở mọi seat OMP; đó không phải Paseo MCP và prompt role cấm
+dùng nó để delegate.

@@ -124,13 +124,14 @@ class ProfilesTest(unittest.TestCase):
             executable = home / "cursor-agent"
             executable.write_text(f"#!{sys.executable}\n" + '''
 import json, os, pathlib, sys
-state = {"model":"grok-4.7", "fast":"true", "reasoning_effort":"high", "context":"500k"}
+state = {"model":"grok-4.7", "fast":"true", "reasoning_effort":"xhigh", "context":"256k"}
 negotiated = False
 for line in sys.stdin:
     r = json.loads(line); p = r.get("params", {}); method = r.get("method")
     if method == "initialize":
         negotiated = p["clientCapabilities"].get("_meta", {}).get("parameterizedModelPicker") is True
-        result = {"protocolVersion":1}
+        seat_config = json.loads(pathlib.Path(os.environ["CURSOR_CONFIG_DIR"], "cli-config.json").read_text())
+        result = {"protocolVersion":1, "allow":seat_config.get("permissions", {}).get("allow")}
     elif method in ("session/new", "session/load"):
         result = {"sessionId":"seat", "models":{"currentModelId":"unsafe-default"}}
     elif method == "session/set_config_option":
@@ -139,7 +140,7 @@ for line in sys.stdin:
             continue
         state[p["configId"]] = p["value"]
         if os.environ.get("FAULT"):
-            state[os.environ["FAULT"]] = "true" if os.environ["FAULT"] == "fast" else "high"
+            state[os.environ["FAULT"]] = "true" if os.environ["FAULT"] == "fast" else "xhigh"
         pathlib.Path(os.environ["CURSOR_CONFIG_DIR"], "cli-config.json").write_text(json.dumps(state))
         result = {"configOptions":[{"id":k,"currentValue":v} for k,v in state.items()]}
     elif method == "session/prompt":
@@ -155,13 +156,13 @@ for line in sys.stdin:
                         ("initialize", {"protocolVersion": 1, "clientCapabilities": {}}),
                         ("session/new", {"cwd": folder, "mcpServers": []}),
                         ("session/prompt", {"sessionId": "seat", "prompt": [{"type": "text", "text": "low task"}]}),
-                        ("session/set_model", {"sessionId": "seat", "modelId": "grok-4.7-medium"}),
+                        ("session/set_model", {"sessionId": "seat", "modelId": "grok-4.7-high-500k"}),
                         ("session/prompt", {"sessionId": "seat", "prompt": [{"type": "text", "text": "task"}]}),
                         ("session/set_model", {"sessionId": "seat", "modelId": "composer-2.5[fast=true]"}),
                         ("session/prompt", {"sessionId": "seat", "prompt": []}),
                     ]
                     result = subprocess.run(
-                        [sys.executable, str(ROOT / "setup/role-agent"), "peer", "cursor"],
+                        [sys.executable, str(ROOT / "setup/role-agent"), "supervisor", "cursor"],
                         input="".join(json.dumps({"jsonrpc": "2.0", "id": i, "method": m, "params": p}) + "\n"
                                       for i, (m, p) in enumerate(requests)),
                         text=True, capture_output=True, timeout=15,
@@ -174,15 +175,49 @@ for line in sys.stdin:
                         for i in (1, 2, 3, 4):
                             self.assertIn("error", replies[i])
                     else:
-                        self.assertEqual(replies[1]["result"]["models"]["currentModelId"], "grok-4.7-low")
+                        self.assertEqual(replies[1]["result"]["models"]["currentModelId"], "grok-4.7-medium-500k")
                         self.assertEqual(replies[2]["result"]["state"], {
-                            "model": "grok-4.7", "reasoning_effort": "low", "fast": "false", "context": "256k"})
+                            "model": "grok-4.7", "reasoning_effort": "medium", "fast": "false", "context": "500k"})
                         self.assertEqual(replies[4]["result"]["state"], {
-                            "model": "grok-4.7", "reasoning_effort": "medium", "fast": "false", "context": "256k"})
-                        self.assertIn("# Peer", replies[2]["result"]["prompt"][0]["text"])
+                            "model": "grok-4.7", "reasoning_effort": "high", "fast": "false", "context": "500k"})
+                        self.assertIn("# Supervisor", replies[2]["result"]["prompt"][0]["text"])
                         self.assertEqual(replies[4]["result"]["prompt"], [{"type": "text", "text": "task"}])
                     for i in (5, 6):
                         self.assertIn("error", replies[i])
+            # Each role selects only its own models; a parameter the model does not have is not set.
+            for role, default, state, foreign in (
+                    ("peer", "composer-2.5",
+                     {"model": "composer-2.5", "fast": "false", "reasoning_effort": "xhigh", "context": "256k"},
+                     "gemini-4-carbon-medium"),
+                    ("lead", "gemini-4-carbon-medium",
+                     {"model": "gemini-4-carbon", "fast": "true", "reasoning_effort": "medium", "context": "256k"},
+                     "grok-4.7-high-500k")):
+                with self.subTest(role=role):
+                    requests = [
+                        ("initialize", {"protocolVersion": 1, "clientCapabilities": {}}),
+                        ("session/new", {"cwd": folder, "mcpServers": []}),
+                        ("session/prompt", {"sessionId": "seat", "prompt": [{"type": "text", "text": "task"}]}),
+                        ("session/set_model", {"sessionId": "seat", "modelId": foreign}),
+                        ("session/prompt", {"sessionId": "seat", "prompt": []}),
+                    ]
+                    result = subprocess.run(
+                        [sys.executable, str(ROOT / "setup/role-agent"), role, "cursor"],
+                        input="".join(json.dumps({"jsonrpc": "2.0", "id": i, "method": m, "params": p}) + "\n"
+                                      for i, (m, p) in enumerate(requests)),
+                        text=True, capture_output=True, timeout=15,
+                        env={**os.environ, "PATH": folder, "HOME": folder, "CURSOR_CONFIG_DIR": str(config), "FAULT": ""})
+                    replies = {r["id"]: r for r in map(json.loads, result.stdout.splitlines()) if "id" in r}
+                    self.assertEqual(replies[1]["result"]["models"]["currentModelId"], default, result.stderr)
+                    # Cursor ACP has no bypass mode: a Lead is allowed exactly its Paseo tools and epistex_assign, a Peer none,
+                    # and only in the seat's private copy of cli-config.json.
+                    self.assertEqual(replies[0]["result"]["allow"], None if role == "peer" else [
+                        f"Mcp(paseo:{tool})" for tool in (
+                            "list_workspaces", "list_providers", "list_models", "list_profiles", "create_agent",
+                            "send_agent_prompt", "cancel_agent", "archive_agent", "epistex_assign")])
+                    self.assertEqual((config / "cli-config.json").read_text(), original)
+                    self.assertEqual(replies[2]["result"]["state"], state)
+                    self.assertIn(f"Cursor {role} seat requires one of", replies[3]["error"]["message"])
+                    self.assertIn("error", replies[4])
             with self.subTest("loaded session keeps its role without a second copy"):
                 requests = [
                     ("initialize", {"protocolVersion": 1, "clientCapabilities": {}}),
@@ -190,7 +225,7 @@ for line in sys.stdin:
                     ("session/prompt", {"sessionId": "seat", "prompt": [{"type": "text", "text": "rework"}]}),
                 ]
                 result = subprocess.run(
-                    [sys.executable, str(ROOT / "setup/role-agent"), "peer", "cursor"],
+                    [sys.executable, str(ROOT / "setup/role-agent"), "supervisor", "cursor"],
                     input="".join(json.dumps({"jsonrpc": "2.0", "id": i, "method": m, "params": p}) + "\n"
                                   for i, (m, p) in enumerate(requests)),
                     text=True, capture_output=True, timeout=15,
@@ -208,7 +243,7 @@ for line in sys.stdin:
                 executable = home / "cursor-agent"
                 executable.write_text(f"#!{sys.executable}\n" + '''
 import json, os, sys
-state = {"model":"grok-4.7", "fast":"false", "context":"256k", "reasoning_effort":"low"}
+state = {"model":"grok-4.7", "fast":"false", "context":"500k", "reasoning_effort":"medium"}
 drift, at = os.environ["DRIFT"], os.environ["DRIFT_AT"]
 drift_sent = False
 for line in sys.stdin:
@@ -238,7 +273,7 @@ for line in sys.stdin:
     if drift == "model":
         update = {"sessionUpdate":"current_model_update", "currentModelId":"composer-2.5"}
     else:
-        value = {"fast":"true", "reasoning_effort":"high", "context":"500k"}[drift]
+        value = {"fast":"true", "reasoning_effort":"xhigh", "context":"256k"}[drift]
         update = {"sessionUpdate":"config_option_update", "configOptions":[{"id":drift,"currentValue":value}]}
     print(json.dumps({"jsonrpc":"2.0", "method":"session/update", "params":{"sessionId":"seat", "update":update}}), flush=True)
     print(json.dumps({"jsonrpc":"2.0", "method":"session/update", "params":{"sessionId":"seat",
@@ -246,7 +281,7 @@ for line in sys.stdin:
 ''')
                 executable.chmod(0o755)
                 proc = subprocess.Popen(
-                    [sys.executable, str(ROOT / "setup/role-agent"), "peer", "cursor"],
+                    [sys.executable, str(ROOT / "setup/role-agent"), "supervisor", "cursor"],
                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                     text=True, env={**os.environ, "PATH": folder + os.pathsep + os.defpath, "HOME": folder,
                                     "CURSOR_CONFIG_DIR": str(config), "DRIFT": drift, "DRIFT_AT": at})
@@ -276,7 +311,7 @@ for line in sys.stdin:
                 until(lambda message: message.get("params", {}).get("update", {}).get("content") == "drift processed")
                 send(4, "session/prompt", {"sessionId":"seat", "prompt":[{"type":"text", "text":"blocked"}]})
                 self.assertIn("error", response(4))
-                send(5, "session/set_model", {"sessionId":"seat", "modelId":"grok-4.7-medium"})
+                send(5, "session/set_model", {"sessionId":"seat", "modelId":"grok-4.7-high-500k"})
                 self.assertIn("result", response(5))
                 # Reselection may emit the same harmless in-flight update, then confirms all parameters.
                 send(6, "session/prompt", {"sessionId":"seat", "prompt":[{"type":"text", "text":"after reselection"}]})
@@ -287,10 +322,80 @@ for line in sys.stdin:
                 proc.stdout.close()
                 proc.stderr.close()
 
+    def test_devin_keeps_fast_mode_off(self):
+        backend = '''
+import json, os, sys
+speed = {}
+for line in sys.stdin:
+    r = json.loads(line); p = r.get("params", {}); method = r.get("method")
+    options = lambda sid: [{"id": "model", "currentValue": "swe-2-high"}, {"id": "speed", "currentValue": speed[sid]}]
+    if method in ("session/new", "session/load"):
+        sid = p.get("sessionId", "seat")
+        speed[sid] = "fast"  # The stored user setting.
+        result = {"sessionId": sid, "configOptions": options(sid)}
+    elif method == "session/set_config_option":
+        if p["configId"] == "speed":
+            speed[p["sessionId"]] = "fast" if os.environ.get("STUCK") else p["value"]
+        result = {"configOptions": options(p["sessionId"])}
+    elif method == "session/prompt":
+        result = {"speed": speed[p["sessionId"]], "prompt": p["prompt"]}
+        if os.environ.get("DRIFT"):
+            speed[p["sessionId"]] = "fast"
+            print(json.dumps({"jsonrpc": "2.0", "method": "session/update", "params": {"sessionId": p["sessionId"],
+                "update": {"sessionUpdate": "config_option_update", "configOptions": options(p["sessionId"])}}}), flush=True)
+    else:
+        result = {}
+    print(json.dumps({"jsonrpc": "2.0", "id": r["id"], "result": result}), flush=True)
+'''
+        prompt = lambda text: ("session/prompt", {"sessionId": "seat", "prompt": [{"type": "text", "text": text}]})
+        speed = lambda value: ("session/set_config_option", {"sessionId": "seat", "configId": "speed", "value": value})
+        with tempfile.TemporaryDirectory() as folder:
+            executable = pathlib.Path(folder) / "devin"
+            executable.write_text(f"#!{sys.executable}\n" + backend)
+            executable.chmod(0o755)
+
+            def run(role, requests, **env):
+                proc = subprocess.Popen(
+                    [sys.executable, str(ROOT / "setup/role-agent"), role, "devin"], stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env={**os.environ, "PATH": folder, **env})
+                replies = {}
+                for ident, (method, params) in enumerate(requests):
+                    proc.stdin.write(json.dumps({"jsonrpc": "2.0", "id": ident, "method": method, "params": params}) + "\n")
+                    proc.stdin.flush()
+                    while ident not in replies:  # One request at a time: a drift update precedes its reply.
+                        message = json.loads(proc.stdout.readline())
+                        self.assertNotIn("epistex-devin", str(message.get("id")), "own request leaked to the client")
+                        if "id" in message:
+                            replies[message["id"]] = message
+                proc.stdin.close()
+                self.assertEqual(proc.wait(timeout=10), 0, proc.stderr.read())
+                proc.stdout.close(); proc.stderr.close()
+                return replies
+
+            for role, start in (("peer", ("session/new", {"cwd": folder, "mcpServers": []})),
+                                ("supervisor", ("session/load", {"sessionId": "seat", "cwd": folder, "mcpServers": []}))):
+                with self.subTest(role=role):
+                    replies = run(role, [start, prompt("task"), speed("fast"), prompt("again"), speed("standard")])
+                    self.assertEqual(replies[1]["result"]["speed"], "standard")
+                    heading = f"# {role.capitalize()}"
+                    self.assertEqual(heading in str(replies[1]["result"]["prompt"]), start[0] == "session/new")
+                    self.assertIn("Fast mode off", replies[2]["error"]["message"])
+                    self.assertEqual(replies[3]["result"]["speed"], "standard")
+                    self.assertIn("result", replies[4])
+            with self.subTest("backend keeps fast: prompts are refused"):
+                replies = run("peer", [("session/new", {}), prompt("task")], STUCK="1")
+                self.assertIn("not confirmed", replies[1]["error"]["message"])
+            with self.subTest("drift to fast blocks prompts until standard is confirmed again"):
+                replies = run("peer", [("session/new", {}), prompt("first"), prompt("blocked"), speed("standard"),
+                                       prompt("after")], DRIFT="1")
+                self.assertEqual(replies[1]["result"]["speed"], "standard")
+                self.assertIn("not confirmed", replies[2]["error"]["message"])
+                self.assertEqual(replies[4]["result"]["speed"], "standard")
+
     def test_launchers_reject_unsupported_roles_and_flags(self):
         with tempfile.TemporaryDirectory() as folder:
-            for backend in ("devin", "copilot"):
-                for role in ("lead", "supervisor"):
+            for backend, roles in (("devin", ("lead",)), ("copilot", ("lead", "supervisor"))):
+                for role in roles:
                     for launcher in (["role-agent", role, backend], [f"{backend}-acp", role]):
                         with self.subTest(launcher=launcher):
                             result = subprocess.run(
@@ -298,7 +403,7 @@ for line in sys.stdin:
                                 input="", text=True, capture_output=True,
                                 env={**os.environ, "PATH": folder}, timeout=10)
                             self.assertNotEqual(result.returncode, 0)
-                            self.assertIn(f"usage: {backend}-acp peer", result.stderr)
+                            self.assertIn(f"usage: {backend}-acp ", result.stderr)
             for args in (("lead", "kiro", "--extra"), ("peer", "kiro", "--extra")):
                 with self.subTest(args=args):
                     result = subprocess.run(

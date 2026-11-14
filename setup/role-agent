@@ -131,7 +131,7 @@ def run_acp(command: list[str], role: str, pin_cwd: bool = False) -> int:
 
 def main() -> int:
     if len(sys.argv) < 3 or sys.argv[1] not in ROLES or sys.argv[2] not in (*ACP, "claude", "pi", "omp", "kiro", "amp", "devin", "copilot", "cursor"):
-        raise SystemExit("usage: role-agent <supervisor|lead|peer> <claude|pi|omp|devin|copilot|cursor|amp|agy|droid|kiro> (devin and copilot: peer only)")
+        raise SystemExit("usage: role-agent <supervisor|lead|peer> <claude|pi|omp|devin|copilot|cursor|amp|agy|droid|kiro> (devin: supervisor or peer; copilot: peer only)")
     role, agent = sys.argv[1:3]
     if agent == "kiro":
         if sys.argv[3:]:

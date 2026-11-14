@@ -17,10 +17,47 @@ import uuid
 sys.dont_write_bytecode = True
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ROLES = ("supervisor", "lead", "peer")
+# Seat model ID -> the native ACP parameters the launcher sets, in this order, and confirms.
+# A parameter that a model does not have (Composer: effort, context; Gemini: fast, context) is absent.
+GROK = {"model": "grok-4.7", "fast": "false"}
+MODELS = {
+    "grok-4.7-medium-500k": {**GROK, "context": "500k", "reasoning_effort": "medium"},
+    "grok-4.7-high-500k": {**GROK, "context": "500k", "reasoning_effort": "high"},
+    "gemini-4-carbon-medium": {"model": "gemini-4-carbon", "reasoning_effort": "medium"},
+    "gemini-4-carbon-high": {"model": "gemini-4-carbon", "reasoning_effort": "high"},
+    "composer-2.5": {"model": "composer-2.5", "fast": "false"},
+    "grok-4.7-low": {**GROK, "context": "256k", "reasoning_effort": "low"},
+    "grok-4.7-medium": {**GROK, "context": "256k", "reasoning_effort": "medium"},
+}
+NAMES = {
+    "grok-4.7-medium-500k": "Grok 4.7 medium, 500k (Fast off)", "grok-4.7-high-500k": "Grok 4.7 high, 500k (Fast off)",
+    "gemini-4-carbon-medium": "Gemini 4 Carbon medium", "gemini-4-carbon-high": "Gemini 4 Carbon high",
+    "composer-2.5": "Composer 2.5 (Fast off)",
+    "grok-4.7-low": "Grok 4.7 low (Fast off)", "grok-4.7-medium": "Grok 4.7 medium (Fast off)",
+}
+# The models each role may select; the first is selected for a new or loaded session.
+ROLE_MODELS = {
+    "supervisor": ("grok-4.7-medium-500k", "grok-4.7-high-500k"),
+    "lead": ("gemini-4-carbon-medium", "gemini-4-carbon-high"),
+    "peer": ("composer-2.5", "grok-4.7-low", "grok-4.7-medium"),
+}
+
+
+def paseo_allow(role):
+    """Permission tokens for the Paseo tools this role keeps, or [] for a Peer.
+
+    Cursor ACP has no bypass mode: without them a Lead or Supervisor stops on a permission request at
+    each Paseo call. The kept tools are the `@paseo/<tool>` entries of the Kiro agent file of the role.
+    """
+    if role == "peer":
+        return []
+    tools = json.loads((ROOT / f"setup/kiro-{role}.json").read_text())["tools"]
+    return [f"Mcp(paseo:{tool.removeprefix('@paseo/')})" for tool in tools if tool.startswith("@paseo/")]
 
 
 def run(role, args):
-    """Translate the two seat model IDs into confirmed native ACP parameters."""
+    """Translate the seat model IDs of this role into confirmed native ACP parameters."""
+    allowed = ROLE_MODELS[role]
     role_agent = importlib.machinery.SourceFileLoader("role_agent", str(ROOT / "setup/role-agent")).load_module()
     role_agent.load_prompt(role)
     source = pathlib.Path(os.environ.get("CURSOR_CONFIG_DIR") or
@@ -37,6 +74,20 @@ def run(role, args):
                 (local / entry.name).symlink_to(entry.resolve())
         if (source / "cli-config.json").exists():
             shutil.copyfile(source / "cli-config.json", local / "cli-config.json")
+            (local / "cli-config.json").chmod(0o600)
+        allow = paseo_allow(role)
+        if allow:
+            # Only in the seat's private copy: the user's cli-config.json is not changed.
+            try:
+                config = json.loads((local / "cli-config.json").read_text())
+            except (OSError, ValueError):
+                config = {}
+            if not isinstance(config, dict) or not isinstance(config.get("permissions", {}), dict):
+                raise SystemExit("Cursor cli-config.json: permissions must be an object")
+            permissions = config.setdefault("permissions", {})
+            current = permissions.get("allow") if isinstance(permissions.get("allow"), list) else []
+            permissions["allow"] = current + [token for token in allow if token not in current]
+            (local / "cli-config.json").write_text(json.dumps(config))
             (local / "cli-config.json").chmod(0o600)
         child = subprocess.Popen(["cursor-agent", "acp", *args], stdin=subprocess.PIPE,
                                  stdout=subprocess.PIPE, env={**os.environ, "CURSOR_CONFIG_DIR": folder})
@@ -88,8 +139,7 @@ def run(role, args):
                         with selection_lock:
                             model = confirmed.get(sid)
                             if model:
-                                expected = {"model": "grok-4.7", "fast": "false", "context": "256k",
-                                            "reasoning_effort": model.removeprefix("grok-4.7-")}
+                                expected = MODELS[model]
                                 mismatch = False
                                 if kind == "current_model_update":
                                     mismatch = update.get("currentModelId") != model
@@ -128,8 +178,7 @@ def run(role, args):
 
         def model_state():
             return {"currentModelId": selected, "availableModels": [
-                {"modelId": "grok-4.7-" + effort, "name": "Grok 4.7 " + effort + " (Fast off)"}
-                for effort in ("low", "medium")]}
+                {"modelId": model, "name": NAMES[model]} for model in allowed]}
 
         def options():
             return [{"id": "model", "name": "Model", "category": "model", "type": "select",
@@ -142,17 +191,16 @@ def run(role, args):
             with selection_lock:
                 confirmed.pop(sid, None)
                 selected = None  # A partial or rejected selection must never allow a prompt.
-            if model not in ("grok-4.7-low", "grok-4.7-medium"):
-                raise ValueError("Cursor seat requires Grok 4.7 low/medium with Fast off")
-            expected = {"model": "grok-4.7", "fast": "false", "context": "256k",
-                        "reasoning_effort": model.removeprefix("grok-4.7-")}
+            if model not in allowed:
+                raise ValueError(f"Cursor {role} seat requires one of: " + ", ".join(allowed))
+            expected = MODELS[model]
             for index, (key, value) in enumerate(expected.items()):
                 confirmation = (sid, model, expected) if index == len(expected) - 1 else None
                 result = call("session/set_config_option", {"sessionId": sid, "configId": key, "value": value},
                               confirmation)
             actual = {o["id"]: o["currentValue"] for o in result.get("configOptions", [])}
             if any(actual.get(key) != value for key, value in expected.items()):
-                raise ValueError("Cursor did not confirm Grok model, effort, context and Fast off")
+                raise ValueError("Cursor did not confirm " + ", ".join(f"{k}={v}" for k, v in expected.items()))
             for session in sessions:
                 emit({"jsonrpc": "2.0", "method": "session/update", "params": {
                     "sessionId": session, "update": {"sessionUpdate": "current_model_update", "currentModelId": model}}})
@@ -170,7 +218,7 @@ def run(role, args):
                     if method in ("session/new", "session/load"):
                         result = call(method, params)
                         sid = result.get("sessionId", params.get("sessionId"))
-                        choose(sid, "grok-4.7-low")
+                        choose(sid, allowed[0])
                         sessions.add(sid)
                         if method == "session/load":
                             primer.restore(sid)

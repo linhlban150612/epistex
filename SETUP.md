@@ -10,10 +10,10 @@ other backend reuses these common steps, then follows its own file:
 | Kiro Supervisor/Lead/Peer through ACP | [docs/setup/kiro.md](docs/setup/kiro.md) |
 | Antigravity Lead/Peer through ACP | [docs/setup/antigravity.md](docs/setup/antigravity.md) |
 | Factory Droid Supervisor/Lead/Peer through ACP | [docs/setup/droid.md](docs/setup/droid.md) |
-| Pi Peer, OMP Peer | [docs/setup/pi-omp.md](docs/setup/pi-omp.md) |
-| Devin Peer through ACP | [docs/setup/devin.md](docs/setup/devin.md) |
+| Pi Peer, OMP Supervisor/Lead/Peer | [docs/setup/pi-omp.md](docs/setup/pi-omp.md) |
+| Devin Supervisor/Peer through ACP | [docs/setup/devin.md](docs/setup/devin.md) |
 | GitHub Copilot Peer through ACP | [docs/setup/copilot.md](docs/setup/copilot.md) |
-| Cursor Peer through ACP | [docs/setup/cursor.md](docs/setup/cursor.md) |
+| Cursor Supervisor/Lead/Peer through ACP | [docs/setup/cursor.md](docs/setup/cursor.md) |
 
 For Codex runtime selection and resume, see the [Codex runtime guide](docs/setup/codex-runtime.md).
 Context compaction and limits for each backend: [context-compaction.md](docs/setup/context-compaction.md).
@@ -61,11 +61,11 @@ Lead uses `paseoTools.disabledTools` to block the catalog and keeps exactly 8 to
 `list_workspaces`, `list_providers`, `list_models`, `list_profiles`, `create_agent`, `send_agent_prompt`,
 `cancel_agent`, `archive_agent`. Supervisor also keeps `create_workspace`, `get_agent_activity`, `list_agents`, `list_hosts`,
 `list_pending_permissions`, `respond_to_permission` and `set_agent_mode` (15 tools kept; 47 blocked). Lead does not have `get_agent_activity`, `get_agent_status` and `list_agents`, so Lead waits for deliveries instead of polling or reading the Peer timeline; nor `list_hosts`, so Lead does not discover connected hosts; nor the permission and mode tools, because a Lead relays a permission request and never answers it. Supervisor reads an agent's status with `list_agents`; `get_agent_status` is blocked for both. Kiro and Droid Supervisor/Lead use the same policy.
-Lead runs without approval waits: Lead profiles use a bypass mode (`claude-lead` `bypassPermissions`, `agy-lead` `yolo`, `droid-lead` `auto-high` (also `droid-supervisor`), `codex-lead` `full-access`: approval `never`, sandbox `danger-full-access`); `kiro-lead` auto-approves through agent `permissions.rules` (V3). `amp-lead` uses `local`: amp-acp has no bypass mode.
+Lead runs without approval waits: Lead profiles use a bypass mode (`claude-lead` `bypassPermissions`, `agy-lead` `yolo`, `droid-lead` `auto-high` (also `droid-supervisor`), `codex-lead` `full-access`: approval `never`, sandbox `danger-full-access`); `kiro-lead` auto-approves through agent `permissions.rules` (V3). `amp-lead` uses `local`: amp-acp has no bypass mode. `omp-lead` and `omp-supervisor` use `full`, `devin-supervisor` uses `bypass`. `cursor-lead` and `cursor-supervisor` use `agent`: Cursor ACP has no bypass mode, so `setup/cursor-acp` allows exactly the role's Paseo tools in the seat's private `cli-config.json` ([cursor.md](docs/setup/cursor.md)).
 Codex Peer profiles use `modeId: auto-review` ([why](docs/setup/codex-runtime.md#peer-sandbox-and-worktrees)); `setup-seats.sh --check` rejects `codex-peer` profiles without it. Claude Peer profiles use `modeId: bypassPermissions`: `acceptEdits` stops a non-interactive Peer on its first Bash permission request; `--check` rejects other modes.
 Paseo does not inherit a Lead's mode into a Peer of another provider: `create_agent` without `modeId` fails with `cannot inherit mode`
 unless the Lead runs in an unattended mode. So every Peer profile of a provider with modes carries one: `amp-peer` `local`,
-`cursor-peer` `agent`, `kiro-peer` `epistex_peer`, `omp-peer` `full`; `--check` rejects other values. `pi-peer` has no modes.
+`cursor-peer` `agent`, `kiro-peer` `epistex_peer`, `omp-peer` and `omp-peer-1`…`3` `full`, `devin-peer` `bypass`; `--check` rejects other values. `pi-peer` has no modes.
 Kiro Lead and Supervisor profiles carry their fixed seat mode the same way (`epistex_lead`, `epistex_supervisor`).
 Verified live: a Claude Lead or Supervisor in mode `default` gets that error for a profile without `modeId` and
 creates the agent in the profile's mode when the profile carries one.
@@ -219,7 +219,7 @@ by setup and launchers; after an edit, run `setup-seats.sh --check` again.
 
 ## ACP proxy seats
 
-Common part for the Peer-only ACP seats Devin, Copilot and Cursor ([devin.md](docs/setup/devin.md),
+Common part for the ACP proxy seats Devin (Supervisor/Peer), Copilot (Peer) and Cursor (Supervisor/Lead/Peer) ([devin.md](docs/setup/devin.md),
 [copilot.md](docs/setup/copilot.md), [cursor.md](docs/setup/cursor.md)). ACP agent sources:
 the [ACP registry](https://github.com/agentclientprotocol/registry) and [Kiro ACP](https://kiro.dev/docs/acp).
 
@@ -239,9 +239,9 @@ backend that is on Paseo's PATH; the registry version is not a pin of the seat.
 
 - **Merge:** back up, then merge into `.agents.providers`. Do not replace the original backend or its
   credential/config home.
-- **MCP:** keep injection enabled in the daemon (§3). These seats are Peers: `paseoTools.enabled=false`.
+- **MCP:** keep injection enabled in the daemon (§3). A Peer seat has `paseoTools.enabled=false`; a Lead or Supervisor seat has the deny-list of §3.
 - **Schema entry:** `extends: "acp"`, `enabled: true`, `env: {}`, `command` of the form
-  `["<KIT>/setup/role-agent","peer","<backend>"]`; `models: [{"id":"<MODEL>","label":"<LABEL>","isDefault":true}]`,
+  `["<KIT>/setup/role-agent","<role>","<backend>"]`; `models: [{"id":"<MODEL>","label":"<LABEL>","isDefault":true}]`,
   add `thinkingOptions: [{"id":"<EFFORT>","label":"<LABEL>","isDefault":true}]` when the backend has effort.
 - **Inject prompt:** `role-agent` switches to `setup/<backend>-acp` with `os.execv`; the launcher uses an
   ACP proxy that adds role instructions to the first prompt of each new session, not to the system prompt;

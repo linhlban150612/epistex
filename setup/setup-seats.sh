@@ -523,6 +523,23 @@ PY
   # as `was closed` and reassign its round; a resumed Peer would keep writing it. Human decision: keep it off.
   jq -e '.agents.resumeOnStartup != true' "$paseo_config" >/dev/null ||
     fail 'agents.resumeOnStartup must stay off: a resumed Peer keeps writing a round the Lead reassigns'
+  # A live test that removes its scratch directory but leaves the Paseo record makes the daemon log
+  # "Git worktree discovery failed" for that directory every minute. Archived records are history.
+  paseo_registry="$(dirname -- "$paseo_config")/projects"
+  for kind in workspace project; do
+    registry_file="$paseo_registry/${kind}s.json"
+    [[ -f "$registry_file" ]] || continue
+    if [[ $kind == workspace ]]; then key=cwd fix='paseo workspace archive'; else key=rootPath fix='paseo project delete'; fi
+    if ! records=$(jq -r --arg id "${kind}Id" --arg key "$key" \
+        'if type == "array" then .[] | select(.archivedAt == null and (.[$key] | type == "string")) | [.[$id], .[$key]] | @tsv else error("not a list") end' \
+        "$registry_file" 2>/dev/null); then
+      fail "$registry_file: not a JSON list; Paseo $kind directories not checked"
+      continue
+    fi
+    while IFS=$'\t' read -r record_id record_dir; do
+      [[ -z "$record_id" || -d "$record_dir" ]] || fail "Paseo $kind $record_id: missing directory $record_dir; run: $fix $record_id"
+    done <<<"$records"
+  done
   if jq -e '.plugins["epistex-delivery"] | type == "object"' "$paseo_config" >/dev/null; then
     plugin_installed=1
     installed_path=$(jq -r '.plugins["epistex-delivery"] | select(.source == "directory") | .path // empty' "$paseo_config")

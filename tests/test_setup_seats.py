@@ -84,6 +84,40 @@ class SetupSeatsTest(unittest.TestCase):
         self.config.write_text(json.dumps(data))
         return self.run_check("--check")
 
+    def test_check_fails_on_an_active_workspace_or_project_whose_directory_is_gone(self):
+        # A live test that removes its scratch directory but leaves the Paseo record: the daemon then
+        # logs "Git worktree discovery failed" for it every minute.
+        home = pathlib.Path(self.temporary.name)
+        registry = home / "projects"
+        registry.mkdir()
+        kept, gone = home / "kept", home / "gone with space"
+        kept.mkdir()
+        workspaces = [{"workspaceId": "wks_kept", "cwd": str(kept), "archivedAt": None},
+                      {"workspaceId": "wks_archived", "cwd": str(gone), "archivedAt": "2026-11-13T16:44:00.995Z"}]
+        projects = [{"projectId": "prj_kept", "rootPath": str(kept), "archivedAt": None},
+                    {"projectId": "prj_archived", "rootPath": str(gone), "archivedAt": "2026-11-13T16:44:00.995Z"}]
+
+        def check(extra_workspaces=(), extra_projects=()):
+            (registry / "workspaces.json").write_text(json.dumps(workspaces + list(extra_workspaces)))
+            (registry / "projects.json").write_text(json.dumps(projects + list(extra_projects)))
+            return self.check_config(self.data)
+
+        result = check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("missing directory", result.stdout + result.stderr, "archived records and existing directories pass")
+        result = check(extra_workspaces=[{"workspaceId": "wks_gone", "cwd": str(gone), "archivedAt": None}])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(f"Paseo workspace wks_gone: missing directory {gone}; run: paseo workspace archive wks_gone", result.stderr)
+        self.assertNotIn("wks_archived", result.stderr)
+        result = check(extra_projects=[{"projectId": "prj_gone", "rootPath": str(gone)}])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(f"Paseo project prj_gone: missing directory {gone}; run: paseo project delete prj_gone", result.stderr)
+        self.assertNotIn("prj_archived", result.stderr)
+        (registry / "workspaces.json").write_text("{not json")
+        result = self.check_config(self.data)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("workspaces.json: not a JSON list", result.stderr)
+
     def test_example_catalog_passes_without_changing_files(self):
         self.assertEqual((len(CATALOG), len(KEEP_LEAD), len(DENY_LEAD)), (62, 8, 54))
         self.assertEqual((len(KEEP_SUPERVISOR), len(DENY_SUPERVISOR)), (15, 47))

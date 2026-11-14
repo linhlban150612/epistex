@@ -176,6 +176,9 @@ does not prove auth, the daemon, model availability or a successful launch: thos
 The [delivery plugin](docs/setup/delivery-plugin.md) is required and verified on Paseo `>=0.15.0 <0.16`: `--check` fails
 when it is not installed from the kit path, when the range does not match, `pluginsEnabled` is off or the daemon version is
 outside the range. `--check` also fails when `agents.resumeOnStartup` (0.15+) is on; keep it off.
+`--check` also fails when an active Paseo workspace or project (`projects/workspaces.json`, `projects/projects.json`
+next to the config) names a directory that no longer exists, and prints the `paseo workspace archive` or
+`paseo project delete` command for it: a live test that removes its scratch directory must also remove its Paseo records.
 Install is a Human-approved change to the live config: set `"pluginsEnabled": true` in `config.json`, run
 `setup-seats.sh --install-plugin`, then `paseo reload`. Details, the install transcript and `--remove-plugin` are
 in that doc.

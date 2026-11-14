@@ -22,7 +22,6 @@ MODE = "epistex_peer"
 # Exact Paseo injection: {"type":"http","name":"paseo","url":"http://<loopback>:<port>
 # /mcp/agents?callerAgentId=<id>","headers":[] or one Bearer Authorization header}.
 PASEO_HOSTS = ("127.0.0.1", "localhost", "::1")
-PLUGIN_TOOLS = {"@paseo/epistex_assign"}
 MODELS = ("claude-opus-5.5", "claude-sonnet-5.5")
 EFFORTS = ("low", "medium")
 # Standard V3 config options this seat exposes; every other option is hidden and immutable.
@@ -144,8 +143,7 @@ def main():
     agent_caps = {}
     # V3 advertises visible tools as tags: builtin categories plus "@paseo/<tool>" for MCP tools.
     declared = json.loads((ROOT / f"setup/kiro-{ROLE}.json").read_text())["tools"]
-    # A delivery plugin tool is offered when the plugin can add it; without it the Lead uses create_agent.
-    required = {t for t in declared if t.startswith("@paseo/")} - PLUGIN_TOOLS
+    required = {t for t in declared if t.startswith("@paseo/")}
     prefix = "epistex-" + uuid.uuid4().hex + "-"
     serial = 0
 

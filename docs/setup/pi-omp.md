@@ -57,7 +57,7 @@ với cùng model và effort như các seat Droid ([droid.md](droid.md)). `omp-p
 | Seat | `command` | Paseo tools | Model (`factory-droid/<id>`) | Default |
 |---|---|---|---|---|
 | `omp-supervisor` | `["<KIT>/setup/role-agent","supervisor","omp"]` | 15 tool Supervisor | `claude-opus-5-5`, `claude-sonnet-5-5`, `gpt-6.1-sol`, `gemini-4-argon`; low/medium | `claude-sonnet-5-5`, low |
-| `omp-lead` | `["<KIT>/setup/role-agent","lead","omp"]` | 8 tool Lead | như `omp-supervisor` | `claude-opus-5-5`, low |
+| `omp-lead` | `["<KIT>/setup/role-agent","lead","omp"]` | 7 tool Lead cộng `epistex_assign` | như `omp-supervisor` | `claude-opus-5-5`, low |
 | `omp-peer-1`…`3` | `["<KIT>/setup/role-agent","peer","omp"]` | tắt | chín model của `droid-peer`, cùng effort | `claude-haiku-5-5`, low |
 
 Mọi seat có `extends: "omp"`; mọi profile có `modeId: full`. Deny-list của Lead và Supervisor theo
@@ -73,7 +73,7 @@ Chưa kiểm live một seat chạy với `OMP_PROFILE`; kiểm lịch sử phi�
 Trong config thật, `omp-peer-2` và `omp-peer-3` tắt và không có profile cho đến khi có login riêng.
 
 Trạng thái live (2026-11-14, OMP 18.20.0, Paseo 0.15.4, login mặc định): `omp-supervisor` Sonnet/low thấy
-đúng 15 tool Paseo, `omp-lead` Opus/low thấy đúng 8 tool; cả hai gọi `list_workspaces` không bị hỏi quyền
+đúng 15 tool Paseo, `omp-lead` Opus/low thấy đúng 8 tool (trước khi `create_agent` bị chặn cho Lead); cả hai gọi `list_workspaces` không bị hỏi quyền
 và nhận heading role đúng. `omp-peer-1` Haiku/low nhận `# Peer — independent co-worker`, CWD đúng, không có
 tool Paseo. Tool native `task` của OMP vẫn có ở mọi seat OMP; đó không phải Paseo MCP và prompt role cấm
 dùng nó để delegate.

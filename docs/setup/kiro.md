@@ -60,11 +60,11 @@ kiro-cli agent validate --path ~/.kiro/agents/epistex_lead.json
 ```
 
 Provider: `extends=acp`, command `["<KIT>/setup/role-agent","lead","kiro"]`,
-`paseoTools.enabled=true` với đúng 54 `disabledTools` của Lead policy trong
+`paseoTools.enabled=true` với đúng 55 `disabledTools` của Lead policy trong
 [SETUP.md](../../SETUP.md); Paseo enforce danh sách đó ở server. Agent file chỉ cho phép
-tag native của Peer (`read`, `write`, `shell`, `web`) cộng `@paseo/epistex_assign` (tool của [delivery plugin](delivery-plugin.md); adapter cho phép nhưng không bắt buộc tag này, nên Lead vẫn launch khi plugin không thêm được tool) và đúng 8 tool Lead dạng
+tag native của Peer (`read`, `write`, `shell`, `web`) cộng `@paseo/epistex_assign` (tool của [delivery plugin](delivery-plugin.md), cách duy nhất để Lead tạo Peer; adapter bắt buộc tag này như mọi tag Paseo khác) và đúng 7 tool Lead dạng
 `@paseo/<tool>`. Không có `allowedTools`/`toolsSettings`: quyền nằm trong `permissions.rules` của agent
-(allow `fs_read`, `fs_write`, `shell`, `web_fetch`, `web_search`; Lead thêm `mcp` match đúng 8
+(allow `fs_read`, `fs_write`, `shell`, `web_fetch`, `web_search`; Lead thêm `mcp` match đúng 8 (7 tool Paseo và `epistex_assign`)
 `paseo/<tool>`), nên Lead tự duyệt mọi tool (bypass) và Peer không bị hỏi quyền mỗi lần gọi. Policy
 built-in của Kiro (vd chặn ghi settings của chính Kiro) và deny ở scope khác vẫn thắng; tool khác vẫn
 hỏi qua ACP permission request. Không có `knowledge`: V3 không quảng bá tool này thành
@@ -168,8 +168,8 @@ liệt kê tools thực sự thấy và in `pwd`; không coi đọc lại file p
 Peer phải nhận `# Peer — independent co-worker`, project CWD, không Paseo/subagent tools.
 Trạng thái live (CLI 2.33.1 đến 3.1.0; 3.2.1: launch `kiro-peer` Sonnet/low, heading role, CWD, không Paseo tools): bốn profile `kiro-peer` và `kiro-lead`/`kiro-supervisor`
 Sonnet/low launch với đúng mode/model/effort, nhận `# Common contract` cộng heading role, CWD là project;
-Peer chỉ có native tools; catalog Lead có đúng 8 tool `paseo::*` (kiểm lại 2026-11-12, Paseo 0.15.4), không có `speak`;
-Lead gọi `list_workspaces` không bị hỏi quyền; `kiro-lead` tạo `kiro-peer` qua `create_agent`;
+Peer chỉ có native tools; catalog Lead có đúng 8 tool `paseo::*` (kiểm lại 2026-11-12, Paseo 0.15.4; từ 2026-11-14 là 7 tool cộng `epistex_assign`), không có `speak`;
+Lead gọi `list_workspaces` không bị hỏi quyền; `kiro-lead` tạo `kiro-peer` qua `create_agent` (nay bị chặn cho Lead; Lead dùng `epistex_assign`);
 handback đi qua [delivery plugin](delivery-plugin.md), không qua native notification. Chưa live-cover `session/cancel`,
 `session/resume` và `session/load` qua lifecycle Paseo. Chưa kiểm qua Paseo thì chỉ kết luận ACP metadata/fixture verified, không kết luận seat đã được chấp nhận.
 

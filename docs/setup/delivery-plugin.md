@@ -27,8 +27,8 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
   (`CREATE_FAILED`). Otherwise it calls `paseo.agents.create` with the profile's provider/model,
   mode and thinking option, the worktree as `cwd`, the Lead as `parent`, and the composed brief.
   That API has no finish notification, so the receipt is the only report. The tool hook is
-  registered apart from the delivery hooks: when it cannot be registered, delivery stays on and the
-  Lead uses `create_agent`. Rework rounds go to the same Peer with `send_agent_prompt`; the tool
+  registered apart from the delivery hooks: when it cannot be registered, delivery stays on, but a
+  Lead has no tool to create a Peer and reports `BLOCKED`. Rework rounds go to the same Peer with `send_agent_prompt`; the tool
   does not cover them.
 - **Parser.** `server/handoff.ts` ports `parse_handoff`/`classify_handoff` from
   `setup/check-handoff`. `check-handoff --parse-only <file> --json` is the parity oracle:
@@ -196,11 +196,13 @@ Human decisions; Git history holds their dates and earlier variants.
    `@getpaseo/plugin` 0.15.3. Paseo 0.16 needs a new SDK check.
 7. `agents.resumeOnStartup` stays off: when on, a Peer cut by a daemon restart gets "Resume
    working." and keeps writing its round while the Lead treats it as `was closed` and reassigns it.
-8. One report channel: the Lead calls `create_agent`/`send_agent_prompt` for a Peer with
-   `notifyOnFinish: false`. Native notifications put every handback into the Lead's context twice,
+8. One report channel: the Lead calls `send_agent_prompt` for a Peer with
+   `notifyOnFinish: false`, and `epistex_assign` creates a Peer with no finish notification. Native notifications put every handback into the Lead's context twice,
    cut it at 4000 characters, and can be missed (#6346). Both hooks register or neither.
-9. A Lead creates a new Peer with `epistex_assign`. `create_agent` stays in the Lead tool policy as
-   the fallback when the tool is absent, until the tool is verified on every Lead backend.
+9. A Lead creates a new Peer only with `epistex_assign`: `create_agent` is blocked in the Lead tool
+   policy, so a brief that fails the schema or the baseline check cannot reach a Peer. The tool was
+   verified live on all eight Lead backends before the block. A Supervisor keeps `create_agent` to
+   open Leads.
 
 ## Verification status
 
@@ -220,7 +222,12 @@ on `claude-lead` (Opus 5.5), `codex-lead` (GPT-6.1 Sol), `omp-lead` (Sonnet 5.5)
 (Sonnet 5.5), `cursor-lead` (Gemini 4 Carbon), `amp-lead` (`medium`) and `agy-lead`, each with a
 `droid-peer` profile. Kiro and Cursor
 Leads have a tool allowlist: before `epistex_assign` was in `setup/kiro-lead.json`, the Kiro Lead
-did not see the tool and the Cursor Lead stopped on a permission request. Not covered live: the
+did not see the tool and the Cursor Lead stopped on a permission request. After `create_agent` was blocked for
+Leads (2026-11-14): `droid-lead`, `kiro-lead`, `claude-lead`, `codex-lead` and `cursor-lead` each
+listed seven Paseo tools and `epistex_assign`, had no `create_agent`, and created a Peer with
+`epistex_assign`; each receipt held `HANDBACK_VALID` and `briefCodes: []`. The Cursor Lead asked
+permission twice in that run: for a `git` shell command, and for its attempt to call the absent
+`create_agent`. Not covered live: the
 snapshot baseline, a round above 1 for a replacement Peer, and a Lead that chooses the tool in a
 real task without a prompt that names it.
 

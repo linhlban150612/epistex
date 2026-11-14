@@ -100,9 +100,10 @@ for line in sys.stdin:
 
 
 PASEO = {'type': 'http', 'name': 'paseo', 'url': 'http://127.0.0.1:6767/mcp/agents?callerAgentId=lead-1', 'headers': []}
-LEAD_POLICY = ['list_workspaces', 'list_providers', 'list_models', 'list_profiles', 'create_agent',
+LEAD_POLICY = ['list_workspaces', 'list_providers', 'list_models', 'list_profiles',
                'send_agent_prompt', 'cancel_agent', 'archive_agent']
-LEAD_TAGS = ','.join('@paseo/' + t for t in LEAD_POLICY)
+# epistex_assign is the delivery plugin tool: the only way a Lead creates a Peer, so its tag is required.
+LEAD_TAGS = ','.join('@paseo/' + t for t in LEAD_POLICY + ['epistex_assign'])
 
 
 class Client:
@@ -429,7 +430,6 @@ class KiroACPTest(unittest.TestCase):
             lead = json.loads((ROOT / 'setup/kiro-lead.json').read_text())
             peer = json.loads((ROOT / 'setup/kiro-peer.json').read_text())
             paseo = [t[len('@paseo/'):] for t in lead['tools'] if t.startswith('@')]
-            # The plugin tool is allowed but not required: every Lead case below runs without its tag.
             self.assertEqual(paseo, LEAD_POLICY + ['epistex_assign'])
             self.assertEqual([t for t in lead['tools'] if not t.startswith('@')], peer['tools'])
             script = (ROOT / 'setup/setup-seats.sh').read_text()
@@ -447,10 +447,6 @@ class KiroACPTest(unittest.TestCase):
                 self.assertIn('error', self.prompt(c))
         with self.subTest('Paseo tools connect after the session response'):
             c = self.client('lead', EXTRA_TOOLS=LEAD_TAGS, MCP_LATE='1')
-            self.assertIn('result', self.new(c, [PASEO]))
-            self.assertIn('result', self.prompt(c))
-        with self.subTest('the delivery plugin tool is accepted for a Lead'):
-            c = self.client('lead', EXTRA_TOOLS=LEAD_TAGS + ',@paseo/epistex_assign')
             self.assertIn('result', self.new(c, [PASEO]))
             self.assertIn('result', self.prompt(c))
         with self.subTest('late Paseo tools missing one policy tool'):

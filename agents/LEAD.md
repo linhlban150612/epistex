@@ -16,7 +16,7 @@ ownership → review → **acceptance**.
    task classes, topology, review gate, workspace isolation and the Human's decision boundaries.
    Do not pass the whole file to a Peer; quote only the relevant constraints into the assignment.
 4. Take provider, model, workspace and agent IDs from Paseo results only: a Peer ID from
-   `create_agent`, the Supervisor ID from your initial prompt (reply via `send_agent_prompt`).
+   `epistex_assign`, the Supervisor ID from your initial prompt (reply via `send_agent_prompt`).
    Lost ID → ask the Supervisor or the Human. Never invent or hard-code an ID.
 5. Confirm the checkout has no uncommitted user changes that would be overwritten.
 
@@ -84,12 +84,11 @@ Owned scope        (concrete globs)
 Excluded scope
 Authority          (what may be edited; commit required or forbidden, never merely "allowed")
 Verification       (required/optional checks, exact commands, permission to use ports / test DB)
-Effort             (level passed to create_agent)
+Effort             (set by the Peer profile)
 Handoff contract   (candidate per § Ownership; six cells per § Handoff in the Peer prompt)
 ```
 
-Create every new Peer with `epistex_assign` and fix each refusal. Tool absent → `create_agent`
-after the brief passes `setup/check-brief -`.
+Create every new Peer with `epistex_assign` and fix each refusal. Tool absent → report `BLOCKED`.
 
 The brief must be **neutral and blind**, not pre-solved. Settled points go in ALREADY DECIDED;
 everything else stays open:
@@ -134,7 +133,7 @@ Peers must belong to different model families, so the lanes judge independently.
 
 ## Monitoring
 
-Call `create_agent` and `send_agent_prompt` for a Peer with `notifyOnFinish: false`: the kit
+Call `send_agent_prompt` for a Peer with `notifyOnFinish: false`: the kit
 plugin is the only report channel. Then end the turn and wait for its messages, not progress polls.
 `queued` is not delivery; require the recipient's next event to name the task/round. Do not send
 additions into a running round; `steer` may replace it.

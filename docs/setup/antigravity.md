@@ -32,7 +32,7 @@ A seat model ID carries the effort: `agy acp` maps `gemini-4-argon-low` to model
 
 `agy-lead` invokes `setup/role-agent lead agy`, so every new session's first prompt carries `agents/contract/COMMON.md` followed by `agents/LEAD.md`. It enables Paseo tools with the same `disabledTools` deny-list as every other `*-lead` seat; `setup-seats.sh --check` enforces the exact list. It also requires `daemon.mcp.injectIntoAgents`.
 
-`agy acp` does not advertise `mcpCapabilities`, but it accepts the Paseo MCP server of `session/new`: a real launch showed the eight Lead tools and `epistex_assign`, and `list_workspaces` and `list_profiles` returned results. Do not work around missing tools with user-wide `agy mcp add`.
+`agy acp` does not advertise `mcpCapabilities`, but it accepts the Paseo MCP server of `session/new`: a real launch showed the Lead's Paseo tools and `epistex_assign`, and `list_workspaces` and `list_profiles` returned results. Do not work around missing tools with user-wide `agy mcp add`.
 
 ## State and known limitations
 

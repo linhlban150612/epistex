@@ -6,7 +6,7 @@ Dùng các bước chung trong [SETUP.md](../../SETUP.md), gồm mục
 | Field | `cursor-supervisor` | `cursor-lead` | `cursor-peer` |
 |---|---|---|---|
 | `command` | `["<KIT>/setup/role-agent","supervisor","cursor"]` | `[…,"lead","cursor"]` | `[…,"peer","cursor"]` |
-| `paseoTools` | 15 tool Supervisor | 8 tool Lead | `enabled: false` |
+| `paseoTools` | 15 tool Supervisor | 7 tool Lead | `enabled: false` |
 | `models` (đầu tiên là default) | `grok-4.7-medium-500k`; `grok-4.7-high-500k` | `gemini-4-carbon-medium`; `gemini-4-carbon-high` | `composer-2.5`; `grok-4.7-low`; `grok-4.7-medium` |
 | `thinkingOptions` | Không có; launcher chuyển model ID thành tham số ACP | như bên trái | như bên trái |
 | Profile pin | `cursor-supervisor--grok-4-7-medium-500k`, `--grok-4-7-high-500k` | `cursor-lead--gemini-4-carbon-medium`, `--high` | `cursor-peer--composer-2-5`, `--grok-4-7-low`, `--grok-4-7-medium` |
@@ -29,7 +29,7 @@ Mỗi role chỉ chọn được model của role đó; launcher từ chối mod
 
 Cursor ACP chỉ có mode `agent`, `plan`, `ask`; không có bypass mode. Không có cấu hình thêm, Lead và
 Supervisor dừng ở permission request tại mỗi lần gọi tool Paseo (kiểm live). Launcher thêm token
-`Mcp(paseo:<tool>)` vào `permissions.allow` cho đúng các tool Paseo role đó giữ (Lead 8 cộng `epistex_assign`, Supervisor 15, lấy
+`Mcp(paseo:<tool>)` vào `permissions.allow` cho đúng các tool Paseo role đó giữ (Lead 7 cộng `epistex_assign`, Supervisor 15, lấy
 từ `setup/kiro-<role>.json`), và chỉ trong bản sao `cli-config.json` riêng của seat. `cli-config.json` của
 người dùng không đổi. Peer không nhận token nào. Tool khác vẫn theo quyền của Cursor.
 
@@ -82,6 +82,6 @@ Paseo. Catalog native có `Task` (subagent của Cursor) và MCP `semble`; đây
 
 Live (2026-11-14, CLI `2026.11.13-eacade1`, Paseo 0.15.4): `cursor-peer` `composer-2.5` nhận heading Peer,
 CWD đúng, không có tool Paseo. `cursor-supervisor` `grok-4.7-high-500k` thấy đúng 15 tool Paseo;
-`cursor-lead` `gemini-4-carbon-high` thấy đúng 8 tool. Cả hai gọi `list_workspaces` và `list_profiles`
+`cursor-lead` `gemini-4-carbon-high` thấy đúng 8 tool (trước khi `create_agent` bị chặn cho Lead). Cả hai gọi `list_workspaces` và `list_profiles`
 không có permission request. Trước khi launcher thêm token `Mcp(paseo:…)`, cả hai dừng ở permission request.
 Catalog tham số của ba model lấy từ probe ACP không gửi prompt.

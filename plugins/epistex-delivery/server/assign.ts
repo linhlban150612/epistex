@@ -139,7 +139,7 @@ export function assignTool(deps: AssignDeps): AgentToolDefinition {
     name: ASSIGN_TOOL,
     title: "Assign a task to a new Peer",
     description:
-      "Create one Peer and give it a task. Use this for every new Peer; do not use create_agent for a Peer. " +
+      "Create one Peer and give it a task. This is the only way a Lead creates a Peer. " +
       "The brief fields are checked and the baseline is compared with the worktree before the Peer starts; a refusal creates nothing. " +
       "The Peer reports through [epistex-delivery] only.",
     input: assignInput,

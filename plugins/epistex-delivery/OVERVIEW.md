@@ -1,5 +1,5 @@
-Epistex delivery is the only channel from a Peer to the Lead that created it. The Lead calls
-`create_agent`/`send_agent_prompt` with `notifyOnFinish: false`: Paseo's one-shot notification can
+Epistex delivery is the only channel from a Peer to the Lead that created it. The Lead creates a Peer with
+`epistex_assign` and calls `send_agent_prompt` with `notifyOnFinish: false`: Paseo's one-shot notification can
 be missed (getpaseo/paseo#6346), cuts the message at 4000 characters, and would put every handback
 into the Lead's context a second time.
 

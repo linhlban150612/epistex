@@ -57,9 +57,9 @@ use `injectIntoProviders`; that field is not the current provider policy mechani
 
 ### Paseo tools policy for Lead and Supervisor
 
-Lead uses `paseoTools.disabledTools` to block the catalog and keeps exactly 8 tools (54 blocked):
-`list_workspaces`, `list_providers`, `list_models`, `list_profiles`, `create_agent`, `send_agent_prompt`,
-`cancel_agent`, `archive_agent`. Supervisor also keeps `create_workspace`, `get_agent_activity`, `list_agents`, `list_hosts`,
+Lead uses `paseoTools.disabledTools` to block the catalog and keeps exactly 7 tools (55 blocked):
+`list_workspaces`, `list_providers`, `list_models`, `list_profiles`, `send_agent_prompt`,
+`cancel_agent`, `archive_agent`. A Lead creates a Peer only with `epistex_assign`, the tool of the [delivery plugin](docs/setup/delivery-plugin.md); `create_agent` is blocked for it. Supervisor also keeps `create_agent` (it opens Leads), `create_workspace`, `get_agent_activity`, `list_agents`, `list_hosts`,
 `list_pending_permissions`, `respond_to_permission` and `set_agent_mode` (15 tools kept; 47 blocked). Lead does not have `get_agent_activity`, `get_agent_status` and `list_agents`, so Lead waits for deliveries instead of polling or reading the Peer timeline; nor `list_hosts`, so Lead does not discover connected hosts; nor the permission and mode tools, because a Lead relays a permission request and never answers it. Supervisor reads an agent's status with `list_agents`; `get_agent_status` is blocked for both. Kiro and Droid Supervisor/Lead use the same policy.
 Lead runs without approval waits: Lead profiles use a bypass mode (`claude-lead` `bypassPermissions`, `agy-lead` `default` (`agy acp` asks no permission for shell or Paseo calls in it; verified live), `droid-lead` `auto-high` (also `droid-supervisor`), `codex-lead` `full-access`: approval `never`, sandbox `danger-full-access`); `kiro-lead` auto-approves through agent `permissions.rules` (V3). `amp-lead` uses `local`: amp-acp has no bypass mode. `omp-lead` and `omp-supervisor` use `full`, `devin-supervisor` uses `bypass`. `cursor-lead` and `cursor-supervisor` use `agent`: Cursor ACP has no bypass mode, so `setup/cursor-acp` allows exactly the role's Paseo tools in the seat's private `cli-config.json` ([cursor.md](docs/setup/cursor.md)).
 Codex Peer profiles use `modeId: auto-review` ([why](docs/setup/codex-runtime.md#peer-sandbox-and-worktrees)); `setup-seats.sh --check` rejects `codex-peer` profiles without it. Claude Peer profiles use `modeId: bypassPermissions`: `acceptEdits` stops a non-interactive Peer on its first Bash permission request; `--check` rejects other modes.
@@ -69,7 +69,7 @@ unless the Lead runs in an unattended mode. So every Peer profile of a provider 
 Kiro Lead and Supervisor profiles carry their fixed seat mode the same way (`epistex_lead`, `epistex_supervisor`).
 Verified live: a Claude Lead or Supervisor in mode `default` gets that error for a profile without `modeId` and
 creates the agent in the profile's mode when the profile carries one.
-Groups blocked for Lead: 11 schedule/heartbeat, 22 browser, 5 terminal, 16 workspace/agent/provider/host/permission;
+Groups blocked for Lead: 11 schedule/heartbeat, 22 browser, 5 terminal, 17 workspace/agent/provider/host/permission;
 for Supervisor that last group is down to 9 (see the list in the
 [provider example](examples/paseo-providers.json)). Paseo `>=0.15.0 <0.16` is required: the mandatory [delivery plugin](docs/setup/delivery-plugin.md) is verified on that range (reason: [known limitations](README.md#cautions-and-known-limitations)); the daemon and CLI must be the same version.
 `speak` cannot be blocked and is outside the catalog. A test pins the 62-name catalog to force a review

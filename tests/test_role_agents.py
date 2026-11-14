@@ -212,7 +212,7 @@ for line in sys.stdin:
                     # and only in the seat's private copy of cli-config.json.
                     self.assertEqual(replies[0]["result"]["allow"], None if role == "peer" else [
                         f"Mcp(paseo:{tool})" for tool in (
-                            "list_workspaces", "list_providers", "list_models", "list_profiles", "create_agent",
+                            "list_workspaces", "list_providers", "list_models", "list_profiles",
                             "send_agent_prompt", "cancel_agent", "archive_agent", "epistex_assign")])
                     self.assertEqual((config / "cli-config.json").read_text(), original)
                     self.assertEqual(replies[2]["result"]["state"], state)

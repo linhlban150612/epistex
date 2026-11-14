@@ -48,7 +48,7 @@ export interface AgentHandle {
   };
   send(
     text: string,
-    options: { sourceAgentId: string; activeTurnBehavior: "steer"; messageId: string },
+    options: { sourceAgentId?: string; activeTurnBehavior: "steer"; messageId: string },
   ): Promise<void>;
 }
 export interface DeliveryPaseo {
@@ -65,7 +65,23 @@ export interface DeliveryOptions {
   now?: () => string;
 }
 
+/**
+ * Sent to a Peer whose completed turn carries no handoff header: a progress line, a question, or a
+ * turn ended while a job still runs. The Lead is not told; it hears of the Peer's next turn end.
+ */
+export const PEER_REMINDER = [
+  "[epistex-delivery]",
+  "kind: PEER_REMINDED",
+  "Your turn ended without a handoff: your last message has no header 'Task ID: … | Round: …', so nothing went to the Lead and nothing wakes you later.",
+  "- Work finished or stopped: send the six-cell handoff of § Handoff as your last message.",
+  "- A job you started still runs: wait for it inside the turn (waiting-on-long-jobs skill), or hand over with Outcome: partial, the PID and the log path.",
+  "- A question or a blocker: put it in the handoff with Outcome BLOCKED, REOPEN_REQUEST or DEPENDENCY_REQUEST.",
+  "This reminder is sent once. It is not a new assignment and gives no new scope or authority.",
+].join("\n");
+const REMINDED_WARNING = "peer was reminded once and again ended its turn without a handoff";
+
 export function formatDelivery(record: DeliveryRecord): string {
+  if (record.kind === "PEER_REMINDED") return PEER_REMINDER;
   const lines = [
     "[epistex-delivery]",
     `delivery-id: ${record.deliveryId}`,
@@ -237,6 +253,7 @@ export class Delivery {
     const lead = await this.leadOf(agent, paseo);
     if (!lead) return;
     await this.recordTurn(event, lead.id, paseo);
+    await this.flush(agent.id, paseo); // a reminder for this Peer, whose turn just ended
     await this.flush(lead.id, paseo, lead);
   }
 
@@ -363,6 +380,11 @@ export class Delivery {
     let kind: DeliveryKind;
     let reasons: string[];
     let codes: string[];
+    // The newest receipt of a turn of this Peer; a permission request or brief warning in between does not count.
+    const previous = this.outbox
+      .records()
+      .filter((record) => record.peerAgentId === peerAgentId && record.kind !== "PERMISSION_REQUESTED" && record.kind !== "BRIEF_INVALID")
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
     const canceled = event.outcome.kind === "canceled" ? ["TURN_CANCELED"] : [];
     let taskId: string | null = null;
     let round: string | null = null;
@@ -392,9 +414,25 @@ export class Delivery {
       round = result.header?.round ?? null;
       candidate = result.shas.length >= 2 ? result.shas.join("..") : result.snapshot ? "snapshot" : null;
       scopeCell = result.cells.Scope ?? "";
-      kind = result.valid ? "HANDBACK_VALID" : "TURN_ENDED_INVALID_HANDOFF";
-      reasons = result.valid ? [] : [describeOutcome(event.outcome), ...result.reasons];
-      codes = result.valid ? [] : [...canceled, ...result.codes];
+      if (result.valid) {
+        kind = "HANDBACK_VALID";
+        reasons = [];
+        codes = [];
+      } else if (event.outcome.kind !== "completed") {
+        // The turn was cut (quota, connection, interrupt): its last message is not a handoff attempt,
+        // so the Lead gets the outcome and the text, not six missing-cell codes.
+        kind = event.outcome.kind === "failed" ? "TURN_ENDED_FAILED" : "TURN_ENDED_CANCELED";
+        reasons = [describeOutcome(event.outcome)];
+        codes = [event.outcome.kind === "failed" ? "TURN_FAILED" : "TURN_CANCELED"];
+      } else if (outcomeKnown && !result.header && previous?.kind !== "PEER_REMINDED") {
+        kind = "PEER_REMINDED";
+        reasons = [describeOutcome(event.outcome), ...result.reasons];
+        codes = result.codes;
+      } else {
+        kind = "TURN_ENDED_INVALID_HANDOFF";
+        reasons = [describeOutcome(event.outcome), ...result.reasons];
+        codes = result.codes;
+      }
       lastMessageId = last.item.messageId ?? `seq:${page.epoch}:${last.seqEnd}`;
     }
     const id = deliveryId({ peerAgentId, taskId, round, candidate, lastMessageId });
@@ -402,6 +440,11 @@ export class Delivery {
       this.log.info(`delivery ${id.slice(0, 12)} already recorded for ${peerAgentId}; replay`);
     } else {
       const warnings = roundWarnings({ peerAgentId, leadAgentId, taskId, round }, this.outbox.records());
+      // The Lead did not see the reminded turn: its warnings (brief, scope, tool calls) travel with this one.
+      if (previous?.kind === "PEER_REMINDED") {
+        if (kind !== "HANDBACK_VALID") warnings.push(REMINDED_WARNING);
+        warnings.push(...(previous.warnings ?? []).filter((warning) => !warning.startsWith("peer session at ")));
+      }
       const brief = firstTurn ? ((await this.firstBrief(peerAgentId, leadAgentId, page, entries, paseo)) ?? null) : null;
       const briefCodes = brief === null ? null : checkBrief(brief);
       // Owned scope: the newest Lead message in this read that names one, else the first brief, else
@@ -423,6 +466,7 @@ export class Delivery {
         deliveryId: id,
         peerAgentId,
         leadAgentId,
+        ...(kind === "PEER_REMINDED" ? { recipientAgentId: peerAgentId } : {}),
         kind,
         outcome: outcomeKnown ? event.outcome.kind : "unknown",
         turnId: event.turnId ?? last?.turnId ?? null,
@@ -514,7 +558,7 @@ export class Delivery {
     return newest ? (newest.trailing?.at(-1) ?? newest.body) : null;
   }
 
-  /** Send every pending record for a recipient (Lead or Supervisor), but only while it is not mid-turn. */
+  /** Send every pending record for a recipient (Lead, Supervisor, or a Peer for its reminder), but only while it is not mid-turn. */
   async flush(recipientAgentId: string, paseo: DeliveryPaseo, snapshot?: AgentSnapshot): Promise<void> {
     const pending = this.outbox.pendingFor(recipientAgentId);
     if (!pending.length) return;
@@ -531,7 +575,8 @@ export class Delivery {
     for (const record of pending) {
       try {
         await handle.send(formatDelivery(record), {
-          sourceAgentId: record.peerAgentId,
+          // A reminder has no sender: it must not look like a message from the Lead or from another agent.
+          ...(record.kind === "PEER_REMINDED" ? {} : { sourceAgentId: record.peerAgentId }),
           activeTurnBehavior: "steer",
           messageId: record.deliveryId,
         });

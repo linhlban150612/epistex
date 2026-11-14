@@ -33,8 +33,8 @@ prompt. A stale-turn error on that resend goes to the stuck-turn procedure below
 
 ## Delivered `TURN_ENDED_*`
 
-A `[epistex-delivery]` message with `kind: TURN_ENDED_NO_MESSAGE` or
-`TURN_ENDED_INVALID_HANDOFF` is a delivery from the kit's plugin, not a handoff and not acceptance.
+A `[epistex-delivery]` message with `kind: TURN_ENDED_NO_MESSAGE`, `TURN_ENDED_FAILED`,
+`TURN_ENDED_CANCELED` or `TURN_ENDED_INVALID_HANDOFF` is a delivery from the kit's plugin, not a handoff and not acceptance.
 Treat it as `errored` / missing handoff: handle the `delivery-id` once, apply the incomplete
 handback retrieval if a body is present, otherwise follow the Monitoring rules for `errored`.
 The cessation gate (`COMMON.md` §Ownership and candidate identity) applies

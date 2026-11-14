@@ -11,13 +11,25 @@ export interface OutboxCursor {
   seq: number;
 }
 
-export type DeliveryKind = "HANDBACK_VALID" | "TURN_ENDED_INVALID_HANDOFF" | "TURN_ENDED_NO_MESSAGE" | "PERMISSION_REQUESTED" | "BRIEF_INVALID";
+/**
+ * `TURN_ENDED_FAILED` and `TURN_ENDED_CANCELED`: the turn did not complete and left no valid handoff,
+ * so its last message is not judged as a handoff. `PEER_REMINDED` goes to the Peer, not the Lead.
+ */
+export type DeliveryKind =
+  | "HANDBACK_VALID"
+  | "TURN_ENDED_INVALID_HANDOFF"
+  | "TURN_ENDED_FAILED"
+  | "TURN_ENDED_CANCELED"
+  | "TURN_ENDED_NO_MESSAGE"
+  | "PEER_REMINDED"
+  | "PERMISSION_REQUESTED"
+  | "BRIEF_INVALID";
 
 export interface DeliveryRecord {
   deliveryId: string;
   peerAgentId: string;
   leadAgentId: string;
-  /** Who receives the message when it is not the Lead: the Lead's Supervisor for a permission request. */
+  /** Who receives the message when it is not the Lead: the Lead's Supervisor for a permission request, the Peer for a reminder. */
   recipientAgentId?: string;
   kind: DeliveryKind;
   /** How the Peer turn ended; "unknown" for a restart catch-up. Absent on permission requests and older receipts. */
@@ -29,7 +41,7 @@ export interface DeliveryRecord {
   messageId: string | null;
   cursor: OutboxCursor | null;
   reasons: string[];
-  /** Machine-readable reasons: HEADER_MISSING, CELL_MISSING:<name>, CANDIDATE_IDENTITY, PROOF_CLASS, TURN_CANCELED, NO_MESSAGE. Absent on older receipts. */
+  /** Machine-readable reasons: HEADER_MISSING, CELL_MISSING:<name>, CANDIDATE_IDENTITY, PROOF_CLASS, TURN_FAILED, TURN_CANCELED, NO_MESSAGE. Absent on older receipts. */
   codes?: string[];
   /** Notes for the Lead that do not change `kind`: round above the rework limit, task reused across Peers. */
   warnings?: string[];

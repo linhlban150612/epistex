@@ -28,7 +28,9 @@ def load_script(name, path):
 TEST_CWD = re.compile(r"^/tmp/epistex-live-")
 TEST_TASK = re.compile(r"^`?(?:T-\d+|MODE-OK|NO_SPIKE_TOOL)`?$")
 
-HANDBACK_KINDS = ("HANDBACK_VALID", "TURN_ENDED_INVALID_HANDOFF", "TURN_ENDED_NO_MESSAGE")
+# A turn that was cut (failed, canceled) or left no message; PEER_REMINDED went to the Peer and is counted apart.
+CUT_KINDS = ("TURN_ENDED_FAILED", "TURN_ENDED_CANCELED", "TURN_ENDED_NO_MESSAGE")
+HANDBACK_KINDS = ("HANDBACK_VALID", "TURN_ENDED_INVALID_HANDOFF", *CUT_KINDS)
 
 
 def report_results(results):
@@ -115,7 +117,7 @@ def report_receipts(directory, exclude, agents, include_test_seats):
         seats = {k: v for k, v in seats.items() if not any(r.get("taskId") and exclude.search(r["taskId"]) for r in v)}
     if not seats:
         sys.exit("no receipts")
-    print("| Lead | Peer | Provider / model | Task | Receipts | Valid | Invalid | No message | Ends valid | Max body (B) |")
+    print("| Lead | Peer | Provider / model | Task | Receipts | Valid | Invalid | Cut / no message | Ends valid | Max body (B) |")
     print("|---|---|---|---|---|---|---|---|---|---|")
     kinds, outcomes, sizes, ends_valid = Counter(), Counter(), [], 0
     starts_valid, briefs, calls = 0, [], []
@@ -143,7 +145,7 @@ def report_receipts(directory, exclude, agents, include_test_seats):
         if any("toolCalls" in r for r in items):
             calls.append(sum(r.get("toolCalls", 0) for r in items))
         print(f"| {lead[:8]} | {peer[:8]} | {model} | {task} | {len(items)} | {count['HANDBACK_VALID']} | "
-              f"{count['TURN_ENDED_INVALID_HANDOFF']} | {count['TURN_ENDED_NO_MESSAGE']} | {'yes' if last_valid else 'no'} | "
+              f"{count['TURN_ENDED_INVALID_HANDOFF']} | {sum(count[kind] for kind in CUT_KINDS)} | {'yes' if last_valid else 'no'} | "
               f"{max(body, default=0)} |")
     total = sum(kinds.values())
     print("\n| Provider / model | Receipts | Valid (recorded) | Valid (current parser) |\n|---|---|---|---|")
@@ -159,6 +161,8 @@ def report_receipts(directory, exclude, agents, include_test_seats):
     print(f"| Handback receipts | {total} |")
     print(f"| Valid rate | {kinds['HANDBACK_VALID']}/{total} |")
     print(f"| Invalid receipts per seat (mean) | {kinds['TURN_ENDED_INVALID_HANDOFF'] / len(seats):.2f} |")
+    reminders = sum(r["kind"] == "PEER_REMINDED" and (r["leadAgentId"], r["peerAgentId"]) in seats for r in everything)
+    print(f"| Turns bounced to the Peer (PEER_REMINDED) | {reminders} |")
     print(f"| Seats whose first receipt is valid | {starts_valid}/{len(seats)} |")
     print(f"| Seats whose last receipt is valid | {ends_valid}/{len(seats)} |")
     print(f"| Briefs that pass check-brief | {sum(not b for b in briefs)}/{len(briefs)} checked |")

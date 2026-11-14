@@ -127,6 +127,9 @@ to fit. A delivery or idle status is not acceptance.
 
 Six cells, every turn, including failed turns. The handoff must be your **last message** of the
 turn, complete in that one message: no tool call or text after it, no cell only earlier in the turn.
+A turn that ends on a progress line or a question is not a handoff: the delivery plugin then sends you one
+`[epistex-delivery] kind: PEER_REMINDED` message and tells the Lead nothing. It is not an assignment and
+gives no scope or authority; answer it with the handoff.
 
 ```
 Task ID: … | Round: …

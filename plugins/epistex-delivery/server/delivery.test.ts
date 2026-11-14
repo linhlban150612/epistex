@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { Delivery, formatDelivery, roundWarnings, type AgentSnapshot, type DeliveryPaseo, type TimelineEntry, type TimelinePage } from "./delivery.ts";
+import { Delivery, formatDelivery, PEER_REMINDER, roundWarnings, type AgentSnapshot, type DeliveryPaseo, type TimelineEntry, type TimelinePage } from "./delivery.ts";
 import { Outbox } from "./outbox.ts";
 import type { Logger, PermissionEvent, TurnEndedEvent } from "./plugin.ts";
 
@@ -665,5 +665,86 @@ test("declared changes outside the brief's Owned scope warn the Lead; the newest
       assert.doesNotMatch(fake.sent[0].text, /warning:/);
     }
     assert.deepEqual(outbox.records().map((record) => record.ownedScope), [["src/"], undefined]);
+  });
+});
+
+// Texts of real receipts that reached a Lead as TURN_ENDED_INVALID_HANDOFF with seven missing-cell codes.
+const QUOTA = "Error: Agent turn ended: model_usage_exhausted";
+const JOB_RUNS = "The benchmark is still running in the background, so I'll wait for it to finish.";
+const MID_WORK = "Node tests pass (27 of 27). Next I'll run a live headless check of the JS helper.";
+
+test("a failed or canceled turn without a valid handoff is reported by its outcome, not as a broken handoff", async () => {
+  await scratch(async (delivery, outbox) => {
+    const fake = fakePaseo(
+      { "lead-1": leadIdle },
+      {
+        "peer-1": [{ epoch: "e1", entries: [assistant(QUOTA, 3)] }],
+        "peer-2": [{ epoch: "e2", entries: [assistant(MID_WORK, 5, { turnId: "t2" })] }],
+        "peer-3": [{ epoch: "e3", entries: [assistant(VALID, 7, { turnId: "t3" })] }],
+      },
+    );
+    const turn = (id: string, turnId: string, outcome: TurnEndedEvent["outcome"]) => peerTurn({ agent: { ...peerTurn().agent, id }, turnId, outcome });
+    await delivery.onTurnEnded(turn("peer-1", "t1", { kind: "failed", error: { message: "Internal error: Agent turn ended: model_usage_exhausted" } }), fake.paseo);
+    await delivery.onTurnEnded(turn("peer-2", "t2", { kind: "canceled", reason: "Interrupted" }), fake.paseo);
+    await delivery.onTurnEnded(turn("peer-3", "t3", { kind: "canceled", reason: "Interrupted" }), fake.paseo);
+    const [failed, canceled, valid] = ["peer-1", "peer-2", "peer-3"].map((id) => outbox.records().find((r) => r.peerAgentId === id)!);
+    assert.deepEqual([failed.kind, failed.codes, failed.reasons], ["TURN_ENDED_FAILED", ["TURN_FAILED"], ["turn failed: Internal error: Agent turn ended: model_usage_exhausted"]]);
+    assert.deepEqual([canceled.kind, canceled.codes, canceled.reasons], ["TURN_ENDED_CANCELED", ["TURN_CANCELED"], ["turn canceled: Interrupted"]]);
+    assert.equal(valid.kind, "HANDBACK_VALID", "a valid handoff written before the cut is still a handback");
+    assert.deepEqual(fake.sent.map((s) => s.agentId), ["lead-1", "lead-1", "lead-1"], "a cut turn is never bounced to the Peer");
+    assert.match(fake.sent[0].text, /^kind: TURN_ENDED_FAILED\npeer: peer-1  task: \?  round: \?\ncodes: TURN_FAILED\nreasons: turn failed: .*model_usage_exhausted\n---\nError: Agent turn ended/m);
+    assert.doesNotMatch(fake.sent[0].text + fake.sent[1].text, /CELL_MISSING|HEADER_MISSING|missing cells/);
+    assert.ok(fake.sent[1].text.endsWith(`---\n${MID_WORK}`), "the Lead still reads what the Peer last wrote");
+  });
+});
+
+test("a completed turn without a handoff header: the Peer is reminded once, the Lead hears only of the next turn", async () => {
+  await scratch(async (delivery, outbox) => {
+    const peerIdle: AgentSnapshot = { id: "peer-1", provider: "droid-peer", status: "idle", labels: { "paseo.parent-agent-id": "lead-1" } };
+    const fake = fakePaseo(
+      { "lead-1": leadIdle, "peer-1": peerIdle, "peer-2": { ...peerIdle, id: "peer-2" }, "peer-3": { ...peerIdle, id: "peer-3" } },
+      {
+        "peer-1": [
+          { epoch: "e1", entries: [assistant(JOB_RUNS, 2, { messageId: "m1" })] },
+          { epoch: "e1", entries: [assistant(MID_WORK, 4, { turnId: "t2", messageId: "m2" })] },
+          { epoch: "e1", entries: [assistant("Still waiting.", 6, { turnId: "t3", messageId: "m3" })] },
+        ],
+        "peer-2": [
+          { epoch: "e2", entries: [assistant(JOB_RUNS, 2, { turnId: "u1", messageId: "n1" })] },
+          { epoch: "e2", entries: [assistant(VALID, 4, { turnId: "u2", messageId: "n2" })] },
+        ],
+        "peer-3": [{ epoch: "e3", entries: [assistant(MISSING, 2, { turnId: "v1" })] }],
+      },
+    );
+    const turn = (id: string, turnId: string) => peerTurn({ agent: { ...peerTurn().agent, id }, turnId });
+
+    await delivery.onTurnEnded(turn("peer-1", "t1"), fake.paseo);
+    const reminded = outbox.records()[0];
+    assert.deepEqual([reminded.kind, reminded.recipientAgentId, reminded.state, reminded.body], ["PEER_REMINDED", "peer-1", "sent", JOB_RUNS]);
+    assert.equal(fake.sent.length, 1);
+    assert.equal(fake.sent[0].agentId, "peer-1", "the reminder goes to the Peer; the Lead gets nothing for this turn");
+    assert.equal(fake.sent[0].text, PEER_REMINDER);
+    assert.equal("sourceAgentId" in fake.sent[0].options, false, "the reminder does not pose as a message from an agent");
+    assert.match(PEER_REMINDER, /not a new assignment and gives no new scope or authority/);
+
+    await delivery.onTurnEnded(turn("peer-1", "t2"), fake.paseo);
+    const second = outbox.records().find((r) => r.turnId === "t2")!;
+    assert.equal(second.kind, "TURN_ENDED_INVALID_HANDOFF", "no second reminder in a row");
+    assert.deepEqual(second.warnings, ["peer was reminded once and again ended its turn without a handoff"]);
+    assert.deepEqual(fake.sent.map((s) => s.agentId), ["peer-1", "lead-1"]);
+    assert.match(fake.sent[1].text, /^warning: peer was reminded once and again ended its turn without a handoff$/m);
+
+    await delivery.onTurnEnded(turn("peer-1", "t3"), fake.paseo);
+    assert.equal(outbox.records().find((r) => r.turnId === "t3")!.kind, "PEER_REMINDED", "after the Lead was told, a later lapse is reminded again");
+
+    await delivery.onTurnEnded(turn("peer-2", "u1"), fake.paseo);
+    await delivery.onTurnEnded(turn("peer-2", "u2"), fake.paseo);
+    const handback = outbox.records().find((r) => r.turnId === "u2")!;
+    assert.equal(handback.kind, "HANDBACK_VALID");
+    assert.equal(handback.warnings, undefined, "a reminder that worked leaves no warning");
+
+    await delivery.onTurnEnded(turn("peer-3", "v1"), fake.paseo);
+    assert.equal(outbox.records().find((r) => r.turnId === "v1")!.kind, "TURN_ENDED_INVALID_HANDOFF", "a handoff with a header and a missing cell is the Lead's to judge");
+    assert.equal(fake.sent.filter((s) => s.agentId === "peer-3").length, 0);
   });
 });

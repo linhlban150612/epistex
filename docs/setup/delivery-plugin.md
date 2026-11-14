@@ -22,7 +22,7 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
   `eval/extract-receipts --out .amp/in/receipts` writes them and the parity test reads
   `$EPISTEX_RECEIPTS` (default `.amp/in/receipts`), skipped when the folder is absent. An invalid
   receipt carries `codes` (`HEADER_MISSING`, `CELL_MISSING:<name>`, `CANDIDATE_IDENTITY`,
-  `PROOF_CLASS`, `TURN_CANCELED`, `NO_MESSAGE`) in the record and as a `codes:` line before `reasons:`.
+  `PROOF_CLASS`, `TURN_FAILED`, `TURN_CANCELED`, `NO_MESSAGE`) in the record and as a `codes:` line before `reasons:`.
 - **Round warnings** (`roundWarnings` in `server/delivery.ts`). A receipt whose round is a plain
   number above 3 carries `warning: round <n> exceeds rework limit 3; REOPEN or context-reset
   required`. A Peer's first receipt for a task, at a round above one that another Peer of the same
@@ -69,7 +69,18 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
   cursor (`tail` when the cursor is stale, the timeline was reset or the `epoch` changed;
   `hasNewer` is followed). It delivers the last `assistant_message` that is a valid handoff,
   preferring the ended `turnId`; assistant text after it travels as `trailing` with
-  `warning: trailing_text_after_handoff`. Without a valid handoff the last message is classified.
+  `warning: trailing_text_after_handoff`. Without a valid handoff the kind follows the turn outcome:
+  a `failed` or `canceled` turn becomes `TURN_ENDED_FAILED` or `TURN_ENDED_CANCELED` with the
+  outcome as its only reason and the last message as body (a quota stop or an interrupt is not a
+  broken handoff); a `completed` turn is classified as `TURN_ENDED_INVALID_HANDOFF`.
+- **Peer reminder.** A `completed` turn whose last message has no handoff header (a progress line,
+  a question, a turn ended while a job runs) is recorded as `PEER_REMINDED` with the Peer as
+  recipient: the plugin sends the fixed text `PEER_REMINDER` to the Peer, without a sender, and
+  nothing to the Lead. One reminder only: when the Peer's next turn again has no valid handoff, the
+  Lead gets `TURN_ENDED_INVALID_HANDOFF` with `warning: peer was reminded once and again ended its
+  turn without a handoff`, plus the warnings of the reminded turn. A handoff with a header and wrong
+  cells goes to the Lead at once, and a restart catch-up never reminds. Of the 145 invalid receipts
+  of 2026-11-02..14, 16 were cut turns and 37 had no header.
   A `completed` turn with no new assistant message is logged and not delivered (a replayed hook
   lands here); `failed`/`canceled` turns without a message become `TURN_ENDED_NO_MESSAGE`. Root
   agents and children of non-Lead parents are ignored.

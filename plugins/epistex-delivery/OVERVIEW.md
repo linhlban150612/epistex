@@ -10,6 +10,8 @@ How it works:
   same parser as `setup/check-handoff`; text after it is attached as a warning, and without a valid
   handoff the last message is classified), writes a receipt to
   `${PASEO_HOME:-~/.paseo}/epistex-delivery/`, and sends a `[epistex-delivery]` message to the Lead.
+  A completed turn whose last message has no handoff header gets one fixed reminder, sent to the
+  Peer instead of the Lead; the Lead hears of the Peer's next turn end.
 - On every `agent.permission.before` hook for such a Peer, the plugin sends a
   `PERMISSION_REQUESTED` message with the Peer's `agentId` and `requestId` to the Lead's Supervisor
   (the Lead's `paseo.parent-agent-id`, when it is a live Supervisor seat), otherwise to the Lead.
@@ -20,6 +22,6 @@ recipient's turn ends. Delivery is at least once; the recipient processes each `
 Requirements: Paseo `>=0.15.0 <0.16`. The plugin registers both hooks or none when the daemon does
 not expose the lifecycle API it was built against.
 
-Limits: the plugin only delivers. It never creates, cancels, archives, reloads or re-modes agents,
+Limits: the plugin only delivers and reminds. It never creates, cancels, archives, reloads or re-modes agents,
 never answers permissions, and runs no timers, schedules or periodic scans. It runs unsandboxed as
 the same Unix user as the daemon and every seat; the receipt store is not a trust boundary.

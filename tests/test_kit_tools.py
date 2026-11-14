@@ -67,6 +67,8 @@ class EvalHarnessTest(unittest.TestCase):
                     ["turn completed", "Candidate cell needs base SHA and candidate SHA (found 0)"], briefCodes=[], toolCalls=3),
             receipt("d8", "peer-a", "BRIEF_INVALID", None, "2026-11-01T00", codes=["ROUND_MISSING", "AUTHORITY_MISSING"]),
             receipt("d9", "peer-x", "BRIEF_INVALID", None, "2026-11-01T08", codes=["ROUND_MISSING"]),
+            receipt("d10", "peer-c", "PEER_REMINDED", None, "2026-11-01T06", "still running", ["turn completed"], recipientAgentId="peer-c"),
+            receipt("d11", "peer-c", "TURN_ENDED_FAILED", None, "2026-11-01T09", "Error", ["turn failed: quota"], outcome="failed", codes=["TURN_FAILED"]),
             '{"deliveryId": "torn',
         ]
         with tempfile.TemporaryDirectory() as directory:
@@ -83,20 +85,23 @@ class EvalHarnessTest(unittest.TestCase):
         self.assertIn("| lead-1 | peer-s |", everything.stdout)
         self.assertIn("| lead-1 | peer-t |", everything.stdout)
         self.assertIn("| p / m1 | 2 | 1 | 0 |", result.stdout)
-        self.assertIn("| p / m2 | 1 | 0 | 1 |", result.stdout)  # the current parser accepts the old invalid body
-        self.assertIn("| all | 4 | 1 | 1 |", result.stdout)
+        self.assertIn("| lead-1 | peer-c | p / m2 | TASK-C | 2 | 0 | 1 | 1 | no | 205 |", result.stdout)  # the reminder is not a receipt for the Lead
+        self.assertIn("| Turns bounced to the Peer (PEER_REMINDED) | 1 |", result.stdout)
+        self.assertIn("| TURN_FAILED | 1 |", result.stdout)
+        self.assertIn("| p / m2 | 2 | 0 | 1 |", result.stdout)  # the current parser accepts the old invalid body
+        self.assertIn("| all | 5 | 1 | 1 |", result.stdout)
         self.assertIn("| TURN_CANCELED | 1 |", result.stdout)
         self.assertIn("| CANDIDATE_IDENTITY | 1 |", result.stdout)
         self.assertIn("| NO_MESSAGE | 1 |", result.stdout)
-        self.assertIn("| Valid rate | 1/4 |", result.stdout)
+        self.assertIn("| Valid rate | 1/5 |", result.stdout)
         self.assertIn("| Seats whose first receipt is valid | 0/3 |", result.stdout)
         self.assertIn("| Briefs that pass check-brief | 1/2 checked |", result.stdout)
         self.assertIn("| Early brief warnings (BRIEF_INVALID) | 1 of 3 seats; 1 more for Peers not in this report |", result.stdout)
         self.assertIn("| Early brief warning codes | AUTHORITY_MISSING 1, ROUND_MISSING 1 |", result.stdout)
-        self.assertIn("| all | 4 | 1 | 1 |", result.stdout)  # a BRIEF_INVALID record is not a handback receipt
+        self.assertIn("| all | 5 | 1 | 1 |", result.stdout)  # a BRIEF_INVALID record is not a handback receipt
         self.assertIn("| Tool calls per seat median / max | 25 / 47 (2 seats counted) |", result.stdout)
-        self.assertIn("| Body size median / max (B) | 205 / 300 |", result.stdout)
-        self.assertIn("| Turn outcome | canceled 1, completed 2, failed 1 |", result.stdout)
+        self.assertIn("| Body size median / max (B) | 152 / 300 |", result.stdout)
+        self.assertIn("| Turn outcome | canceled 1, completed 2, failed 2 |", result.stdout)
 
 
 NO_GIT_CONFIG = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull}

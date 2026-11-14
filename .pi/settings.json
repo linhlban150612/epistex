@@ -2,22 +2,22 @@
   "compaction": {
     "modelOverrides": {
       "huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017": {
-        "reserveTokens": 948576
+        "reserveTokens": 848576
       },
       "openrouter/deepseek/deepseek-v4.1-flash-1017": {
-        "reserveTokens": 948576
+        "reserveTokens": 848576
       },
       "openai-codex/gpt-6-luna": {
-        "reserveTokens": 172000
+        "reserveTokens": 72000
       },
       "openrouter/moonshotai/kimi-k3": {
-        "reserveTokens": 948576
+        "reserveTokens": 848576
       },
       "openrouter/z-ai/glm-5.3-flash": {
-        "reserveTokens": 948575
+        "reserveTokens": 848575
       },
       "openrouter/z-ai/glm-5.3": {
-        "reserveTokens": 948576
+        "reserveTokens": 848576
       }
     }
   }

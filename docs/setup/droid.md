@@ -218,7 +218,7 @@ Notes:
 - `setup-seats.sh --check` accepts `env` that is `{}` or exactly `FACTORY_API_KEY` (`fk-` prefix)
   plus an absolute `FACTORY_HOME_OVERRIDE`. Each home must be unique, exist, sit outside the kit
   and not be a symlink (nor its `.factory`). Its `.factory/settings.json` must be a regular file with
-  `compactionTokenLimit` 100000.
+  `compactionTokenLimit` 200000.
 - Never put a key in `examples/paseo-providers.json` or another tracked file.
 - Separate keys separate usage and billing, not access: all roles run as the same Unix user, so
   every agent can read the Paseo config and its keys.

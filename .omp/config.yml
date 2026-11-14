@@ -1,3 +1,3 @@
 compaction:
   enabled: true
-  thresholdTokens: 100000
+  thresholdTokens: 200000

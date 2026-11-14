@@ -144,7 +144,7 @@ class SetupSeatsTest(unittest.TestCase):
             devin.write_text(json.dumps({"agent": {"compaction_threshold_tokens": value}}))
             result = self.run_check("--check")
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual("Devin user-wide" in result.stdout, value != 100000)
+            self.assertEqual("Devin user-wide" in result.stdout, value != 200000)
 
         del self.env["CODEX_BIN"]
         (self.bin / "codex").symlink_to(self.codex)
@@ -206,8 +206,8 @@ class SetupSeatsTest(unittest.TestCase):
             ("MCP injection disabled", lambda d: d["daemon"]["mcp"].__setitem__("enabled", False),
              "Paseo MCP injection is not enabled"),
             ("Claude compaction window", lambda d: seat(d, "claude-lead")["env"].__setitem__(
-                "CLAUDE_CODE_AUTO_COMPACT_WINDOW", "200000"),
-             "claude-lead: need env CLAUDE_CODE_AUTO_COMPACT_WINDOW=100000"),
+                "CLAUDE_CODE_AUTO_COMPACT_WINDOW", "100000"),
+             "claude-lead: need env CLAUDE_CODE_AUTO_COMPACT_WINDOW=200000"),
             # Supervisor seats
             ("supervisor missing", lambda d: d["agents"]["providers"].pop("codex-supervisor"),
              "codex-supervisor: wrong launcher"),
@@ -385,8 +385,8 @@ class SetupSeatsTest(unittest.TestCase):
             (pi, "{", ".pi/settings.json: need valid JSON"),
             (pi, '{"compaction":{"modelOverrides":{}}}', ".pi/settings.json: need valid JSON"),
             (pi, None, ".pi/settings.json: need valid JSON"),
-            (omp, "compaction:\n  thresholdTokens: 200000\n", ".omp/config.yml: need thresholdTokens: 100000"),
-            (omp, None, ".omp/config.yml: need thresholdTokens: 100000"),
+            (omp, "compaction:\n  thresholdTokens: 100000\n", ".omp/config.yml: need thresholdTokens: 200000"),
+            (omp, None, ".omp/config.yml: need thresholdTokens: 200000"),
             (kiro / "epistex_peer.json", '{"tools":["subagent"]}', "kiro-peer: install exact seat-owned runtime config"),
             (kiro / "epistex_lead.json", self.kit / "setup/kiro-lead.json", "kiro-lead: install exact seat-owned runtime config"),
         ]
@@ -469,7 +469,7 @@ class SetupSeatsTest(unittest.TestCase):
         for index, name in enumerate(seats):
             home = pathlib.Path(self.temporary.name) / "droid-home" / name
             (home / ".factory").mkdir(parents=True)
-            (home / ".factory/settings.json").write_text('{"compactionTokenLimit": 100000}')
+            (home / ".factory/settings.json").write_text('{"compactionTokenLimit": 200000}')
             homes.append(home)
             self.data["agents"]["providers"][name]["env"] = {
                 "FACTORY_API_KEY": f"fk-seat-{index}", "FACTORY_HOME_OVERRIDE": str(home)}
@@ -500,7 +500,7 @@ class SetupSeatsTest(unittest.TestCase):
             ("default compaction limit", lambda: (homes[1] / ".factory/settings.json").write_text('{"compactionTokenLimit": 250000}'),
              f"droid seats: {homes[1]}/.factory/settings.json must be a regular file"),
             ("hooks disabled", lambda: (homes[2] / ".factory/settings.json").write_text(
-                '{"compactionTokenLimit": 100000, "hooksDisabled": true}'),
+                '{"compactionTokenLimit": 200000, "hooksDisabled": true}'),
              f"droid seats: {homes[2]}/.factory/settings.json must not set hooksDisabled"),
             ("guard hook without Peer check", lambda: (self.kit / "setup/seat_guard.py").write_text(
                 "PEER_ADVICE = ''\ndef peer_reason(call, tool, variable):\n    return None\n"),
@@ -527,7 +527,7 @@ class SetupSeatsTest(unittest.TestCase):
                     settings = home / ".factory/settings.json"
                     if settings.is_symlink():
                         settings.unlink()
-                    settings.write_text('{"compactionTokenLimit": 100000}')
+                    settings.write_text('{"compactionTokenLimit": 200000}')
 
     def test_profile_normalization_preserves_catalog_launch_settings_and_foreign_profiles(self):
         profiles = self.data["daemon"]["agentProfiles"]

@@ -178,7 +178,7 @@ command = "other"
                 self.assertFalse(parsed["agents"]["enabled"])
                 self.assertFalse(parsed["features"]["multi_agent"])
                 self.assertFalse(parsed["features"]["multi_agent_v2"])
-                self.assertEqual(parsed["model_auto_compact_token_limit"], 100000)
+                self.assertEqual(parsed["model_auto_compact_token_limit"], 200000)
                 self.assertEqual(parsed["mcp_servers"]["other"], {"command": "other"})
                 self.assertEqual("paseo" in parsed["mcp_servers"], role != "peer")
                 self.assertTrue((runtime / "auth.json").is_symlink())
@@ -224,7 +224,7 @@ command = "other"
             expected["features"].update(multi_agent=False, multi_agent_v2=False)
             expected["agents"] = {"enabled": False}
             expected["model_instructions_file"] = str(self.runtime("peer") / "role-instructions.md")
-            expected["model_auto_compact_token_limit"] = 100000
+            expected["model_auto_compact_token_limit"] = 200000
             del expected["mcp_servers"]["paseo"]
             result = self.sync("peer")
             self.assertEqual(result.returncode, 0, result.stderr)

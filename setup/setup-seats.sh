@@ -140,14 +140,14 @@ if ! jq -e '
   fail '.pi/settings.json: need valid JSON with non-empty compaction.modelOverrides'
 fi
 
-if [[ ! -f "$kit/.omp/config.yml" ]] || ! grep -Eq '^[[:space:]]*thresholdTokens:[[:space:]]*100000[[:space:]]*$' "$kit/.omp/config.yml"; then
-  fail '.omp/config.yml: need thresholdTokens: 100000'
+if [[ ! -f "$kit/.omp/config.yml" ]] || ! grep -Eq '^[[:space:]]*thresholdTokens:[[:space:]]*200000[[:space:]]*$' "$kit/.omp/config.yml"; then
+  fail '.omp/config.yml: need thresholdTokens: 200000'
 fi
 
 # Human opt-in is user-wide, so this observation must never gate workspace setup.
-if ! jq -e '.agent.compaction_threshold_tokens == 100000' \
+if ! jq -e '.agent.compaction_threshold_tokens == 200000' \
   "${XDG_CONFIG_HOME:-$HOME/.config}/devin/config.json" >/dev/null 2>&1; then
-  printf '  note: Devin user-wide agent.compaction_threshold_tokens is absent or != 100000 (informational only)\n'
+  printf '  note: Devin user-wide agent.compaction_threshold_tokens is absent or != 200000 (informational only)\n'
 fi
 
 if [[ ! -f "$paseo_config" ]]; then
@@ -158,8 +158,8 @@ else
   while IFS= read -r seat; do
     [[ -n "$seat" ]] || continue
     jq -e --arg seat "$seat" '
-      .agents.providers[$seat].env.CLAUDE_CODE_AUTO_COMPACT_WINDOW == "100000"
-    ' "$paseo_config" >/dev/null || fail "$seat: need env CLAUDE_CODE_AUTO_COMPACT_WINDOW=100000"
+      .agents.providers[$seat].env.CLAUDE_CODE_AUTO_COMPACT_WINDOW == "200000"
+    ' "$paseo_config" >/dev/null || fail "$seat: need env CLAUDE_CODE_AUTO_COMPACT_WINDOW=200000"
   done < <(jq -r '
     .agents.providers | to_entries[] |
       select((.key | startswith("claude-")) and .value.enabled == true) | .key
@@ -376,9 +376,9 @@ else
     elif [[ -L "$home" || ! -d "$home" || -L "$home/.factory" || "$home/" == "$kit/"* ]]; then
       fail "droid seats: FACTORY_HOME_OVERRIDE $home must be an existing non-symlink directory outside the kit"
     elif [[ -L "$home/.factory/settings.json" || ! -f "$home/.factory/settings.json" ]] ||
-      ! jq -e '.compactionTokenLimit == 100000' "$home/.factory/settings.json" >/dev/null 2>&1; then
+      ! jq -e '.compactionTokenLimit == 200000' "$home/.factory/settings.json" >/dev/null 2>&1; then
       # Droid reads only this copy; without it the limit falls back to 250000.
-      fail "droid seats: $home/.factory/settings.json must be a regular file (copy, not symlink) with compactionTokenLimit 100000"
+      fail "droid seats: $home/.factory/settings.json must be a regular file (copy, not symlink) with compactionTokenLimit 200000"
     elif jq -e '.hooksDisabled == true' "$home/.factory/settings.json" >/dev/null 2>&1; then
       # hooksDisabled stops every hook, also the seat guard that role-agent passes with --settings.
       fail "droid seats: $home/.factory/settings.json must not set hooksDisabled: the seat guard is a hook"

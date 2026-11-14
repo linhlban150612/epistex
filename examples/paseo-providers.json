@@ -249,7 +249,7 @@
           "claude"
         ],
         "env": {
-          "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "100000"
+          "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "200000"
         },
         "enabled": true,
         "models": [
@@ -562,7 +562,7 @@
           "claude"
         ],
         "env": {
-          "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "100000"
+          "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "200000"
         },
         "models": [
           {
@@ -632,7 +632,7 @@
           "claude"
         ],
         "env": {
-          "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "100000"
+          "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "200000"
         },
         "models": [
           {

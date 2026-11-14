@@ -172,6 +172,26 @@ class DeliveryPluginTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
+class DocsTest(unittest.TestCase):
+    def test_relative_links_and_canonical_documents_exist(self):
+        # A renamed or merged document must not leave a link or an AGENTS.md entry behind.
+        tracked = subprocess.run(["git", "-C", str(ROOT), "ls-files", "*.md"], text=True, capture_output=True, check=True).stdout.split()
+        self.assertIn("docs/setup/delivery-plugin.md", tracked)
+        missing = []
+        for name in tracked:
+            document = ROOT / name
+            for target in re.findall(r"\]\(([^)\s]+)\)", document.read_text()):
+                path = target.split("#")[0]
+                if path and not re.match(r"[a-z]+:", target) and "<" not in target and not (document.parent / path).exists():
+                    missing.append(f"{name}: {target}")
+        agents = (ROOT / "AGENTS.md").read_text()
+        canonical = agents[agents.index("## Canonical documentation"):agents.index("## Authority")]
+        listed = re.findall(r"`([\w./-]+\.md)`", canonical)
+        self.assertGreaterEqual(len(listed), 10)
+        missing += [f"AGENTS.md: {path}" for path in listed if not (ROOT / path).exists()]
+        self.assertEqual(missing, [])
+
+
 EXAMPLE = ROOT / "examples" / "target-repo"
 
 

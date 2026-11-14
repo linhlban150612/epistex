@@ -1,0 +1,15 @@
+TASK_ID: T-15
+ROUND: 2
+AUTHORITY: Owner approved the plan. You are the writer; Lead reviews. Local commit required; NO push/rebase/amend.
+BASELINE: 3f2a9c1d4e5b6a7f8091a2b3c4d5e6f708192a3b (repo /tmp/repo, branch feature/t-15; Lead-verified clean except ?? notes/ (owner untracked, DO NOT touch/stage))
+OWNED_SCOPE: /tmp/repo/src/main/java/demo/ (only the files needed: dto/DetailDTO.java, service/DetailServiceImpl.java; list any other file and justify) + /tmp/repo/workspace/api_desc.xlsx (lock-safe).
+
+FIRST: `git status -sb` must show only `?? notes/`. If anything else is dirty, STOP and report.
+
+OWNER DECISIONS:
+1. Expose the approver per level in getDetail.
+2. One lookup per call; no N+1.
+
+VERIFY: `mvn -q -o clean -DskipTests test-compile` exit 0.
+COMMIT: stage by explicit path only, commit via `git commit -F <file>`. No push.
+REPORT: first line "Task ID: T-15 | Round: 2", six cells: Outcome, Candidate (base SHA, commit SHA), Scope, Verification (Proof class), Unknown / risk, Ownership.

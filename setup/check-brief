@@ -28,7 +28,8 @@ PREFIX, EMPH = handoff.PREFIX, handoff.EMPH
 # label with a colon inside a line, after a sentence or segment mark ("Project: x / Task ID: y").
 FIELD = (r"(?im)(?:^{prefix}(?:{label}){emph}?(?:[ \t]*\([^()\n]*\))?{emph}?[ \t]*[:|=]?"
          r"|[.;,/|—–(-][ \t]+{emph}?(?:{label}){emph}?[ \t]*:){emph}?[ \t]*(.*)$")
-LABELS = {"Task ID": r"(?:Project[ \t]*/[ \t]*)?Task ID", "Round": "Round", "Owned scope": "Owned scope",
+# A Lead also writes the labels as constants: `TASK_ID:`, `OWNED_SCOPE:`.
+LABELS = {"Task ID": r"(?:Project[ \t]*/[ \t]*)?Task[ _]ID", "Round": "Round", "Owned scope": "Owned[ _]scope",
           "Authority": "Authority"}
 ROUND_NUMBER = re.compile(r"(?i)\bround[*_`]*(?:[ \t]*\([^()\n]*\))?[ \t]*[:=]?[ \t]*[*_`]*(\d+)\b")
 ROUND_LABEL = re.compile(r"(?i)\bround[*_`]*(?:[ \t]*\([^()\n]*\))?[ \t]*:[ \t]*[*_`]*(\S+)")
@@ -47,8 +48,8 @@ def field(text, label):
     value = match.group(1).strip(" \t|")
     if not value:
         following = text[match.end():].split("\n")[1:2]
-        # A continuation is indented or a list item; a line at the margin is the next field.
-        value = following[0].strip() if following and re.match(r"[ \t]+\S|[-*+][ \t]", following[0]) else ""
+        # A continuation is indented or a list item ("- x", "1. x"); a line at the margin is the next field.
+        value = following[0].strip() if following and re.match(r"[ \t]+\S|[-*+][ \t]|[0-9]+[.)][ \t]", following[0]) else ""
     return value
 
 

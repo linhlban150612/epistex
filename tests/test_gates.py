@@ -106,6 +106,20 @@ class CheckBriefTest(unittest.TestCase):
         self.assertEqual(codes(json.dumps({**brief, "round": "1", "owned_scope": []})),
                          ["ROUND_MISSING", "OWNED_SCOPE_MISSING"])
 
+    def test_brief_fixtures_report_the_expected_codes(self):
+        # Shapes of real Lead briefs, project text replaced: accepted label forms (ok-*) and rejections (bad-*).
+        fixtures = ROOT / "tests/fixtures/briefs"
+        expected = json.loads((fixtures / "expected.json").read_text())
+        self.assertEqual(sorted(expected), sorted(path.name for path in fixtures.glob("*.txt")))
+        for name, expected_codes in expected.items():
+            with self.subTest(name):
+                result = subprocess.run([sys.executable, str(CHECK_BRIEF), str(fixtures / name), "--json"], text=True, capture_output=True)
+                self.assertEqual(json.loads(result.stdout)["codes"], expected_codes)
+                self.assertEqual(result.returncode, 1 if expected_codes else 0)
+        fields = json.loads(run((fixtures / "ok-upper-snake-labels.txt").read_text(), "--json").stdout)["fields"]
+        self.assertEqual((fields["Task ID"], fields["Round"]), ("T-15", "2"))
+        self.assertTrue(fields["Owned scope"].startswith("/tmp/repo/src/main/java/demo/"))
+
     def test_file_argument_and_read_error(self):
         missing = subprocess.run([sys.executable, str(CHECK_BRIEF), "/nonexistent/brief.txt"], text=True, capture_output=True)
         self.assertEqual(missing.returncode, 1)

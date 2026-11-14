@@ -1,0 +1,16 @@
+Task ID: RECALC/demo | Round: 1
+Your cwd is NOT the target. That is expected and authorized; do not stop. Use absolute paths only.
+
+Goal: recalculate the workbook with the skill at /tmp/skill (HEAD f1ec670). Follow /tmp/skill/SKILL.md exactly.
+
+Input (read-only, do not modify): /tmp/recalc/demo/input/
+
+Steps:
+1. Derive rows per SKILL.md.
+2. Write the JSON input to /tmp/recalc/demo/output/.
+
+Rules:
+- Do NOT edit the skill repo. Do not commit.
+- Work only under /tmp/recalc/demo/output/ and /tmp.
+
+Handoff, plain text without bold or tables. Line 1: "Task ID: RECALC/demo | Round: 1". Then these line-start labels: Outcome:, Candidate:, Scope:, Verification:, Unknown / risk:, Ownership:.

@@ -1,0 +1,16 @@
+{
+ "bad-goal-steps-rules.txt": [
+  "OWNED_SCOPE_MISSING",
+  "AUTHORITY_MISSING",
+  "BASELINE_MISSING"
+ ],
+ "bad-scope-label-then-next-field.txt": [
+  "OWNED_SCOPE_MISSING"
+ ],
+ "bad-upper-snake-no-scope.txt": [
+  "OWNED_SCOPE_MISSING"
+ ],
+ "ok-numbered-scope.txt": [],
+ "ok-upper-snake-labels.txt": [],
+ "ok-upper-snake-note-and-list.txt": []
+}

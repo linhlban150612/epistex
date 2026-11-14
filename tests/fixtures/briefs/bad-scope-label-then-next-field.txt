@@ -1,0 +1,5 @@
+TASK_ID: T-18
+ROUND: 1
+OWNED_SCOPE:
+AUTHORITY: Owner approved the plan. Local commit required; NO push.
+BASELINE: 3f2a9c1d4e5b6a7f8091a2b3c4d5e6f708192a3b (repo /tmp/repo, branch feature/t-18)

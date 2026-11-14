@@ -5,9 +5,10 @@ import { CELLS, EMPH, PATH, PREFIX, SHA, SHA256, splitLines } from "./handoff.ts
 const W = "\\p{L}\\p{N}_";
 const B = `(?:(?<=[${W}])(?![${W}])|(?<![${W}])(?=[${W}]))`;
 const NOTE = "(?:[ \\t]*\\([^()\\n]*\\))?";
+// A Lead also writes the labels as constants: `TASK_ID:`, `OWNED_SCOPE:`.
 const LABELS = {
-  "Task ID": "(?:Project[ \\t]*/[ \\t]*)?Task ID",
-  "Owned scope": "Owned scope",
+  "Task ID": "(?:Project[ \\t]*/[ \\t]*)?Task[ _]ID",
+  "Owned scope": "Owned[ _]scope",
   Authority: "Authority",
 } as const;
 // Label at line start after optional markup, an optional note in parentheses, then the value; or
@@ -17,6 +18,7 @@ const field = (label: string) =>
     `(?:^${PREFIX}(?:${label})${EMPH}?${NOTE}${EMPH}?[ \\t]*[:|=]?|[.;,/|—–(-][ \\t]+${EMPH}?(?:${label})${EMPH}?[ \\t]*:)${EMPH}?[ \\t]*(.*)$`,
     "imu",
   );
+const CONTINUATION = /^(?:[ \t]+\S|[-*+][ \t]|[0-9]+[.)][ \t])/u;
 const ROUND_NUMBER = new RegExp(`${B}round[*_\`]*${NOTE}[ \\t]*[:=]?[ \\t]*[*_\`]*(\\d+)${B}`, "iu");
 const ROUND_LABEL = new RegExp(`${B}round[*_\`]*${NOTE}[ \\t]*:[ \\t]*[*_\`]*(\\S+)`, "iu");
 const BASELINE = new RegExp(`${B}base(?:line)?${B}`, "iu");
@@ -34,8 +36,8 @@ function fieldValue(text: string, label: string): string | null {
   const value = match[1].replace(/^[ \t|]+|[ \t|]+$/g, "");
   if (value) return value;
   const following = text.slice(match.index + match[0].length).split("\n")[1];
-  // A continuation is indented or a list item; a line at the margin is the next field.
-  return following !== undefined && /^(?:[ \t]+\S|[-*+][ \t])/u.test(following) ? following.trim() : "";
+  // A continuation is indented or a list item ("- x", "1. x"); a line at the margin is the next field.
+  return following !== undefined && CONTINUATION.test(following) ? following.trim() : "";
 }
 
 /** A base/baseline line with a commit SHA, or a sha256 checksum with a path; the identity may be on the next line. */
@@ -54,7 +56,7 @@ export function briefIdentity(brief: string): { taskId: string | null; round: st
   const text = brief.replace(/\r\n?/g, "\n");
   const value = fieldValue(text, LABELS["Task ID"])?.split(/[ \t]*[|;,][ \t]*/)[0];
   // `Project / Task ID: demo / T-1`: the handoff header carries the task part only.
-  const task = /Project[ \t]*\/[ \t]*Task ID/i.test(text) ? value?.split(/[ \t]+\/[ \t]+/).pop() : value;
+  const task = /Project[ \t]*\/[ \t]*Task[ _]ID/i.test(text) ? value?.split(/[ \t]+\/[ \t]+/).pop() : value;
   return { taskId: task?.replace(/^[*_`]+|[*_`.]+$/g, "") || null, round: ROUND_NUMBER.exec(text)?.[1] ?? null };
 }
 
@@ -115,7 +117,7 @@ export function ownedScope(brief: string): string[] {
   if (!match) return [];
   const lines = [match[1]];
   for (const line of text.slice(match.index + match[0].length).split("\n").slice(1)) {
-    if (!/^(?:[ \t]+\S|[-*+][ \t])/u.test(line)) break;
+    if (!CONTINUATION.test(line)) break;
     lines.push(line);
   }
   return splitPaths(lines.join("\n"), true);

@@ -3,10 +3,11 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
-import { briefOf, checkBrief, outsideScope } from "./brief.ts";
+import { briefIdentity, briefOf, checkBrief, outsideScope, ownedScope } from "./brief.ts";
 
 const ROOT = path.resolve(import.meta.dirname, "../../..");
 // Real seat logs hold project text, so they stay outside Git.
+const FIXTURES = path.join(ROOT, "tests/fixtures/briefs");
 const LOGS = process.env.EPISTEX_SEAT_LOGS ?? path.join(ROOT, ".amp/in/paseo7d/logs");
 const BASE = "3f2a9c1d4e5b6a7f8091a2b3c4d5e6f708192a3b";
 const SHA256 = "0a184d9dc3b8fa90d6a48f5cc8ce41074537be65a5e848a714844125a55aeb01";
@@ -51,6 +52,20 @@ test("parity: checkBrief reports the codes of setup/check-brief", () => {
     assert.deepEqual(checkBrief(text), expected, text);
     assert.deepEqual(python(text), expected, text);
   }
+});
+
+test("parity: every brief fixture has the expected codes in TypeScript and setup/check-brief", () => {
+  const fixture = (name: string) => readFileSync(path.join(FIXTURES, name), "utf8");
+  const expected = JSON.parse(fixture("expected.json")) as Record<string, string[]>;
+  assert.deepEqual(Object.keys(expected).sort(), readdirSync(FIXTURES).filter((name) => name.endsWith(".txt")).sort());
+  for (const [name, codes] of Object.entries(expected)) {
+    assert.deepEqual(checkBrief(fixture(name)), codes, name);
+    assert.deepEqual(python(fixture(name)), codes, name);
+  }
+  // The delivery names the task and compares the scope from the same labels.
+  assert.deepEqual(briefIdentity(fixture("ok-upper-snake-labels.txt")), { taskId: "T-15", round: "2" });
+  assert.deepEqual(ownedScope(fixture("ok-upper-snake-note-and-list.txt")), ["workspace/api_desc.xlsx", "workspace/analysis/review.md"]);
+  assert.deepEqual(ownedScope(fixture("ok-numbered-scope.txt")).slice(0, 2), ["skills/devpost/SKILL.md", "skills/luma/scripts/helper.js"]);
 });
 
 test("briefOf takes the Lead's agent-message body and leaves role instructions out", () => {

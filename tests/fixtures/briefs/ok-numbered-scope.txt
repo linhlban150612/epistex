@@ -1,0 +1,12 @@
+Task ID: F1 | Round: 1  (then Task ID: B-design | Round: 2 after F1 handback is accepted — do F1 only now)
+
+AUTHORITY: Lead for Supervisor/Human. Human-approved: delete only the SKILL.md lines that call --mark-handled. No commit/push; no sudo.
+
+OWNED SCOPE:
+1. skills/devpost/SKILL.md — delete only the lines (about 82-85) that call --mark-handled.
+2. skills/luma/scripts/helper.js line 464 — cosmetic fix only.
+3. tmp/ scratch.
+
+STEPS: save baseline `git diff HEAD > tmp/baseline-f1.diff` and report its sha256 (expected 0a184d9dc3b8fa90d6a48f5cc8ce41074537be65a5e848a714844125a55aeb01). Make the edits. Run `npm test`.
+
+HANDBACK: first line `Task ID: F1 | Round: 1`, then ### Outcome, ### Candidate, ### Scope, ### Verification, ### Unknown / risk, ### Ownership.

@@ -29,7 +29,8 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
   Lead reported, carries `warning: task reused across peers`; the receipt store supplies the earlier
   receipts. Warnings are stored in `warnings` and never change `kind`.
 - **Brief check** (`server/brief.ts`, a port of `setup/check-brief`; `brief.test.ts` holds the
-  parity cases). On a Peer's first receipt the plugin reads the Peer's first prompt: a `tool_call`
+  parity cases; `tests/fixtures/briefs/` holds shapes of real briefs, with `expected.json` as for
+  the handoffs). On a Peer's first receipt the plugin reads the Peer's first prompt: a `tool_call`
   row with `agentMessage` from this Lead (how Paseo 0.15.4 shows a prompt that is only an agent
   message), or the Lead's `agent-message` envelope inside a `user_message` (role instructions before
   it are left out). It stores the codes in `briefCodes`; an empty list is a pass. A failed brief adds

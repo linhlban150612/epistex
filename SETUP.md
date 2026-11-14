@@ -61,7 +61,7 @@ Lead uses `paseoTools.disabledTools` to block the catalog and keeps exactly 8 to
 `list_workspaces`, `list_providers`, `list_models`, `list_profiles`, `create_agent`, `send_agent_prompt`,
 `cancel_agent`, `archive_agent`. Supervisor also keeps `create_workspace`, `get_agent_activity`, `list_agents`, `list_hosts`,
 `list_pending_permissions`, `respond_to_permission` and `set_agent_mode` (15 tools kept; 47 blocked). Lead does not have `get_agent_activity`, `get_agent_status` and `list_agents`, so Lead waits for deliveries instead of polling or reading the Peer timeline; nor `list_hosts`, so Lead does not discover connected hosts; nor the permission and mode tools, because a Lead relays a permission request and never answers it. Supervisor reads an agent's status with `list_agents`; `get_agent_status` is blocked for both. Kiro and Droid Supervisor/Lead use the same policy.
-Lead runs without approval waits: Lead profiles use a bypass mode (`claude-lead` `bypassPermissions`, `agy-lead` `yolo`, `droid-lead` `auto-high` (also `droid-supervisor`), `codex-lead` `full-access`: approval `never`, sandbox `danger-full-access`); `kiro-lead` auto-approves through agent `permissions.rules` (V3). `amp-lead` uses `local`: amp-acp has no bypass mode. `omp-lead` and `omp-supervisor` use `full`, `devin-supervisor` uses `bypass`. `cursor-lead` and `cursor-supervisor` use `agent`: Cursor ACP has no bypass mode, so `setup/cursor-acp` allows exactly the role's Paseo tools in the seat's private `cli-config.json` ([cursor.md](docs/setup/cursor.md)).
+Lead runs without approval waits: Lead profiles use a bypass mode (`claude-lead` `bypassPermissions`, `agy-lead` `default` (`agy acp` asks no permission for shell or Paseo calls in it; verified live), `droid-lead` `auto-high` (also `droid-supervisor`), `codex-lead` `full-access`: approval `never`, sandbox `danger-full-access`); `kiro-lead` auto-approves through agent `permissions.rules` (V3). `amp-lead` uses `local`: amp-acp has no bypass mode. `omp-lead` and `omp-supervisor` use `full`, `devin-supervisor` uses `bypass`. `cursor-lead` and `cursor-supervisor` use `agent`: Cursor ACP has no bypass mode, so `setup/cursor-acp` allows exactly the role's Paseo tools in the seat's private `cli-config.json` ([cursor.md](docs/setup/cursor.md)).
 Codex Peer profiles use `modeId: auto-review` ([why](docs/setup/codex-runtime.md#peer-sandbox-and-worktrees)); `setup-seats.sh --check` rejects `codex-peer` profiles without it. Claude Peer profiles use `modeId: bypassPermissions`: `acceptEdits` stops a non-interactive Peer on its first Bash permission request; `--check` rejects other modes.
 Paseo does not inherit a Lead's mode into a Peer of another provider: `create_agent` without `modeId` fails with `cannot inherit mode`
 unless the Lead runs in an unattended mode. So every Peer profile of a provider with modes carries one: `amp-peer` `local`,
@@ -223,14 +223,14 @@ Common part for the ACP proxy seats Devin (Supervisor/Peer), Copilot (Peer) and 
 [copilot.md](docs/setup/copilot.md), [cursor.md](docs/setup/cursor.md)). ACP agent sources:
 the [ACP registry](https://github.com/agentclientprotocol/registry) and [Kiro ACP](https://kiro.dev/docs/acp).
 
-Seat launch commands of all seven ACP backends compared with the registry (checked 2026-11-12);
+Seat launch commands of all seven ACP backends compared with the registry (checked 2026-11-12; Antigravity 2026-11-14);
 Amp, Antigravity, Droid and Kiro have their own guides. The seat launch starts the
 backend that is on Paseo's PATH; the registry version is not a pin of the seat.
 
 | Backend | Registry entry and version | Registry launch | Seat launch |
 |---|---|---|---|
 | Amp | `amp-acp` 0.12.0 | `amp-acp` | Same |
-| Antigravity | `antigravity-acp` 1.4.5 | `agy_acp_server.par --uid=` | Same |
+| Antigravity | `antigravity-acp` 1.5.0 | `agy_acp_server.par --uid=` | `agy acp`: the ACP server of the `agy` CLI, not the registry binary ([antigravity.md](docs/setup/antigravity.md)) |
 | Copilot | `github-copilot-cli` 1.0.109 | `copilot --acp` | Same |
 | Cursor | `cursor` 2026.11.11 | `cursor-agent acp` | Same |
 | Devin | `devin` 3000.12.43 | `devin acp` | Same |

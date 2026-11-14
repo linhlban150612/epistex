@@ -319,14 +319,15 @@ else
       $p.paseoTools.enabled == false and
       $p.env == {} and
       ([ $p.models[] | select(.isDefault == true) | .id ]) == ["gemini-3.8-flash-low"] and
-      ([ $p.models[].id ] | sort) == ["gemini-3.8-flash-low", "gemini-3.8-flash-medium", "gemini-4-argon-low", "gemini-4-argon-medium"]
+      ([ $p.models[].id ] | sort) == ["gemini-3.8-flash-low", "gemini-3.8-flash-medium", "gemini-4-argon-low", "gemini-4-argon-medium", "gemini-4-hydrogen-low", "gemini-4-hydrogen-medium"]
     ' "$paseo_config" >/dev/null || fail 'agy-peer: wrong launcher, permissions or model pins'
-    for model in gemini-3.8-flash-low gemini-3.8-flash-medium gemini-4-argon-low gemini-4-argon-medium; do
+    # accept-edits: `agy acp` has default, accept-edits and plan; plan does not write.
+    for model in gemini-3.8-flash-low gemini-3.8-flash-medium gemini-4-argon-low gemini-4-argon-medium gemini-4-hydrogen-low gemini-4-hydrogen-medium; do
       jq -e --arg model "$model" '
         [.daemon.agentProfiles[]? | select(.id == ("agy-peer--" + ($model | gsub("\\.";"-"))))] |
         length == 1 and all(.[];
-          .provider == "agy-peer" and .model == $model and .modeId == "auto_edit" and
-          .modeId != "yolo" and (has("thinkingOptionId") | not))
+          .provider == "agy-peer" and .model == $model and .modeId == "accept-edits" and
+          (has("thinkingOptionId") | not))
       ' "$paseo_config" >/dev/null || fail "agy-peer: missing or wrong $model profile"
     done
   fi
@@ -345,7 +346,7 @@ else
       jq -e --arg model "$model" '
         [.daemon.agentProfiles[]? | select(.id == ("agy-lead--" + $model))] |
         length == 1 and all(.[];
-          .provider == "agy-lead" and .model == $model and .modeId == "yolo" and
+          .provider == "agy-lead" and .model == $model and .modeId == "default" and
           (has("thinkingOptionId") | not))
       ' "$paseo_config" >/dev/null || fail "agy-lead: missing or wrong $model profile"
     done

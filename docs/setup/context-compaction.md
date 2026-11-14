@@ -18,7 +18,7 @@ with the Lead.
 | Devin 3000.12.57, Supervisor/Peer | `agent.compaction_threshold_tokens=200000` in `~/.config/devin/config.json` | User-wide, **not workspace-scoped** | 200,000 | Applied user-wide (Human request, 2026-11-14); only this key was changed |
 | Kiro 3.1.0 (kiro-cli acp v3), Supervisor/Lead/Peer | No exposed compaction threshold in `setup/kiro-*.json` agent schema | — | Backend default; no project setting | No compaction key in agent JSON, `kiro-cli --help` or `kiro-cli acp --help` |
 | Factory Droid 1.7.0, Supervisor/Lead/Peer | `compactionTokenLimit=200000` in the `.factory/settings.json` of each seat home (`FACTORY_HOME_OVERRIDE`; `~/.factory/settings.json` for a seat on the stored login) ([settings docs](https://docs.factory.com/droid-cli/settings)) | Per seat home, **not workspace-scoped** | 200,000 | Set in the five seat homes (2026-11-14); no org-managed override found; live compaction not yet probed. No CLI flag; `droid --help` has no compaction option |
-| Antigravity (agy_acp_server.par), Lead/Peer | No exposed threshold in probed session/new result | — | Backend default; no project setting | No compaction option in the probed ACP session/new result |
+| Antigravity (`agy acp` 1.5.9), Lead/Peer | No exposed threshold in probed session/new result | — | Backend default; no project setting | No compaction option in the probed ACP session/new result |
 
 ## Model windows
 

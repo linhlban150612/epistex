@@ -263,9 +263,11 @@ class SetupSeatsTest(unittest.TestCase):
                 "AGY_EXTRA_ARGS", "--dangerously-skip-permissions"), "agy-peer: wrong launcher, permissions or model pins"),
             ("agy peer model missing", lambda d: seat(d, "agy-peer")["models"].remove(
                 model(d, "agy-peer", "gemini-4-argon-low")), "agy-peer: wrong launcher, permissions or model pins"),
+            ("agy peer Hydrogen profile missing", lambda d: drop(d, "agy-peer--gemini-4-hydrogen-medium"),
+             "agy-peer: missing or wrong gemini-4-hydrogen-medium profile"),
             ("agy peer profile missing", lambda d: drop(d, "agy-peer--gemini-4-argon-low"),
              "agy-peer: missing or wrong gemini-4-argon-low profile"),
-            ("agy peer yolo", lambda d: profile(d, "agy-peer--gemini-4-argon-medium").__setitem__("modeId", "yolo"),
+            ("agy peer plan mode", lambda d: profile(d, "agy-peer--gemini-4-argon-medium").__setitem__("modeId", "plan"),
              "agy-peer: missing or wrong gemini-4-argon-medium profile"),
             ("agy peer thinking option", lambda d: profile(d, "agy-peer--gemini-4-argon-low").__setitem__(
                 "thinkingOptionId", "low"), "agy-peer: missing or wrong gemini-4-argon-low profile"),
@@ -275,7 +277,7 @@ class SetupSeatsTest(unittest.TestCase):
              "agy-lead: wrong launcher, permissions or model pins"),
             ("agy lead deny-list", deny("agy-lead", sorted(DENY_LEAD - {"kill_agent"})),
              "agy-lead: paseoTools.disabledTools must exactly match"),
-            ("agy lead auto_edit", lambda d: profile(d, "agy-lead--gemini-4-argon-low").__setitem__("modeId", "auto_edit"),
+            ("agy lead old server mode", lambda d: profile(d, "agy-lead--gemini-4-argon-low").__setitem__("modeId", "yolo"),
              "agy-lead: missing or wrong gemini-4-argon-low profile"),
             # Kiro seats
             ("kiro lead with peer role", lambda d: seat(d, "kiro-lead").__setitem__(

@@ -1435,6 +1435,16 @@
             "id": "gemini-4-argon-medium",
             "label": "Gemini 4 Argon (Medium)",
             "isDefault": false
+          },
+          {
+            "id": "gemini-4-hydrogen-low",
+            "label": "Gemini 4 Hydrogen (Low)",
+            "isDefault": false
+          },
+          {
+            "id": "gemini-4-hydrogen-medium",
+            "label": "Gemini 4 Hydrogen (Medium)",
+            "isDefault": false
           }
         ]
       },
@@ -3586,7 +3596,7 @@
         "name": "agy-peer · gemini-3.8-flash-low",
         "provider": "agy-peer",
         "model": "gemini-3.8-flash-low",
-        "modeId": "auto_edit",
+        "modeId": "accept-edits",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -3594,7 +3604,7 @@
         "name": "agy-peer · gemini-3.8-flash-medium",
         "provider": "agy-peer",
         "model": "gemini-3.8-flash-medium",
-        "modeId": "auto_edit",
+        "modeId": "accept-edits",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -3602,7 +3612,7 @@
         "name": "agy-peer · gemini-4-argon-low",
         "provider": "agy-peer",
         "model": "gemini-4-argon-low",
-        "modeId": "auto_edit",
+        "modeId": "accept-edits",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -3610,7 +3620,23 @@
         "name": "agy-peer · gemini-4-argon-medium",
         "provider": "agy-peer",
         "model": "gemini-4-argon-medium",
-        "modeId": "auto_edit",
+        "modeId": "accept-edits",
+        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
+      },
+      {
+        "id": "agy-peer--gemini-4-hydrogen-low",
+        "name": "agy-peer · gemini-4-hydrogen-low",
+        "provider": "agy-peer",
+        "model": "gemini-4-hydrogen-low",
+        "modeId": "accept-edits",
+        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
+      },
+      {
+        "id": "agy-peer--gemini-4-hydrogen-medium",
+        "name": "agy-peer · gemini-4-hydrogen-medium",
+        "provider": "agy-peer",
+        "model": "gemini-4-hydrogen-medium",
+        "modeId": "accept-edits",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -3618,7 +3644,7 @@
         "name": "agy-lead · gemini-4-argon-low",
         "provider": "agy-lead",
         "model": "gemini-4-argon-low",
-        "modeId": "yolo",
+        "modeId": "default",
         "notes": "Lead: frame scope, coordinate Peers, review evidence and accept work. Do not write project artifacts. Do not automatically create Peers on the Lead's backend provider; use Human-authorized alternatives or report BLOCKED. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
@@ -3626,7 +3652,7 @@
         "name": "agy-lead · gemini-4-argon-medium",
         "provider": "agy-lead",
         "model": "gemini-4-argon-medium",
-        "modeId": "yolo",
+        "modeId": "default",
         "notes": "Lead: frame scope, coordinate Peers, review evidence and accept work. Do not write project artifacts. Do not automatically create Peers on the Lead's backend provider; use Human-authorized alternatives or report BLOCKED. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {

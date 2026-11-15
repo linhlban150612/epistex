@@ -41,6 +41,7 @@ export interface PeerProfile {
   model: string;
   modeId?: string;
   thinkingOptionId?: string;
+  featureValues?: Record<string, unknown>;
 }
 
 export interface AssignDeps {
@@ -54,7 +55,7 @@ export interface AssignDeps {
 interface AssignPaseo {
   agents: {
     create(options: {
-      config: { provider: string; modeId?: string; thinkingOptionId?: string };
+      config: { provider: string; modeId?: string; thinkingOptionId?: string; featureValues?: Record<string, unknown> };
       cwd: string;
       parent: string;
       title: string;
@@ -100,7 +101,7 @@ export async function assign(input: AssignInput, lead: { id: string }, paseo: As
   try {
     peerId = (
       await paseo.agents.create({
-        config: { provider: `${profile.provider}/${profile.model}`, ...(profile.modeId ? { modeId: profile.modeId } : {}), ...(profile.thinkingOptionId ? { thinkingOptionId: profile.thinkingOptionId } : {}) },
+        config: { provider: `${profile.provider}/${profile.model}`, ...(profile.modeId ? { modeId: profile.modeId } : {}), ...(profile.thinkingOptionId ? { thinkingOptionId: profile.thinkingOptionId } : {}), ...(profile.featureValues ? { featureValues: profile.featureValues } : {}) },
         cwd: input.worktree,
         parent: lead.id,
         title: input.title,

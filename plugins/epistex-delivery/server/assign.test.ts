@@ -11,6 +11,7 @@ const SHA256 = "0a184d9dc3b8fa90d6a48f5cc8ce41074537be65a5e848a714844125a55aeb01
 const PROFILES: PeerProfile[] = [
   { id: "droid-peer--gpt-6-luna--low", provider: "droid-peer", model: "gpt-6-luna", modeId: "auto-high", thinkingOptionId: "low" },
   { id: "pi-peer--glm", provider: "pi-peer", model: "openrouter/z-ai/glm-5.3" },
+  { id: "omp-peer--fast-off", provider: "omp-peer", model: "factory-droid/gpt-6.1-sol", modeId: "full", featureValues: { fast_mode: false } },
   { id: "droid-lead--opus--low", provider: "droid-lead", model: "claude-opus-5-5", modeId: "auto-high", thinkingOptionId: "low" },
   { id: "claude-supervisor--sonnet", provider: "claude-supervisor", model: "claude-sonnet-5-5" },
 ];
@@ -95,6 +96,14 @@ test("assign creates the Peer as the Lead's child from the profile, in the workt
   const plain = setup();
   await assign({ ...INPUT, profile: "pi-peer--glm" }, { id: "lead-1" }, plain.paseo, plain.deps);
   assert.deepEqual((plain.created[0] as { config: unknown }).config, { provider: "pi-peer/openrouter/z-ai/glm-5.3" }, "a profile without a mode or effort passes none");
+
+  const featured = setup();
+  await assign({ ...INPUT, profile: "omp-peer--fast-off" }, { id: "lead-1" }, featured.paseo, featured.deps);
+  assert.deepEqual(
+    (featured.created[0] as { config: unknown }).config,
+    { provider: "omp-peer/factory-droid/gpt-6.1-sol", modeId: "full", featureValues: { fast_mode: false } },
+    "the profile's featureValues reach the Peer: a Lead has no create_agent to copy them",
+  );
 });
 
 test("assign refuses, with a code and no Peer, when the machine state or the profile does not match", async () => {

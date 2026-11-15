@@ -1,5 +1,5 @@
 // Delivery receipt store: `${PASEO_HOME:-~/.paseo}/epistex-delivery/<leadAgentId>.jsonl` (append-only,
-// fsync before send) plus `cursors.json` (temp file + rename). It records what was delivered; it
+// fsync before send) plus `cursors.json` and `submissions.json` (temp file + rename). It records what was delivered; it
 // holds no authority or decisions, and every seat can read or write it (same Unix user).
 import { createHash } from "node:crypto";
 import { mkdir, open, readdir, readFile, rename } from "node:fs/promises";
@@ -54,10 +54,27 @@ export interface DeliveryRecord {
   body: string;
   /** Assistant text the Peer wrote after the delivered handoff in the same turn (warning, not failure). */
   trailing?: string[];
+  /** True when the body is the text of an `epistex_submit_handoff` call, not a Peer message. */
+  submitted?: boolean;
   state: "pending" | "sent";
   createdAt: string;
   sentAt?: string;
   sendReceipt?: string;
+}
+
+/**
+ * A handoff a Peer gave to `epistex_submit_handoff`, kept until its turn ends. It is stored before the
+ * tool answers, so a plugin restart between the call and the turn end does not lose it.
+ */
+export interface Submission {
+  /** Identity of this call: a second call in the same turn replaces the first and is a new delivery. */
+  id: string;
+  taskId: string;
+  round: string;
+  candidate: string | null;
+  /** The six-cell text the Lead gets. */
+  body: string;
+  submittedAt: string;
 }
 
 interface SentUpdate {
@@ -120,6 +137,7 @@ async function syncDirectory(directory: string): Promise<void> {
 export class Outbox {
   private readonly byId = new Map<string, DeliveryRecord>();
   private cursors: Record<string, OutboxCursor> = {};
+  private submissions: Record<string, Submission> = {};
   private readonly warnings: string[] = [];
   readonly directory: string;
 
@@ -131,6 +149,7 @@ export class Outbox {
   async load(): Promise<string[]> {
     this.byId.clear();
     this.cursors = {};
+    this.submissions = {};
     this.warnings.length = 0;
     await mkdir(this.directory, { recursive: true });
     const names = (await readdir(this.directory)).filter((name) => name.endsWith(".jsonl")).sort();
@@ -163,6 +182,12 @@ export class Outbox {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") this.warnings.push(`cursors.json unreadable: ${String(error)}`);
       this.cursors = {};
+    }
+    try {
+      this.submissions = JSON.parse(await readFile(this.submissionsPath(), "utf8"));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") this.warnings.push(`submissions.json unreadable: ${String(error)}`);
+      this.submissions = {};
     }
     return [...this.warnings];
   }
@@ -233,20 +258,43 @@ export class Outbox {
     await this.writeCursors(next);
   }
 
-  /** Replace cursors.json atomically: write a temp file, fsync, rename, fsync the directory. */
+  /** The handoff a Peer submitted through the tool and whose turn has not ended yet. */
+  submission(peerAgentId: string): Submission | null {
+    return this.submissions[peerAgentId] ?? null;
+  }
+
+  async setSubmission(peerAgentId: string, submission: Submission): Promise<void> {
+    const next = { ...this.submissions, [peerAgentId]: submission };
+    await this.replace(this.submissionsPath(), next);
+    this.submissions = next;
+  }
+
+  /** Drop a Peer's submission once its receipt is durable; a newer submission is kept. */
+  async clearSubmission(peerAgentId: string, id: string): Promise<void> {
+    if (this.submissions[peerAgentId]?.id !== id) return;
+    const { [peerAgentId]: _dropped, ...next } = this.submissions;
+    await this.replace(this.submissionsPath(), next);
+    this.submissions = next;
+  }
+
   private async writeCursors(next: Record<string, OutboxCursor>): Promise<void> {
+    await this.replace(this.cursorsPath(), next);
+    this.cursors = next;
+  }
+
+  /** Replace a JSON file atomically: write a temp file, fsync, rename, fsync the directory. */
+  private async replace(file: string, value: unknown): Promise<void> {
     await mkdir(this.directory, { recursive: true });
-    const temp = `${this.cursorsPath()}.${process.pid}.tmp`;
+    const temp = `${file}.${process.pid}.tmp`;
     const handle = await open(temp, "w");
     try {
-      await handle.writeFile(JSON.stringify(next, null, 2) + "\n", "utf8");
+      await handle.writeFile(JSON.stringify(value, null, 2) + "\n", "utf8");
       await handle.sync();
     } finally {
       await handle.close();
     }
-    await rename(temp, this.cursorsPath());
+    await rename(temp, file);
     await syncDirectory(this.directory);
-    this.cursors = next;
   }
 
   receiptPath(leadAgentId: string): string {
@@ -256,5 +304,9 @@ export class Outbox {
 
   cursorsPath(): string {
     return path.join(this.directory, "cursors.json");
+  }
+
+  submissionsPath(): string {
+    return path.join(this.directory, "submissions.json");
   }
 }

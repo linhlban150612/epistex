@@ -6,7 +6,8 @@
     "read",
     "write",
     "shell",
-    "web"
+    "web",
+    "@paseo/epistex_submit_handoff"
   ],
   "permissions": {
     "rules": [
@@ -28,6 +29,13 @@
       },
       {
         "capability": "web_search",
+        "effect": "allow"
+      },
+      {
+        "capability": "mcp",
+        "match": [
+          "paseo/epistex_submit_handoff"
+        ],
         "effect": "allow"
       }
     ]

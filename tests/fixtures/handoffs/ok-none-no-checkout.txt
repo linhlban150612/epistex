@@ -1,0 +1,8 @@
+Task ID: T-1 | Round: 1
+
+Outcome: complete; Done: browser check; Not done: nothing in scope
+Candidate: none, no candidate: browser task; no Git checkout; worktree /tmp/work
+Scope: Changed: none. Read: notes.md
+Verification: Proof class: observed. opened the page, saw the banner
+Unknown / risk: none
+Ownership: stopped writing, scope returned

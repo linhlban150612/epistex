@@ -14,6 +14,22 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
 - **Entry and guard.** `index.server.ts` wires `server/plugin.ts`, which registers
   `agent.turn.after` and `agent.permission.before` through `server.addHook`. Without `addHook`, or
   when either hook cannot be registered, it logs the reason and registers nothing.
+- **Typed handoff.** `server/submit.ts` defines the agent tool `epistex_submit_handoff`;
+  `index.server.ts` adds it in `agent.open.before` to interactive sessions whose provider is a Peer
+  seat. The zod schema holds the six cells: Task ID, round, outcome (enum), done, not done, candidate,
+  read paths, proof class (enum), verification, unknown/risk, ownership. The candidate is a union:
+  `commit` (base SHA, candidate SHA, branch), `snapshot` (files, each with its sha256) or `none`
+  (reason), so a read-only or browser task has a valid candidate. The tool refuses with a code and
+  stores nothing when a SHA is not a commit of the worktree (`CANDIDATE_UNRESOLVED`), the candidate
+  is the baseline (`CANDIDATE_SAME_AS_BASE`), a snapshot file is gone or has another checksum
+  (`SNAPSHOT_FILE_MISSING`, `SNAPSHOT_MISMATCH`), a text field has a line that reads as another cell
+  (`CELL_TEXT_AMBIGUOUS`), no Lead created the session (`NO_LEAD`) or the store fails
+  (`STORE_FAILED`). The changed paths of a commit come from `git diff --name-only`, not from the
+  Peer. The tool renders the six-cell text, stores it in `submissions.json` (temp file + rename)
+  and answers `HANDOFF_STORED`; at the Peer's turn end the delivery sends that text as
+  `HANDBACK_VALID` in place of the Peer's last message, also when the turn was cut after the call
+  (a warning says so). The receipt has `submitted: true`. A Peer session without the tool still
+  hands over as text, through the parser.
 - **Typed assignment.** `server/assign.ts` defines the agent tool `epistex_assign`; `index.server.ts`
   adds it in `agent.open.before` to sessions whose provider is a Lead seat and whose purpose is
   `interactive`. The zod schema holds the brief fields that were missed in real briefs: Task ID,
@@ -204,6 +220,12 @@ Human decisions; Git history holds their dates and earlier variants.
    verified live on all eight Lead backends before the block. A Supervisor keeps `create_agent` to
    open Leads.
 
+10. A Peer hands over with `epistex_submit_handoff`. A plugin tool reaches a session only through
+    the Paseo channel, so every Peer seat has `paseoTools.enabled: true` with all 62 catalog tools
+    in `disabledTools`: the Peer sees the handoff tool and no Paseo tool. `setup-seats.sh --check`
+    enforces the list. The text handoff and its two parsers stay as the fallback and for the
+    Lead's `setup/check-handoff`; they are not removed until no Peer session uses them.
+
 ## Verification status
 
 Verified live with real role seats on Paseo 0.15.x: hook registration, handback delivery as
@@ -234,6 +256,19 @@ was asked only for tool names that contain `paseo` or `epistex`, and OMP names h
 it listed `epistex_assign` only. Not covered live: the
 snapshot baseline, a round above 1 for a replacement Peer, and a Lead that chooses the tool in a
 real task without a prompt that names it.
+
+`epistex_submit_handoff` (2026-11-15, Paseo 0.15.4): a `droid-lead` gave one task to one Peer per
+seat with `epistex_assign`; the brief did not name the handoff tool. `droid-peer`, `claude-peer`,
+`kiro-peer`, `amp-peer`, `agy-peer`, `omp-peer-1`, `omp-peer-2` and `devin-peer` committed and
+called the tool (`commit`); `droid-peer-2` got a read-only task and submitted candidate `none`;
+`codex-peer` could not write `.git` in its sandbox and submitted `BLOCKED` with a `snapshot`;
+`cursor-peer` submitted after two shell permission requests were allowed by hand (the Human's
+Cursor config allows only `ls` and `pwd`; the tool call itself needed no request). Every Lead got
+one `HANDBACK_VALID` with `submitted: true` and no `[Agent finished]`. The Codex Peer named its
+snapshot file by absolute path, which gave a false scope warning; the tool now writes a path inside
+the worktree relative to it. Not covered live: `pi-peer` (its `openai-codex` login had expired),
+`omp-peer`, `omp-peer-3`, `droid-peer-3`, `copilot-peer` (disabled), a tool refusal, a rework
+round, and whether a Peer sees any catalog tool (not asked).
 
 Fault injection (a busy Lead, missed turns plus reconcile, a crash between fsync and send, a Peer
 cut mid-turn) was run only on Paseo 0.14.0, below the required range, and not again on 0.15.x.

@@ -8,7 +8,7 @@ Devin có seat Peer và seat Supervisor. Không cấu hình Devin Lead: `setup/d
 | Field | `devin-peer` | `devin-supervisor` |
 |---|---|---|
 | `command` | `["<KIT>/setup/role-agent","peer","devin"]` | `["<KIT>/setup/role-agent","supervisor","devin"]` |
-| `paseoTools` | `enabled: false` | 15 tool Supervisor ([SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)) |
+| `paseoTools` | 0 tool; chỉ `epistex_submit_handoff` của plugin | 15 tool Supervisor ([SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)) |
 | `models` | chỉ `swe-2-high` | chỉ `swe-2-high` |
 | `thinkingOptions` | `medium` (default), `high` | `medium` (default), `high` |
 | Profile pin | `devin-peer--swe-2-high--medium`, `--high` | `devin-supervisor--swe-2-high--medium`, `--high` |

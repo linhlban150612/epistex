@@ -748,3 +748,40 @@ test("a completed turn without a handoff header: the Peer is reminded once, the 
     assert.equal(fake.sent.filter((s) => s.agentId === "peer-3").length, 0);
   });
 });
+
+test("a handoff given to epistex_submit_handoff is delivered at the turn end in place of the Peer's last message, once", async () => {
+  await scratch(async (delivery, outbox, lines) => {
+    const fake = fakePaseo(
+      { "lead-1": leadIdle, "peer-1": { id: "peer-1", provider: "droid-peer", status: "idle" } },
+      { "peer-1": [{ epoch: "e1", entries: [assistant("I submitted the handoff.", 9, { messageId: "m9" })] }, { epoch: "e1", entries: [assistant("Still nothing to add.", 12, { turnId: "t2", messageId: "m12" })] }] },
+    );
+    await delivery.ready();
+    await outbox.setSubmission("peer-1", { id: "s-1", taskId: "T-1", round: "1", candidate: "snapshot", body: VALID, submittedAt: "2026-11-15T00:00:00.000Z" });
+    // The submission is durable: a plugin restart between the tool call and the turn end keeps it.
+    const reloaded = new Outbox(outbox.directory);
+    await reloaded.load();
+    assert.equal(reloaded.submission("peer-1")?.id, "s-1");
+
+    await delivery.onTurnEnded(peerTurn({ outcome: { kind: "failed", error: { message: "Connection error." } } as TurnEndedEvent["outcome"] }), fake.paseo);
+    const [record] = outbox.records();
+    assert.equal(record.kind, "HANDBACK_VALID", "the handoff was complete before the turn was cut");
+    assert.equal(record.submitted, true);
+    assert.equal(record.body, VALID);
+    assert.equal(record.taskId, "T-1");
+    assert.equal(record.candidate, "snapshot");
+    assert.equal(record.messageId, null);
+    assert.deepEqual(record.warnings, ["turn failed: Connection error. after the handoff was submitted"]);
+    assert.equal(record.trailing, undefined, "the Peer's closing line is not trailing handoff text");
+    assert.deepEqual(outbox.cursor("peer-1"), { epoch: "e1", seq: 9 });
+    assert.equal(outbox.submission("peer-1"), null, "consumed once the receipt is durable");
+    assert.equal(fake.sent.length, 1);
+    assert.equal(fake.sent[0].agentId, "lead-1");
+    assert.ok(fake.sent[0].text.endsWith(`---\n${VALID}`));
+
+    // The next turn has no submission: the Peer's message is judged again, and the Peer is reminded.
+    await delivery.onTurnEnded(peerTurn({ turnId: "t2" }), fake.paseo);
+    assert.deepEqual(outbox.records().map((r) => r.kind), ["HANDBACK_VALID", "PEER_REMINDED"]);
+    assert.match(PEER_REMINDER, /call epistex_submit_handoff/);
+    assert.ok(lines.some((line) => line.startsWith("info recorded HANDBACK_VALID")));
+  });
+});

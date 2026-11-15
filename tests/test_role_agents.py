@@ -208,9 +208,9 @@ for line in sys.stdin:
                         env={**os.environ, "PATH": folder, "HOME": folder, "CURSOR_CONFIG_DIR": str(config), "FAULT": ""})
                     replies = {r["id"]: r for r in map(json.loads, result.stdout.splitlines()) if "id" in r}
                     self.assertEqual(replies[1]["result"]["models"]["currentModelId"], default, result.stderr)
-                    # Cursor ACP has no bypass mode: a Lead is allowed exactly its Paseo tools and epistex_assign, a Peer none,
-                    # and only in the seat's private copy of cli-config.json.
-                    self.assertEqual(replies[0]["result"]["allow"], None if role == "peer" else [
+                    # Cursor ACP has no bypass mode: a Lead is allowed exactly its Paseo tools and epistex_assign,
+                    # a Peer only the handoff tool, and only in the seat's private copy of cli-config.json.
+                    self.assertEqual(replies[0]["result"]["allow"], ["Mcp(paseo:epistex_submit_handoff)"] if role == "peer" else [
                         f"Mcp(paseo:{tool})" for tool in (
                             "list_workspaces", "list_providers", "list_models", "list_profiles",
                             "send_agent_prompt", "cancel_agent", "archive_agent", "epistex_assign")])

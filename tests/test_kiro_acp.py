@@ -104,6 +104,7 @@ LEAD_POLICY = ['list_workspaces', 'list_providers', 'list_models', 'list_profile
                'send_agent_prompt', 'cancel_agent', 'archive_agent']
 # epistex_assign is the delivery plugin tool: the only way a Lead creates a Peer, so its tag is required.
 LEAD_TAGS = ','.join('@paseo/' + t for t in LEAD_POLICY + ['epistex_assign'])
+PEER_TAG = '@paseo/epistex_submit_handoff'
 
 
 class Client:
@@ -284,7 +285,7 @@ class KiroACPTest(unittest.TestCase):
             c.send('session/set_config_option',
                    {'sessionId': 'seat', 'configId': 'effortLevel', 'value': 'medium'}, 'e')
             self.assertEqual(c.call('session/load', sessionId='seat', cwd=str(self.cwd), mcpServers=['paseo'])
-                             ['error']['message'], 'Kiro Peer does not accept injected MCP servers')
+                             ['error']['message'], 'Kiro Peer requires an injected Paseo MCP server list')
             self.assertIn('result', c.response('e'))
         with self.subTest('load restoring an unsupported model clears authorization'):
             c = self.client(BAD_LOAD_MODEL='1')
@@ -321,14 +322,30 @@ class KiroACPTest(unittest.TestCase):
     def test_peer_tool_inventory_and_mcp_rejection(self):
         with self.subTest('seat-owned Peer config'):
             peer = json.loads((ROOT / 'setup/kiro-peer.json').read_text())
-            self.assertFalse([t for t in peer['tools'] if t.startswith('@') or t in ('subagent', '*')])
+            # The one Paseo-channel tool of a Peer is the delivery plugin's handoff tool; no Paseo catalog tool.
+            self.assertEqual([t for t in peer['tools'] if t.startswith('@') or t in ('subagent', '*')], [PEER_TAG])
+            self.assertEqual([r['match'] for r in peer['permissions']['rules'] if r['capability'] == 'mcp'],
+                             [['paseo/epistex_submit_handoff']])
             self.assertNotIn('allowedTools', peer)  # V3 skips profiles with allowedTools but no permissions.
             self.assertEqual((peer['name'], peer['mcpServers'], peer['includeMcpJson']), ('epistex_peer', {}, False))
+        other = {**PASEO, 'name': 'other'}
         c = self.client()
         for method in ('session/new', 'session/load'):
             with self.subTest(method=method):
-                response = c.call(method, sessionId='seat', cwd=str(self.cwd), mcpServers=[PASEO])
-                self.assertEqual(response['error']['message'], 'Kiro Peer does not accept injected MCP servers')
+                response = c.call(method, sessionId='seat', cwd=str(self.cwd), mcpServers=[other])
+                self.assertEqual(response['error']['message'], 'Kiro Peer accepts only the Paseo HTTP MCP server')
+                response = c.call(method, sessionId='seat', cwd=str(self.cwd), mcpServers=[PASEO, PASEO])
+                self.assertEqual(response['error']['message'], 'Kiro Peer requires an injected Paseo MCP server list')
+        with self.subTest('Paseo channel with the handoff tool only'):
+            c = self.client(EXTRA_TOOLS=PEER_TAG)
+            self.assertIn('result', self.new(c, [PASEO]))
+            self.assertIn('result', self.prompt(c))
+        with self.subTest('Paseo channel without the handoff tool'):
+            c = self.client()
+            self.assertEqual(self.new(c, [PASEO])['error']['message'], 'Kiro exposed tools outside the Peer allowlist')
+        with self.subTest('Paseo channel that also shows a catalog tool'):
+            c = self.client(EXTRA_TOOLS=PEER_TAG + ',@paseo/send_agent_prompt')
+            self.assertEqual(self.new(c, [PASEO])['error']['message'], 'Kiro exposed tools outside the Peer allowlist')
         for tool in ('list_agents', '@paseo/list_agents', 'subagent'):
             with self.subTest(tool=tool):
                 c = self.client(EXTRA_TOOLS=tool)
@@ -431,13 +448,14 @@ class KiroACPTest(unittest.TestCase):
             peer = json.loads((ROOT / 'setup/kiro-peer.json').read_text())
             paseo = [t[len('@paseo/'):] for t in lead['tools'] if t.startswith('@')]
             self.assertEqual(paseo, LEAD_POLICY + ['epistex_assign'])
-            self.assertEqual([t for t in lead['tools'] if not t.startswith('@')], peer['tools'])
+            self.assertEqual([t for t in lead['tools'] if not t.startswith('@')], [t for t in peer['tools'] if not t.startswith('@')])
             script = (ROOT / 'setup/setup-seats.sh').read_text()
             deny = json.loads(script.split("expected_deny_lead='", 1)[1].split("'", 1)[0])
             self.assertEqual(set(deny) & set(paseo), set())
             mcp = [r for r in lead['permissions']['rules'] if r['capability'] == 'mcp']
             self.assertEqual(mcp, [{'capability': 'mcp', 'match': ['paseo/' + t for t in LEAD_POLICY + ['epistex_assign']], 'effect': 'allow'}])
-            self.assertEqual([r for r in lead['permissions']['rules'] if r['capability'] != 'mcp'], peer['permissions']['rules'])
+            self.assertEqual([r for r in lead['permissions']['rules'] if r['capability'] != 'mcp'],
+                             [r for r in peer['permissions']['rules'] if r['capability'] != 'mcp'])
             self.assertEqual((lead['name'], lead['mcpServers'], lead['includeMcpJson']), ('epistex_lead', {}, False))
         missing_one = LEAD_TAGS.rsplit(',', 1)[0]  # connected Paseo server missing one policy tool
         for tool in ('@paseo/kill_agent', 'list_workspaces', '@other/list_agents', 'subagent', missing_one):

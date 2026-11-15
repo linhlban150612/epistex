@@ -24,7 +24,7 @@ kiro-cli agent validate --path ~/.kiro/agents/epistex_peer.json
 
 Merge **chỉ** `agents.providers.kiro-peer` và bốn `daemon.agentProfiles` có provider
 `kiro-peer` từ [provider mẫu](../../examples/paseo-providers.json), thay `<KIT>` bằng
-đường dẫn kit. Giữ nguyên các provider khác. `extends=acp`, `paseoTools.enabled=false`.
+đường dẫn kit. Giữ nguyên các provider khác. `extends=acp`; `paseoTools` của Peer bật với đủ 62 tool catalog trong `disabledTools` ([SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)).
 Không thêm MCP server vào new/load của Peer.
 
 | Model | Effort | Profile |
@@ -125,8 +125,7 @@ Authentication do CLI giữ (`--auth-method=cli`); adapter không trả `_kiro/a
 
 ## Native topology và role
 
-Peer seat dùng allowlist native tools; **không có `subagent`, `goal` hoặc Paseo MCP** (Lead
-giữ đúng một server Paseo injected như trên). New/load
+Peer seat dùng allowlist native tools cộng đúng một tag `@paseo/epistex_submit_handoff` (tool handoff của [delivery plugin](delivery-plugin.md)); **không có `subagent`, `goal` hoặc tool catalog Paseo**. Adapter nhận đúng một server Paseo injected cho mọi role, và từ chối session Peer có kênh Paseo mà thiếu tag này hoặc có tag Paseo khác. New/load
 chỉ thành công sau khi mode/model và raw tool inventory đã được kiểm. Load bỏ inventory/session
 validation cũ, đợi advertisement mới và kiểm lại inventory ngay trước response thành công;
 inventory unsafe xuất hiện trong lúc confirmation làm load thất bại. Runtime installed phải

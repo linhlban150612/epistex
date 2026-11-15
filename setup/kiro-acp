@@ -31,9 +31,9 @@ EXTENSIONS = ("_kiro/session/context", "_kiro/session/compact")
 
 
 def mcp_error(servers):
-    """Peer accepts no MCP server; Lead and Supervisor accept [] probes or Paseo's injected loopback server."""
-    if ROLE == "peer":
-        return "Kiro Peer does not accept injected MCP servers" if servers else None
+    """Every role accepts a [] probe or Paseo's injected loopback server, and nothing else."""
+    if ROLE == "peer" and not servers:
+        return None  # A Peer session without the Paseo channel has native tools only.
     if (not isinstance(servers, list) or len(servers) > 1
             or (servers and not isinstance(servers[0], dict))):
         return f"{NAME} requires an injected Paseo MCP server list"

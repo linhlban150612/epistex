@@ -72,10 +72,10 @@ export interface DeliveryOptions {
 export const PEER_REMINDER = [
   "[epistex-delivery]",
   "kind: PEER_REMINDED",
-  "Your turn ended without a handoff: your last message has no header 'Task ID: … | Round: …', so nothing went to the Lead and nothing wakes you later.",
-  "- Work finished or stopped: send the six-cell handoff of § Handoff as your last message.",
-  "- A job you started still runs: wait for it inside the turn (waiting-on-long-jobs skill), or hand over with Outcome: partial, the PID and the log path.",
-  "- A question or a blocker: put it in the handoff with Outcome BLOCKED, REOPEN_REQUEST or DEPENDENCY_REQUEST.",
+  "Your turn ended without a handoff: you did not call epistex_submit_handoff and your last message has no header 'Task ID: … | Round: …', so nothing went to the Lead and nothing wakes you later.",
+  "- Work finished or stopped: call epistex_submit_handoff; without that tool, send the six-cell handoff of § Handoff as your last message.",
+  "- A job you started still runs: wait for it inside the turn (waiting-on-long-jobs skill), or hand over with outcome partial, the PID and the log path.",
+  "- A question or a blocker: put it in the handoff with outcome BLOCKED, REOPEN_REQUEST or DEPENDENCY_REQUEST.",
   "This reminder is sent once. It is not a new assignment and gives no new scope or authority.",
 ].join("\n");
 const REMINDED_WARNING = "peer was reminded once and again ended its turn without a handoff";
@@ -373,8 +373,10 @@ export class Delivery {
         break;
       }
     }
-    const last = candidates[handoffAt];
-    const trailing = candidates.slice(handoffAt + 1).map((entry) => entry.item.text ?? "");
+    // A handoff given to epistex_submit_handoff is the handoff of this turn: the Peer's messages are not judged.
+    const submitted = this.outbox.submission(peerAgentId);
+    const last = submitted ? undefined : candidates[handoffAt];
+    const trailing = submitted ? [] : candidates.slice(handoffAt + 1).map((entry) => entry.item.text ?? "");
     const cursor: OutboxCursor | null = end ? { epoch: page.epoch, seq: end.seqEnd } : this.outbox.cursor(peerAgentId);
 
     let kind: DeliveryKind;
@@ -392,7 +394,14 @@ export class Delivery {
     let body = "";
     let lastMessageId: string;
     let scopeCell = "";
-    if (!last) {
+    if (submitted) {
+      kind = "HANDBACK_VALID";
+      reasons = [];
+      codes = [];
+      ({ taskId, round, candidate, body } = submitted);
+      scopeCell = classifyHandoff(body).cells.Scope ?? "";
+      lastMessageId = `submit:${submitted.id}`;
+    } else if (!last) {
       if (event.turnId && this.outbox.forTurn(peerAgentId, event.turnId)) {
         this.log.info(`turn ${event.turnId} of ${peerAgentId} already recorded; replay ignored`);
         return;
@@ -441,6 +450,7 @@ export class Delivery {
     } else {
       const warnings = roundWarnings({ peerAgentId, leadAgentId, taskId, round }, this.outbox.records());
       // The Lead did not see the reminded turn: its warnings (brief, scope, tool calls) travel with this one.
+      if (submitted && outcomeKnown && event.outcome.kind !== "completed") warnings.push(`${describeOutcome(event.outcome)} after the handoff was submitted`);
       if (previous?.kind === "PEER_REMINDED") {
         if (kind !== "HANDBACK_VALID") warnings.push(REMINDED_WARNING);
         warnings.push(...(previous.warnings ?? []).filter((warning) => !warning.startsWith("peer session at ")));
@@ -483,11 +493,13 @@ export class Delivery {
         toolCalls,
         body,
         ...(trailing.length ? { trailing } : {}),
+        ...(submitted ? { submitted: true } : {}),
         state: "pending",
         createdAt: this.now(),
       });
       this.log.info(`recorded ${kind} ${id.slice(0, 12)} from ${peerAgentId} for lead ${leadAgentId}`);
     }
+    if (submitted) await this.outbox.clearSubmission(peerAgentId, submitted.id); // only after the record is durable
     if (cursor) await this.outbox.setCursor(peerAgentId, cursor); // only after the record is durable
   }
 
@@ -553,7 +565,8 @@ export class Delivery {
   private lastRecordedText(peerAgentId: string): string | null {
     const newest = this.outbox
       .records()
-      .filter((record) => record.peerAgentId === peerAgentId && record.kind !== "PERMISSION_REQUESTED" && (record.body || record.trailing?.length))
+      // A submitted handoff is not in the timeline as assistant text, so it cannot be the anchor.
+      .filter((record) => record.peerAgentId === peerAgentId && record.kind !== "PERMISSION_REQUESTED" && !record.submitted && (record.body || record.trailing?.length))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
     return newest ? (newest.trailing?.at(-1) ?? newest.body) : null;
   }

@@ -17,6 +17,7 @@ KEEP_SUPERVISOR = KEEP_LEAD | {"create_agent", "create_workspace", "get_agent_ac
                                "list_pending_permissions", "respond_to_permission", "set_agent_mode"}
 DENY_LEAD = CATALOG - KEEP_LEAD
 DENY_SUPERVISOR = CATALOG - KEEP_SUPERVISOR
+PEER_SEAT = re.compile(r"-peer(-\d)?$")
 
 
 class SetupSeatsTest(unittest.TestCase):
@@ -128,7 +129,8 @@ class SetupSeatsTest(unittest.TestCase):
         self.assertEqual(set(json.loads(match.group(1))), DENY_LEAD)
         for key, provider in self.data["agents"]["providers"].items():
             if provider.get("paseoTools", {}).get("enabled") is True:
-                expected = DENY_SUPERVISOR if key.endswith("-supervisor") else DENY_LEAD
+                # A Peer keeps no Paseo tool: its channel is on only for the plugin tool epistex_submit_handoff.
+                expected = DENY_SUPERVISOR if key.endswith("-supervisor") else CATALOG if PEER_SEAT.search(key) else DENY_LEAD
                 self.assertEqual(set(provider["paseoTools"]["disabledTools"]), expected, key)
 
         self.save()
@@ -203,8 +205,14 @@ class SetupSeatsTest(unittest.TestCase):
              "amp-supervisor: paseoTools.disabledTools must exactly match"),
             ("supervisor deny-list on lead", deny("codex-lead", sorted(DENY_SUPERVISOR)),
              "codex-lead: paseoTools.disabledTools must exactly match"),
-            ("peer with Paseo tools", lambda d: seat(d, "codex-peer").__setitem__("paseoTools", {"enabled": True}),
-             "codex-peer: enabled Paseo seat must be a Lead or Supervisor"),
+            ("peer without a deny-list", lambda d: seat(d, "codex-peer").__setitem__("paseoTools", {"enabled": True}),
+             "codex-peer: paseoTools.disabledTools must exactly match"),
+            ("peer with a Paseo tool", deny("droid-peer", sorted(CATALOG - {"send_agent_prompt"})),
+             "droid-peer: paseoTools.disabledTools must exactly match"),
+            ("peer with the Lead deny-list", deny("omp-peer-1", sorted(DENY_LEAD)),
+             "omp-peer-1: paseoTools.disabledTools must exactly match"),
+            ("peer without the Paseo channel", lambda d: seat(d, "claude-peer").__setitem__("paseoTools", {"enabled": False}),
+             "claude-peer: paseoTools.enabled must be true"),
             ("MCP injection disabled", lambda d: d["daemon"]["mcp"].__setitem__("enabled", False),
              "Paseo MCP injection is not enabled"),
             ("Claude compaction window", lambda d: seat(d, "claude-lead")["env"].__setitem__(

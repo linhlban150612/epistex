@@ -40,6 +40,8 @@ const NO_CANDIDATE = new RegExp(
 // Sub-label of the Verification cell: how far the Peer's own evidence goes.
 const PROOF_CLASSES = ["observed", "e2e", "tests-only", "none"] as const;
 const PROOF = new RegExp(ws(`${B}Proof class${EMPH}?[ \\t]*:${EMPH}?[ \\t]*[*_\`]*(${PROOF_CLASSES.join("|")})${B}`), "iu");
+// Written by epistex_submit_handoff when the Peer's directory has no Git HEAD: there is no base SHA to name.
+const NO_CHECKOUT = new RegExp(`${B}no Git checkout${B}`, "u");
 const STOPPED = new RegExp(`${B}(?:BLOCKED|REOPEN_REQUEST|DEPENDENCY_REQUEST)${B}`, "u");
 
 export interface HandoffHeader {
@@ -121,10 +123,10 @@ export function classifyHandoff(text: string): HandoffClassification {
   const shas = [...candidate.matchAll(SHA)].map((match) => match[0]);
   // Candidate identity, one of: two commit SHAs; a sha256 checksum with a path; a turn that stopped
   // (BLOCKED, REOPEN_REQUEST, DEPENDENCY_REQUEST), where any non-empty cell is enough; or a base SHA
-  // with a clear statement that there is no candidate.
+  // (or the words "no Git checkout") with a clear statement that there is no candidate.
   const snapshot = candidate.search(SHA256) >= 0 && PATH.test(candidate.replace(SHA256, ""));
   const stopped = STOPPED.test(cells.Outcome ?? "");
-  const baseOnly = shas.length >= 1 && NO_CANDIDATE.test(candidate);
+  const baseOnly = (shas.length >= 1 || NO_CHECKOUT.test(candidate)) && NO_CANDIDATE.test(candidate);
   if (header !== null && !missing.length && shas.length < 2 && !snapshot && !stopped && !baseOnly) {
     reasons.push(`Candidate cell needs base SHA and candidate SHA (found ${shas.length})`);
     codes.push("CANDIDATE_IDENTITY");

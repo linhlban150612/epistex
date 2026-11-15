@@ -61,6 +61,7 @@ Lead uses `paseoTools.disabledTools` to block the catalog and keeps exactly 7 to
 `list_workspaces`, `list_providers`, `list_models`, `list_profiles`, `send_agent_prompt`,
 `cancel_agent`, `archive_agent`. A Lead creates a Peer only with `epistex_assign`, the tool of the [delivery plugin](docs/setup/delivery-plugin.md); `create_agent` is blocked for it. Supervisor also keeps `create_agent` (it opens Leads), `create_workspace`, `get_agent_activity`, `list_agents`, `list_hosts`,
 `list_pending_permissions`, `respond_to_permission` and `set_agent_mode` (15 tools kept; 47 blocked). Lead does not have `get_agent_activity`, `get_agent_status` and `list_agents`, so Lead waits for deliveries instead of polling or reading the Peer timeline; nor `list_hosts`, so Lead does not discover connected hosts; nor the permission and mode tools, because a Lead relays a permission request and never answers it. Supervisor reads an agent's status with `list_agents`; `get_agent_status` is blocked for both. Kiro and Droid Supervisor/Lead use the same policy.
+Peer keeps no Paseo tool: `paseoTools.enabled: true` with all 62 catalog tools in `disabledTools`. The channel is on only for `epistex_submit_handoff`, the handoff tool of the delivery plugin; a seat with `enabled: false` cannot see a plugin tool. `--check` enforces the three deny-lists.
 Lead runs without approval waits: Lead profiles use a bypass mode (`claude-lead` `bypassPermissions`, `agy-lead` `default` (`agy acp` asks no permission for shell or Paseo calls in it; verified live), `droid-lead` `auto-high` (also `droid-supervisor`), `codex-lead` `full-access`: approval `never`, sandbox `danger-full-access`); `kiro-lead` auto-approves through agent `permissions.rules` (V3). `amp-lead` uses `local`: amp-acp has no bypass mode. `omp-lead` and `omp-supervisor` use `full`, `devin-supervisor` uses `bypass`. `cursor-lead` and `cursor-supervisor` use `agent`: Cursor ACP has no bypass mode, so `setup/cursor-acp` allows exactly the role's Paseo tools in the seat's private `cli-config.json` ([cursor.md](docs/setup/cursor.md)).
 Codex Peer profiles use `modeId: auto-review` ([why](docs/setup/codex-runtime.md#peer-sandbox-and-worktrees)); `setup-seats.sh --check` rejects `codex-peer` profiles without it. Claude Peer profiles use `modeId: bypassPermissions`: `acceptEdits` stops a non-interactive Peer on its first Bash permission request; `--check` rejects other modes.
 Paseo does not inherit a Lead's mode into a Peer of another provider: `create_agent` without `modeId` fails with `cannot inherit mode`
@@ -242,7 +243,7 @@ backend that is on Paseo's PATH; the registry version is not a pin of the seat.
 
 - **Merge:** back up, then merge into `.agents.providers`. Do not replace the original backend or its
   credential/config home.
-- **MCP:** keep injection enabled in the daemon (§3). A Peer seat has `paseoTools.enabled=false`; a Lead or Supervisor seat has the deny-list of §3.
+- **MCP:** keep injection enabled in the daemon (§3). Every seat has `paseoTools.enabled=true` with the deny-list of its role (§3); a Peer seat blocks all 62 catalog tools.
 - **Schema entry:** `extends: "acp"`, `enabled: true`, `env: {}`, `command` of the form
   `["<KIT>/setup/role-agent","<role>","<backend>"]`; `models: [{"id":"<MODEL>","label":"<LABEL>","isDefault":true}]`,
   add `thinkingOptions: [{"id":"<EFFORT>","label":"<LABEL>","isDefault":true}]` when the backend has effort.
@@ -252,6 +253,6 @@ backend that is on Paseo's PATH; the registry version is not a pin of the seat.
   Do not add project policy to a provider or edit the backend's global instructions.
 - **Live verify:** after `paseo reload`, create a new session with the real model/effort and mode from discovery.
   Check the role heading from the context the agent actually receives, the CWD with `pwd`, the model/effort and the inventory,
-  including deferred discovery; a Peer must not see Paseo tools. Do not enable delegation in a smoke test.
+  including deferred discovery; a Peer must see `epistex_submit_handoff` and no Paseo catalog tool. Do not enable delegation in a smoke test.
   A native backend tool/subagent is not the same as Paseo MCP; role/tool visibility is not
   an OS sandbox. The Codex checker and diagnostics do not replace live verification.

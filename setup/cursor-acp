@@ -44,13 +44,11 @@ ROLE_MODELS = {
 
 
 def paseo_allow(role):
-    """Permission tokens for the Paseo tools this role keeps, or [] for a Peer.
+    """Permission tokens for the Paseo tools this role keeps; for a Peer, the handoff tool only.
 
-    Cursor ACP has no bypass mode: without them a Lead or Supervisor stops on a permission request at
+    Cursor ACP has no bypass mode: without them a seat stops on a permission request at
     each Paseo call. The kept tools are the `@paseo/<tool>` entries of the Kiro agent file of the role.
     """
-    if role == "peer":
-        return []
     tools = json.loads((ROOT / f"setup/kiro-{role}.json").read_text())["tools"]
     return [f"Mcp(paseo:{tool.removeprefix('@paseo/')})" for tool in tools if tool.startswith("@paseo/")]
 

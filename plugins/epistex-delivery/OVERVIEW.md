@@ -10,7 +10,8 @@ How it works:
   same parser as `setup/check-handoff`; text after it is attached as a warning, and without a valid
   handoff the last message is classified), writes a receipt to
   `${PASEO_HOME:-~/.paseo}/epistex-delivery/`, and sends a `[epistex-delivery]` message to the Lead.
-  A completed turn whose last message has no handoff header gets one fixed reminder, sent to the
+  A handoff the Peer gave to `epistex_submit_handoff` in that turn is delivered in place of its last message.
+  A completed turn without that call and whose last message has no handoff header gets one fixed reminder, sent to the
   Peer instead of the Lead; the Lead hears of the Peer's next turn end.
 - On every `agent.permission.before` hook for such a Peer, the plugin sends a
   `PERMISSION_REQUESTED` message with the Peer's `agentId` and `requestId` to the Lead's Supervisor
@@ -22,12 +23,17 @@ How it works:
   compared with the worktree's HEAD, and the composed brief passes the `setup/check-brief` rules
   before the Peer is created. A refusal names its code and creates nothing.
 
+- On the same hook for an interactive Peer seat, the plugin adds the agent tool
+  `epistex_submit_handoff`: the six handoff cells are schema fields, the candidate is a commit, a
+  snapshot or none, and commit SHAs and snapshot checksums are checked against the worktree. A
+  refusal names its code and sends nothing.
+
 A message waits in the receipt store while its recipient is mid-turn and is sent when that
 recipient's turn ends. Delivery is at least once; the recipient processes each `delivery-id` once.
 
 Requirements: Paseo `>=0.15.0 <0.16`. The plugin registers both delivery hooks or none when the daemon does
 not expose the lifecycle API it was built against; the tool hook is registered apart, so a failure there leaves delivery on.
 
-Limits: the plugin delivers, reminds, and creates a Peer only inside a Lead's `epistex_assign` call. It never
+Limits: the plugin delivers, reminds, and creates a Peer only inside a Lead's `epistex_assign` call. It stores a handoff only inside a Peer's `epistex_submit_handoff` call. It never
 cancels, archives, reloads or re-modes agents, never answers permissions, and runs no timers, schedules or periodic scans. It runs unsandboxed as
 the same Unix user as the daemon and every seat; the receipt store is not a trust boundary.

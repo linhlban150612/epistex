@@ -169,6 +169,9 @@ else
   # Lead creates a Peer only with the delivery plugin tool epistex_assign: no create_agent.
   # Lead waits for deliveries and never answers a permission: no status, list, activity, permission or mode tools.
   # Supervisor keeps them, except get_agent_status (list_agents gives the status).
+  # Peer keeps no Paseo tool. Its Paseo channel is on only for the delivery plugin tool epistex_submit_handoff,
+  # which is not in the catalog: a seat with the channel off cannot see a plugin tool.
+  expected_deny_peer=$(jq -c '. + ["archive_agent","cancel_agent","list_models","list_profiles","list_providers","list_workspaces","send_agent_prompt"] | sort' <<<"$expected_deny_lead")
   expected_deny_supervisor=$(jq -c '. - ["create_agent","create_workspace","get_agent_activity","list_agents","list_hosts","list_pending_permissions","respond_to_permission","set_agent_mode"]' <<<"$expected_deny_lead")
 
   while IFS= read -r provider; do
@@ -176,11 +179,15 @@ else
     case "$provider" in
       *-lead) expected_deny=$expected_deny_lead ;;
       *-supervisor) expected_deny=$expected_deny_supervisor ;;
-      *) fail "$provider: enabled Paseo seat must be a Lead or Supervisor"; continue ;;
+      *-peer | *-peer-[0-9]) expected_deny=$expected_deny_peer ;;
+      *) fail "$provider: enabled Paseo seat must be a Lead, Supervisor or Peer"; continue ;;
     esac
+    jq -e --arg id "$provider" '.agents.providers[$id].paseoTools.enabled == true' "$paseo_config" >/dev/null ||
+      { fail "$provider: paseoTools.enabled must be true (a Peer needs the channel for epistex_submit_handoff)"; continue; }
     actual=$(jq -c --arg id "$provider" '.agents.providers[$id].paseoTools.disabledTools | if type == "array" and all(.[]; type == "string") then sort else null end' "$paseo_config")
     [[ "$actual" == "$(jq -c 'sort' <<<"$expected_deny")" ]] || fail "$provider: paseoTools.disabledTools must exactly match the deny-list"
-  done < <(jq -r '.agents.providers | to_entries[] | select(.value.enabled == true and .value.paseoTools.enabled == true) | .key' "$paseo_config")
+  done < <(jq -r '.agents.providers | to_entries[] | select(.value.enabled == true and (.value.paseoTools.enabled == true or
+      (.key | test("^(codex|claude|amp|agy|pi|omp|copilot|cursor|kiro|droid|devin)-(lead|peer|supervisor)(-[0-9])?$")))) | .key' "$paseo_config")
   jq -e '.daemon.mcp.enabled != false and .daemon.mcp.injectIntoAgents == true' \
     "$paseo_config" >/dev/null || fail 'Paseo MCP injection is not enabled'
   # A backend seat other than Codex is checked only when the config has it and does not disable it (SETUP.md §4).
@@ -216,7 +223,7 @@ else
       .agents.providers[$key] | .models as $models |
       .extends == "codex" and .enabled == true and
       .command == [$command, $role] and
-      .paseoTools.enabled == ($role == "lead") and
+      .paseoTools.enabled == true and
       ([.models[] | select(.isDefault == true)] | length) == 1 and
       any(.models[]; .id == $model and .isDefault == ($role == "lead" or $model == "gpt-6-luna") and
         (if $role == "lead" then ([.thinkingOptions[] | select(.isDefault == true) | .id] == ["low"])
@@ -317,7 +324,7 @@ else
       $p.extends == "acp" and $p.enabled == true and
       $p.label == "Antigravity Peer Seat" and
       $p.command == [$command, "peer", "agy"] and
-      $p.paseoTools.enabled == false and
+      $p.paseoTools.enabled == true and
       $p.env == {} and
       ([ $p.models[] | select(.isDefault == true) | .id ]) == ["gemini-3.8-flash-low"] and
       ([ $p.models[].id ] | sort) == ["gemini-3.8-flash-low", "gemini-3.8-flash-medium", "gemini-4-argon-low", "gemini-4-argon-medium", "gemini-4-hydrogen-low", "gemini-4-hydrogen-medium"]
@@ -359,7 +366,7 @@ else
     jq -e --arg command "$kit/setup/role-agent" --arg seat "$seat" --arg role "$role" '
       .agents.providers[$seat] |
       .extends == "acp" and .enabled == true and
-      .command == [$command, $role, "devin"] and .paseoTools.enabled == ($role != "peer") and
+      .command == [$command, $role, "devin"] and .paseoTools.enabled == true and
       .env == {} and ([.models[].id]) == ["swe-2-high"] and
       all(.models[]; [.thinkingOptions[] | {id, isDefault}] ==
         [{"id": "medium", "isDefault": true}, {"id": "high", "isDefault": false}])
@@ -379,7 +386,7 @@ else
     jq -e --arg command "$kit/setup/role-agent" --arg seat "$seat" --arg role "$role" --argjson models "${pair#*:}" '
       .agents.providers[$seat] as $p |
       $p.extends == "acp" and $p.enabled == true and
-      $p.command == [$command, $role, "cursor"] and $p.paseoTools.enabled == ($role != "peer") and
+      $p.command == [$command, $role, "cursor"] and $p.paseoTools.enabled == true and
       $p.env == {} and ([$p.models[].id]) == $models and
       ([$p.models[] | select(.isDefault == true) | .id]) == [$models[0]] and
       all($p.models[]; has("thinkingOptions") | not) and
@@ -418,7 +425,7 @@ else
         --argjson efforts "$omp_efforts" '
       . as $config | .agents.providers[$seat] |
       .extends == "omp" and .command == [$command, $role, "omp"] and
-      .paseoTools.enabled == ($role != "peer") and
+      .paseoTools.enabled == true and
       (.env == {} or (.env | keys == ["OMP_PROFILE"] and (.OMP_PROFILE | type == "string" and test("^[A-Za-z0-9_-]+$")))) and
       ([.models[].id] | sort) == ($efforts | keys | map("factory-droid/" + .) | sort) and
       [.models[] | select(.isDefault == true) | .id] == ["factory-droid/" + $default] and
@@ -512,7 +519,7 @@ else
     jq -e --arg command "$kit/setup/role-agent" '
       .agents.providers["amp-peer"] |
       .extends == "acp" and .command == [$command,"peer","amp"] and
-      .paseoTools.enabled == false and .env == {} and ([.models[].id]) == ["low"]
+      .paseoTools.enabled == true and .env == {} and ([.models[].id]) == ["low"]
     ' "$paseo_config" >/dev/null || fail 'amp-peer: wrong launcher, tools or model'
     jq -e '
       [.daemon.agentProfiles[]? | select(.id == "amp-peer--low")] |
@@ -524,11 +531,11 @@ else
     kiro_default=claude-sonnet-5.5
     [[ "$role" != lead ]] || kiro_default=claude-opus-5.5
     jq -e --arg seat "$seat" '.agents.providers[$seat].enabled == true' "$paseo_config" >/dev/null || continue
-    # Lead keeps Paseo tools (deny-list enforced above); Peer has none.
+    # Lead keeps Paseo tools and Peer keeps none (deny-lists enforced above).
     jq -e --arg command "$kit/setup/role-agent" --arg seat "$seat" --arg role "$role" --arg default "$kiro_default" '
       .agents.providers[$seat] |
       .extends == "acp" and .command == [$command,$role,"kiro"] and
-      .paseoTools.enabled == ($role != "peer") and .env == {} and
+      .paseoTools.enabled == true and .env == {} and
       ([.models[].id] | sort) == ["claude-opus-5.5","claude-sonnet-5.5"] and
       ([.models[] | select(.isDefault == true) | .id] == [$default]) and
       all(.models[]; ([.thinkingOptions[].id] | sort) == ["low","medium"] and
@@ -562,7 +569,7 @@ PY
       .agents.providers["droid-peer"] |
       .extends == "acp" and .label == "Factory Droid Peer Seat" and
       .command == [$command,"peer","droid"] and
-      .paseoTools.enabled == false and ('"$droid_env"') and
+      .paseoTools.enabled == true and ('"$droid_env"') and
       ([.models[].id] | sort) == ($efforts | keys) and
       [.models[] | select(.isDefault == true) | .id] == ["claude-haiku-5-5"] and
       all(.models[]; . as $model |

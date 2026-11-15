@@ -60,6 +60,8 @@ PATH = re.compile(r"[\w.~-]*/[\w.-]+|\b[\w-]+\.[A-Za-z][A-Za-z0-9]{0,7}\b")
 SNAPSHOT = re.compile(r"snapshot|checksum|uncommitted|no candidate SHA", re.I)
 NO_CANDIDATE = re.compile(r"\b(?:none|n/a|no (?:candidate|commits?|writes?|changes?|diff)|not committed|nothing (?:written|committed|changed))\b"
                           r"|không (?:có )?(?:candidate|commit|ghi|thay đổi)", re.I)
+# Written by epistex_submit_handoff when the Peer's directory has no Git HEAD: there is no base SHA to name.
+NO_CHECKOUT = re.compile(r"\bno Git checkout\b")
 # Sub-label of the Verification cell: how far the Peer's own evidence goes.
 PROOF_CLASSES = ("observed", "e2e", "tests-only", "none")
 PROOF = re.compile(ws(r"\bProof class%s?[ \t]*:%s?[ \t]*[*_`]*(%s)\b" % (EMPH, EMPH, "|".join(PROOF_CLASSES))), re.I)
@@ -114,10 +116,10 @@ def classify_handoff(text):
     shas = SHA.findall(candidate)
     # Candidate identity, one of: two commit SHAs; a sha256 checksum with a path; a turn that stopped
     # (BLOCKED, REOPEN_REQUEST, DEPENDENCY_REQUEST), where any non-empty cell is enough; or a base SHA
-    # with a clear statement that there is no candidate.
+    # (or the words "no Git checkout") with a clear statement that there is no candidate.
     snapshot = SHA256.search(candidate) is not None and PATH.search(SHA256.sub("", candidate)) is not None
     stopped = STOPPED.search(cells.get("Outcome", "")) is not None
-    base_only = len(shas) >= 1 and NO_CANDIDATE.search(candidate) is not None
+    base_only = (len(shas) >= 1 or NO_CHECKOUT.search(candidate) is not None) and NO_CANDIDATE.search(candidate) is not None
     if header is not None and not missing and len(shas) < 2 and not snapshot and not stopped and not base_only:
         reasons.append(f"Candidate cell needs base SHA and candidate SHA (found {len(shas)})")
         codes.append("CANDIDATE_IDENTITY")

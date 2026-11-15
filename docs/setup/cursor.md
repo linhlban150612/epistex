@@ -6,7 +6,7 @@ Dùng các bước chung trong [SETUP.md](../../SETUP.md), gồm mục
 | Field | `cursor-supervisor` | `cursor-lead` | `cursor-peer` |
 |---|---|---|---|
 | `command` | `["<KIT>/setup/role-agent","supervisor","cursor"]` | `[…,"lead","cursor"]` | `[…,"peer","cursor"]` |
-| `paseoTools` | 15 tool Supervisor | 7 tool Lead | `enabled: false` |
+| `paseoTools` | 15 tool Supervisor | 7 tool Lead | 0 tool; chỉ `epistex_submit_handoff` của plugin |
 | `models` (đầu tiên là default) | `grok-4.7-medium-500k`; `grok-4.7-high-500k` | `gemini-4-carbon-medium`; `gemini-4-carbon-high` | `composer-2.5`; `grok-4.7-low`; `grok-4.7-medium` |
 | `thinkingOptions` | Không có; launcher chuyển model ID thành tham số ACP | như bên trái | như bên trái |
 | Profile pin | `cursor-supervisor--grok-4-7-medium-500k`, `--grok-4-7-high-500k` | `cursor-lead--gemini-4-carbon-medium`, `--high` | `cursor-peer--composer-2-5`, `--grok-4-7-low`, `--grok-4-7-medium` |
@@ -60,7 +60,7 @@ Không dùng `--force`, `--yolo` hoặc `--approve-mcps` để vượt lỗi quy
 ## Kiểm tra sau cập nhật
 
 Sau `paseo reload`, tạo phiên mới cho mỗi profile. Kiểm tra model, mức suy luận, Fast off,
-vai trò Peer, CWD và công cụ thực tế. `paseoTools.enabled=false` không tắt MCP riêng của Cursor.
+vai trò Peer, CWD và công cụ thực tế. Deny-list `paseoTools` không tắt MCP riêng của Cursor. Launcher thêm `Mcp(paseo:epistex_submit_handoff)` vào `permissions.allow` của Peer; lệnh shell ngoài allowlist của Human vẫn hỏi quyền.
 Nếu Cursor báo giới hạn gói hoặc quota, báo BLOCKED; không đổi model hoặc nâng cấp gói.
 
 ## Tự động thu gọn ngữ cảnh

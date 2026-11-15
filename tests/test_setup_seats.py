@@ -334,7 +334,7 @@ class SetupSeatsTest(unittest.TestCase):
             ("droid removed model kept", lambda d: seat(d, "droid-peer")["models"].append(
                 dict(model(d, "droid-peer", "glm-5.3"), id="glm-5.3-flash")), "droid-peer: wrong launcher, tools, env or model/effort"),
             ("droid model missing", lambda d: seat(d, "droid-peer")["models"].remove(
-                model(d, "droid-peer", "gemini-4-argon")), "droid-peer: wrong launcher, tools, env or model/effort"),
+                model(d, "droid-peer", "gpt-6.1-terra")), "droid-peer: wrong launcher, tools, env or model/effort"),
             ("droid effort missing", lambda d: model(d, "droid-peer", "glm-5.3").__setitem__(
                 "thinkingOptions", [o for o in model(d, "droid-peer", "glm-5.3")["thinkingOptions"] if o["id"] != "high"]),
              "droid-peer: wrong launcher, tools, env or model/effort"),

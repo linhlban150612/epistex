@@ -51,14 +51,19 @@ Do not use `github-copilot/gpt-6-luna` (Copilot quota 429). Grok 4.7 uses xAI OA
 
 ## Seat OMP trên model Factory
 
-`omp-supervisor`, `omp-lead`, `omp-peer-1`, `omp-peer-2` và `omp-peer-3` dùng provider `factory-droid` của OMP,
-với cùng model và effort như các seat Droid ([droid.md](droid.md)). `omp-peer` ở trên giữ nguyên.
+`omp-supervisor`, `omp-lead`, `omp-peer-1`, `omp-peer-2` và `omp-peer-3` dùng provider `factory-droid` của OMP.
+Catalog `factory-droid` của OMP không có `gemini-4-*` (`Model "factory-droid/gemini-4-argon" not found`, cả sau
+`omp models refresh factory-droid`); Droid 1.12.1 cũng không còn model này. Model list giống các seat Droid
+cùng role ([droid.md](droid.md)). `omp-peer` ở trên giữ nguyên.
 
 | Seat | `command` | Paseo tools | Model (`factory-droid/<id>`) | Default |
 |---|---|---|---|---|
-| `omp-supervisor` | `["<KIT>/setup/role-agent","supervisor","omp"]` | 15 tool Supervisor | `claude-opus-5-5`, `claude-sonnet-5-5`, `gpt-6.1-sol`, `gemini-4-argon`; low/medium | `claude-sonnet-5-5`, low |
-| `omp-lead` | `["<KIT>/setup/role-agent","lead","omp"]` | 7 tool Lead cộng `epistex_assign` | như `omp-supervisor` | `claude-opus-5-5`, low |
-| `omp-peer-1`…`3` | `["<KIT>/setup/role-agent","peer","omp"]` | tắt | chín model của `droid-peer`, cùng effort | `claude-haiku-5-5`, low |
+| `omp-supervisor` | `["<KIT>/setup/role-agent","supervisor","omp"]` | 15 tool Supervisor | `claude-sonnet-5-5`, `claude-opus-5-5`, `gpt-6.1-sol`, `gemini-3.8-flash`; low/medium | `claude-sonnet-5-5`, low |
+| `omp-lead` | `["<KIT>/setup/role-agent","lead","omp"]` | 7 tool Lead cộng `epistex_assign` | `claude-opus-5-5`, `claude-fable-5.1`, `gpt-6-astra`, `gpt-6.1-sol`, `claude-sonnet-5-5`; low/medium | `claude-opus-5-5`, low |
+| `omp-peer-1`…`3` | `["<KIT>/setup/role-agent","peer","omp"]` | tắt | `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5`, `claude-fable-5.1`, `gpt-6-astra`, `gpt-6.1-sol`, `gpt-6.1-terra`, `gpt-6-luna`, `gemini-3.8-flash`: low/medium; `glm-5.3`, `kimi-k3`: low/high; `deepseek-v4.1-flash-1017`: low | `claude-haiku-5-5`, low |
+
+Fable 5.1 cần account Factory bật data sharing cho publisher `anthropic`; nếu không, prompt dừng với
+`PERMISSION_DENIED` ("Access to this model requires data sharing to be enabled for publisher 'anthropic'").
 
 Mọi seat có `extends: "omp"`; mọi profile có `modeId: full`. Deny-list của Lead và Supervisor theo
 [SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor). Paseo nối MCP vào OMP bằng bridge
@@ -68,9 +73,21 @@ env, model/effort và đủ profile cho mỗi seat đang bật.
 **Login riêng cho mỗi seat.** Provider `factory-droid` của OMP dùng login lưu trong profile OMP, không
 đọc API key từ env. `env` của seat là `{}` (login mặc định trong `~/.omp/agent`, dùng chung) hoặc đúng một
 `OMP_PROFILE` (tên profile, duy nhất cho mỗi seat). Để tách login: chạy `omp --profile <tên>`, đăng nhập
-Factory bằng `/login`, rồi đặt `"env": {"OMP_PROFILE": "<tên>"}` cho seat, `paseo reload` và launch thử.
-Chưa kiểm live một seat chạy với `OMP_PROFILE`; kiểm lịch sử phiên và model discovery sau khi đặt.
-Trong config thật, `omp-peer-2` và `omp-peer-3` tắt và không có profile cho đến khi có login riêng.
+Factory bằng `/login` (hoặc `omp --profile <tên> login factory-droid`), rồi đặt `"env": {"OMP_PROFILE": "<tên>"}`
+cho seat, `paseo reload` và launch thử. Kiểm session mới nằm trong `~/.omp/profiles/<tên>/agent/sessions`,
+không nằm trong `~/.omp/agent/sessions`. Dùng account Factory khác cho mỗi profile nếu cần quota riêng.
+Không dùng tên profile `omp-lead` hoặc `omp-peer` có sẵn: `AGENTS.md` của chúng có thể trỏ tới prompt khác.
+Profile mới không có `config.yml`, extension hay memory của `~/.omp/agent`; agent cũ của seat lưu session
+trong `~/.omp/agent`, nên tạo agent mới sau khi đổi `OMP_PROFILE`.
+
+Trạng thái live (2026-11-15, OMP 18.20.2): cả năm seat chạy với `OMP_PROFILE` `epistex-<seat>`
+(`epistex-omp-lead`, `epistex-omp-supervisor`, `epistex-omp-peer-1`…`3`), mỗi profile một account Factory
+khác nhau. Mỗi seat ở mode `full`, model mặc định/low, nhận heading role đúng, CWD đúng và ghi session vào
+profile riêng. `omp-supervisor` thấy 15 tool Paseo, `omp-lead` thấy 7 tool Paseo cộng `epistex_assign`,
+`omp-peer-1`…`3` không có tool Paseo. Model mới, mỗi seat một launch ở low: `omp-lead` `gpt-6-astra`,
+`omp-supervisor` `gemini-3.8-flash` và `omp-peer-1`…`3` `gpt-6-astra`, `gpt-6.1-terra`, `gpt-6-luna` nhận
+heading role đúng; `claude-fable-5.1` chạy trên `omp-peer-1` và `omp-peer-2`, bị `PERMISSION_DENIED` trên
+`omp-lead` và `omp-peer-3` (account chưa bật data sharing cho `anthropic`).
 
 Trạng thái live (2026-11-14, OMP 18.20.0, Paseo 0.15.4, login mặc định): `omp-supervisor` Sonnet/low thấy
 đúng 15 tool Paseo, `omp-lead` Opus/low thấy đúng 8 tool (trước khi `create_agent` bị chặn cho Lead); cả hai gọi `list_workspaces` không bị hỏi quyền

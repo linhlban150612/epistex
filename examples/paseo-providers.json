@@ -1626,8 +1626,25 @@
             ]
           },
           {
-            "id": "claude-sonnet-5-5",
-            "label": "Claude Sonnet 5.5",
+            "id": "claude-fable-5.1",
+            "label": "Claude Fable 5.1",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "gpt-6-astra",
+            "label": "GPT-6 Astra",
             "isDefault": false,
             "thinkingOptions": [
               {
@@ -1660,8 +1677,8 @@
             ]
           },
           {
-            "id": "gemini-4-argon",
-            "label": "Gemini 4 Argon",
+            "id": "claude-sonnet-5-5",
+            "label": "Claude Sonnet 5.5",
             "isDefault": false,
             "thinkingOptions": [
               {
@@ -1743,9 +1760,9 @@
         },
         "models": [
           {
-            "id": "claude-opus-5-5",
-            "label": "Claude Opus 5.5",
-            "isDefault": false,
+            "id": "claude-sonnet-5-5",
+            "label": "Claude Sonnet 5.5",
+            "isDefault": true,
             "thinkingOptions": [
               {
                 "id": "low",
@@ -1760,9 +1777,9 @@
             ]
           },
           {
-            "id": "claude-sonnet-5-5",
-            "label": "Claude Sonnet 5.5",
-            "isDefault": true,
+            "id": "claude-opus-5-5",
+            "label": "Claude Opus 5.5",
+            "isDefault": false,
             "thinkingOptions": [
               {
                 "id": "low",
@@ -1794,8 +1811,8 @@
             ]
           },
           {
-            "id": "gemini-4-argon",
-            "label": "Gemini 4 Argon",
+            "id": "gemini-3.8-flash",
+            "label": "Gemini 3.8 Flash",
             "isDefault": false,
             "thinkingOptions": [
               {
@@ -1828,9 +1845,9 @@
         },
         "models": [
           {
-            "id": "gemini-4-argon",
-            "label": "Gemini 4 Argon",
-            "isDefault": false,
+            "id": "claude-haiku-5-5",
+            "label": "Claude Haiku 5.5",
+            "isDefault": true,
             "thinkingOptions": [
               {
                 "id": "low",
@@ -1845,8 +1862,8 @@
             ]
           },
           {
-            "id": "gemini-3.8-flash",
-            "label": "Gemini 3.8 Flash",
+            "id": "claude-sonnet-5-5",
+            "label": "Claude Sonnet 5.5",
             "isDefault": false,
             "thinkingOptions": [
               {
@@ -1879,8 +1896,8 @@
             ]
           },
           {
-            "id": "claude-sonnet-5-5",
-            "label": "Claude Sonnet 5.5",
+            "id": "claude-fable-5.1",
+            "label": "Claude Fable 5.1",
             "isDefault": false,
             "thinkingOptions": [
               {
@@ -1896,9 +1913,9 @@
             ]
           },
           {
-            "id": "claude-haiku-5-5",
-            "label": "Claude Haiku 5.5",
-            "isDefault": true,
+            "id": "gpt-6-astra",
+            "label": "GPT-6 Astra",
+            "isDefault": false,
             "thinkingOptions": [
               {
                 "id": "low",
@@ -1915,6 +1932,57 @@
           {
             "id": "gpt-6.1-sol",
             "label": "GPT-6.1 Sol",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "gpt-6.1-terra",
+            "label": "GPT-6.1 Terra",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "gpt-6-luna",
+            "label": "GPT-6 Luna",
+            "isDefault": false,
+            "thinkingOptions": [
+              {
+                "id": "low",
+                "label": "Low",
+                "isDefault": true
+              },
+              {
+                "id": "medium",
+                "label": "Medium",
+                "isDefault": false
+              }
+            ]
+          },
+          {
+            "id": "gemini-3.8-flash",
+            "label": "Gemini 3.8 Flash",
             "isDefault": false,
             "thinkingOptions": [
               {
@@ -3238,55 +3306,19 @@
         "notes": "Lead: frame scope, coordinate Peers, review evidence and accept work. Do not write project artifacts. Do not automatically create Peers on the Lead's backend provider; use Human-authorized alternatives or report BLOCKED. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
-        "id": "droid-peer--gemini-4-argon--low",
-        "name": "droid-peer · gemini-4-argon · low",
+        "id": "droid-peer--claude-haiku-5-5--low",
+        "name": "droid-peer · claude-haiku-5-5 · low",
         "provider": "droid-peer",
-        "model": "gemini-4-argon",
+        "model": "claude-haiku-5-5",
         "thinkingOptionId": "low",
         "modeId": "auto-high",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
       },
       {
-        "id": "droid-peer--gemini-4-argon--medium",
-        "name": "droid-peer · gemini-4-argon · medium",
+        "id": "droid-peer--claude-haiku-5-5--medium",
+        "name": "droid-peer · claude-haiku-5-5 · medium",
         "provider": "droid-peer",
-        "model": "gemini-4-argon",
-        "thinkingOptionId": "medium",
-        "modeId": "auto-high",
-        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
-      },
-      {
-        "id": "droid-peer--gemini-3-8-flash--low",
-        "name": "droid-peer · gemini-3.8-flash · low",
-        "provider": "droid-peer",
-        "model": "gemini-3.8-flash",
-        "thinkingOptionId": "low",
-        "modeId": "auto-high",
-        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
-      },
-      {
-        "id": "droid-peer--gemini-3-8-flash--medium",
-        "name": "droid-peer · gemini-3.8-flash · medium",
-        "provider": "droid-peer",
-        "model": "gemini-3.8-flash",
-        "thinkingOptionId": "medium",
-        "modeId": "auto-high",
-        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
-      },
-      {
-        "id": "droid-peer--claude-opus-5-5--low",
-        "name": "droid-peer · claude-opus-5-5 · low",
-        "provider": "droid-peer",
-        "model": "claude-opus-5-5",
-        "thinkingOptionId": "low",
-        "modeId": "auto-high",
-        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
-      },
-      {
-        "id": "droid-peer--claude-opus-5-5--medium",
-        "name": "droid-peer · claude-opus-5-5 · medium",
-        "provider": "droid-peer",
-        "model": "claude-opus-5-5",
+        "model": "claude-haiku-5-5",
         "thinkingOptionId": "medium",
         "modeId": "auto-high",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
@@ -3310,19 +3342,55 @@
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
       },
       {
-        "id": "droid-peer--claude-haiku-5-5--low",
-        "name": "droid-peer · claude-haiku-5-5 · low",
+        "id": "droid-peer--claude-opus-5-5--low",
+        "name": "droid-peer · claude-opus-5-5 · low",
         "provider": "droid-peer",
-        "model": "claude-haiku-5-5",
+        "model": "claude-opus-5-5",
         "thinkingOptionId": "low",
         "modeId": "auto-high",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
       },
       {
-        "id": "droid-peer--claude-haiku-5-5--medium",
-        "name": "droid-peer · claude-haiku-5-5 · medium",
+        "id": "droid-peer--claude-opus-5-5--medium",
+        "name": "droid-peer · claude-opus-5-5 · medium",
         "provider": "droid-peer",
-        "model": "claude-haiku-5-5",
+        "model": "claude-opus-5-5",
+        "thinkingOptionId": "medium",
+        "modeId": "auto-high",
+        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
+      },
+      {
+        "id": "droid-peer--claude-fable-5-1--low",
+        "name": "droid-peer · claude-fable-5.1 · low",
+        "provider": "droid-peer",
+        "model": "claude-fable-5.1",
+        "thinkingOptionId": "low",
+        "modeId": "auto-high",
+        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
+      },
+      {
+        "id": "droid-peer--claude-fable-5-1--medium",
+        "name": "droid-peer · claude-fable-5.1 · medium",
+        "provider": "droid-peer",
+        "model": "claude-fable-5.1",
+        "thinkingOptionId": "medium",
+        "modeId": "auto-high",
+        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
+      },
+      {
+        "id": "droid-peer--gpt-6-astra--low",
+        "name": "droid-peer · gpt-6-astra · low",
+        "provider": "droid-peer",
+        "model": "gpt-6-astra",
+        "thinkingOptionId": "low",
+        "modeId": "auto-high",
+        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
+      },
+      {
+        "id": "droid-peer--gpt-6-astra--medium",
+        "name": "droid-peer · gpt-6-astra · medium",
+        "provider": "droid-peer",
+        "model": "gpt-6-astra",
         "thinkingOptionId": "medium",
         "modeId": "auto-high",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
@@ -3341,6 +3409,60 @@
         "name": "droid-peer · gpt-6.1-sol · medium",
         "provider": "droid-peer",
         "model": "gpt-6.1-sol",
+        "thinkingOptionId": "medium",
+        "modeId": "auto-high",
+        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
+      },
+      {
+        "id": "droid-peer--gpt-6-1-terra--low",
+        "name": "droid-peer · gpt-6.1-terra · low",
+        "provider": "droid-peer",
+        "model": "gpt-6.1-terra",
+        "thinkingOptionId": "low",
+        "modeId": "auto-high",
+        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
+      },
+      {
+        "id": "droid-peer--gpt-6-1-terra--medium",
+        "name": "droid-peer · gpt-6.1-terra · medium",
+        "provider": "droid-peer",
+        "model": "gpt-6.1-terra",
+        "thinkingOptionId": "medium",
+        "modeId": "auto-high",
+        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
+      },
+      {
+        "id": "droid-peer--gpt-6-luna--low",
+        "name": "droid-peer · gpt-6-luna · low",
+        "provider": "droid-peer",
+        "model": "gpt-6-luna",
+        "thinkingOptionId": "low",
+        "modeId": "auto-high",
+        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
+      },
+      {
+        "id": "droid-peer--gpt-6-luna--medium",
+        "name": "droid-peer · gpt-6-luna · medium",
+        "provider": "droid-peer",
+        "model": "gpt-6-luna",
+        "thinkingOptionId": "medium",
+        "modeId": "auto-high",
+        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
+      },
+      {
+        "id": "droid-peer--gemini-3-8-flash--low",
+        "name": "droid-peer · gemini-3.8-flash · low",
+        "provider": "droid-peer",
+        "model": "gemini-3.8-flash",
+        "thinkingOptionId": "low",
+        "modeId": "auto-high",
+        "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
+      },
+      {
+        "id": "droid-peer--gemini-3-8-flash--medium",
+        "name": "droid-peer · gemini-3.8-flash · medium",
+        "provider": "droid-peer",
+        "model": "gemini-3.8-flash",
         "thinkingOptionId": "medium",
         "modeId": "auto-high",
         "notes": "Peer: implement the assigned scope, verify results and hand off evidence. Do not delegate or accept project work. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
@@ -3936,19 +4058,37 @@
         "notes": "Lead: frame scope, coordinate Peers, review evidence and accept work. Do not write project artifacts. Do not automatically create Peers on the Lead's backend provider; use Human-authorized alternatives or report BLOCKED. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
-        "id": "droid-lead--claude-sonnet-5-5--low",
-        "name": "droid-lead · claude-sonnet-5-5 · low",
+        "id": "droid-lead--claude-fable-5-1--low",
+        "name": "droid-lead · claude-fable-5.1 · low",
         "provider": "droid-lead",
-        "model": "claude-sonnet-5-5",
+        "model": "claude-fable-5.1",
         "thinkingOptionId": "low",
         "modeId": "auto-high",
         "notes": "Lead: frame scope, coordinate Peers, review evidence and accept work. Do not write project artifacts. Do not automatically create Peers on the Lead's backend provider; use Human-authorized alternatives or report BLOCKED. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
-        "id": "droid-lead--claude-sonnet-5-5--medium",
-        "name": "droid-lead · claude-sonnet-5-5 · medium",
+        "id": "droid-lead--claude-fable-5-1--medium",
+        "name": "droid-lead · claude-fable-5.1 · medium",
         "provider": "droid-lead",
-        "model": "claude-sonnet-5-5",
+        "model": "claude-fable-5.1",
+        "thinkingOptionId": "medium",
+        "modeId": "auto-high",
+        "notes": "Lead: frame scope, coordinate Peers, review evidence and accept work. Do not write project artifacts. Do not automatically create Peers on the Lead's backend provider; use Human-authorized alternatives or report BLOCKED. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
+      },
+      {
+        "id": "droid-lead--gpt-6-astra--low",
+        "name": "droid-lead · gpt-6-astra · low",
+        "provider": "droid-lead",
+        "model": "gpt-6-astra",
+        "thinkingOptionId": "low",
+        "modeId": "auto-high",
+        "notes": "Lead: frame scope, coordinate Peers, review evidence and accept work. Do not write project artifacts. Do not automatically create Peers on the Lead's backend provider; use Human-authorized alternatives or report BLOCKED. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
+      },
+      {
+        "id": "droid-lead--gpt-6-astra--medium",
+        "name": "droid-lead · gpt-6-astra · medium",
+        "provider": "droid-lead",
+        "model": "gpt-6-astra",
         "thinkingOptionId": "medium",
         "modeId": "auto-high",
         "notes": "Lead: frame scope, coordinate Peers, review evidence and accept work. Do not write project artifacts. Do not automatically create Peers on the Lead's backend provider; use Human-authorized alternatives or report BLOCKED. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
@@ -3972,40 +4112,22 @@
         "notes": "Lead: frame scope, coordinate Peers, review evidence and accept work. Do not write project artifacts. Do not automatically create Peers on the Lead's backend provider; use Human-authorized alternatives or report BLOCKED. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
-        "id": "droid-lead--gemini-4-argon--low",
-        "name": "droid-lead · gemini-4-argon · low",
+        "id": "droid-lead--claude-sonnet-5-5--low",
+        "name": "droid-lead · claude-sonnet-5-5 · low",
         "provider": "droid-lead",
-        "model": "gemini-4-argon",
+        "model": "claude-sonnet-5-5",
         "thinkingOptionId": "low",
         "modeId": "auto-high",
         "notes": "Lead: frame scope, coordinate Peers, review evidence and accept work. Do not write project artifacts. Do not automatically create Peers on the Lead's backend provider; use Human-authorized alternatives or report BLOCKED. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
-        "id": "droid-lead--gemini-4-argon--medium",
-        "name": "droid-lead · gemini-4-argon · medium",
+        "id": "droid-lead--claude-sonnet-5-5--medium",
+        "name": "droid-lead · claude-sonnet-5-5 · medium",
         "provider": "droid-lead",
-        "model": "gemini-4-argon",
+        "model": "claude-sonnet-5-5",
         "thinkingOptionId": "medium",
         "modeId": "auto-high",
         "notes": "Lead: frame scope, coordinate Peers, review evidence and accept work. Do not write project artifacts. Do not automatically create Peers on the Lead's backend provider; use Human-authorized alternatives or report BLOCKED. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
-      },
-      {
-        "id": "droid-supervisor--claude-opus-5-5--low",
-        "name": "droid-supervisor · claude-opus-5-5 · low",
-        "provider": "droid-supervisor",
-        "model": "claude-opus-5-5",
-        "thinkingOptionId": "low",
-        "modeId": "auto-high",
-        "notes": "Supervisor: observe Leads, clarify intent and support the Human. Do not implement, assign Peers or review/accept candidates. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
-      },
-      {
-        "id": "droid-supervisor--claude-opus-5-5--medium",
-        "name": "droid-supervisor · claude-opus-5-5 · medium",
-        "provider": "droid-supervisor",
-        "model": "claude-opus-5-5",
-        "thinkingOptionId": "medium",
-        "modeId": "auto-high",
-        "notes": "Supervisor: observe Leads, clarify intent and support the Human. Do not implement, assign Peers or review/accept candidates. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
         "id": "droid-supervisor--claude-sonnet-5-5--low",
@@ -4021,6 +4143,24 @@
         "name": "droid-supervisor · claude-sonnet-5-5 · medium",
         "provider": "droid-supervisor",
         "model": "claude-sonnet-5-5",
+        "thinkingOptionId": "medium",
+        "modeId": "auto-high",
+        "notes": "Supervisor: observe Leads, clarify intent and support the Human. Do not implement, assign Peers or review/accept candidates. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
+      },
+      {
+        "id": "droid-supervisor--claude-opus-5-5--low",
+        "name": "droid-supervisor · claude-opus-5-5 · low",
+        "provider": "droid-supervisor",
+        "model": "claude-opus-5-5",
+        "thinkingOptionId": "low",
+        "modeId": "auto-high",
+        "notes": "Supervisor: observe Leads, clarify intent and support the Human. Do not implement, assign Peers or review/accept candidates. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
+      },
+      {
+        "id": "droid-supervisor--claude-opus-5-5--medium",
+        "name": "droid-supervisor · claude-opus-5-5 · medium",
+        "provider": "droid-supervisor",
+        "model": "claude-opus-5-5",
         "thinkingOptionId": "medium",
         "modeId": "auto-high",
         "notes": "Supervisor: observe Leads, clarify intent and support the Human. Do not implement, assign Peers or review/accept candidates. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
@@ -4044,19 +4184,19 @@
         "notes": "Supervisor: observe Leads, clarify intent and support the Human. Do not implement, assign Peers or review/accept candidates. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
-        "id": "droid-supervisor--gemini-4-argon--low",
-        "name": "droid-supervisor · gemini-4-argon · low",
+        "id": "droid-supervisor--gemini-3-8-flash--low",
+        "name": "droid-supervisor · gemini-3.8-flash · low",
         "provider": "droid-supervisor",
-        "model": "gemini-4-argon",
+        "model": "gemini-3.8-flash",
         "thinkingOptionId": "low",
         "modeId": "auto-high",
         "notes": "Supervisor: observe Leads, clarify intent and support the Human. Do not implement, assign Peers or review/accept candidates. Thinking setting: low. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
       },
       {
-        "id": "droid-supervisor--gemini-4-argon--medium",
-        "name": "droid-supervisor · gemini-4-argon · medium",
+        "id": "droid-supervisor--gemini-3-8-flash--medium",
+        "name": "droid-supervisor · gemini-3.8-flash · medium",
         "provider": "droid-supervisor",
-        "model": "gemini-4-argon",
+        "model": "gemini-3.8-flash",
         "thinkingOptionId": "medium",
         "modeId": "auto-high",
         "notes": "Supervisor: observe Leads, clarify intent and support the Human. Do not implement, assign Peers or review/accept candidates. Thinking setting: medium. Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."

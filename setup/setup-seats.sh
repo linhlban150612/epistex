@@ -388,7 +388,8 @@ else
     ' --argjson config "$(jq -c '{daemon: {agentProfiles: [.daemon.agentProfiles[]? | {provider, model}]}}' "$paseo_config")" \
       "$paseo_config" >/dev/null || fail "$seat: wrong launcher, tools, models or profiles"
   done
-  # OMP seats on Factory models: the same models and efforts as the Droid seats, behind OMP's factory-droid provider.
+  # OMP seats on Factory models behind OMP's factory-droid provider: the same models and efforts as the Droid
+  # seats of the same role. Neither OMP's catalog nor Droid 1.12.1 offers gemini-4-*.
   # env is empty (OMP's stored login) or one OMP_PROFILE: a profile holds its own login, so each seat can use its own.
   omp_profiles=$(jq -r '[.agents.providers | to_entries[] |
     select((.key | test("^omp-(lead|supervisor|peer-[1-3])$")) and .value.enabled == true) |
@@ -402,11 +403,16 @@ else
       *) role=peer default=claude-haiku-5-5 ;;
     esac
     if [[ $role == peer ]]; then
-      omp_efforts='{"gemini-4-argon":["low","medium"],"gemini-3.8-flash":["low","medium"],"claude-opus-5-5":["low","medium"],
-        "claude-sonnet-5-5":["low","medium"],"claude-haiku-5-5":["low","medium"],"gpt-6.1-sol":["low","medium"],
+      omp_efforts='{"claude-haiku-5-5":["low","medium"],"claude-sonnet-5-5":["low","medium"],"claude-opus-5-5":["low","medium"],
+        "claude-fable-5.1":["low","medium"],"gpt-6-astra":["low","medium"],"gpt-6.1-sol":["low","medium"],
+        "gpt-6.1-terra":["low","medium"],"gpt-6-luna":["low","medium"],"gemini-3.8-flash":["low","medium"],
         "glm-5.3":["low","high"],"kimi-k3":["low","high"],"deepseek-v4.1-flash-1017":["low"]}'
+    elif [[ $role == lead ]]; then
+      omp_efforts='{"claude-opus-5-5":["low","medium"],"claude-fable-5.1":["low","medium"],"gpt-6-astra":["low","medium"],
+        "gpt-6.1-sol":["low","medium"],"claude-sonnet-5-5":["low","medium"]}'
     else
-      omp_efforts='{"claude-opus-5-5":["low","medium"],"claude-sonnet-5-5":["low","medium"],"gpt-6.1-sol":["low","medium"],"gemini-4-argon":["low","medium"]}'
+      omp_efforts='{"claude-sonnet-5-5":["low","medium"],"claude-opus-5-5":["low","medium"],"gpt-6.1-sol":["low","medium"],
+        "gemini-3.8-flash":["low","medium"]}'
     fi
     jq -e --arg command "$kit/setup/role-agent" --arg seat "$seat" --arg role "$role" --arg default "$default" \
         --argjson efforts "$omp_efforts" '
@@ -463,17 +469,22 @@ else
   for role in lead supervisor; do
     seat="droid-$role"
     jq -e --arg seat "$seat" '.agents.providers[$seat].enabled == true' "$paseo_config" >/dev/null || continue
-    default=claude-opus-5-5
-    [[ "$role" != supervisor ]] || default=claude-sonnet-5-5
-    jq -e --arg command "$kit/setup/role-agent" --arg seat "$seat" --arg role "$role" --arg default "$default" "
+    # The same models as omp-lead/omp-supervisor; Droid 1.12.1 ACP rejects gemini-4-argon (Invalid model).
+    if [[ "$role" == supervisor ]]; then
+      default=claude-sonnet-5-5 droid_models='claude-sonnet-5-5 claude-opus-5-5 gpt-6.1-sol gemini-3.8-flash'
+    else
+      default=claude-opus-5-5 droid_models='claude-opus-5-5 claude-fable-5.1 gpt-6-astra gpt-6.1-sol claude-sonnet-5-5'
+    fi
+    jq -e --arg command "$kit/setup/role-agent" --arg seat "$seat" --arg role "$role" --arg default "$default" \
+        --arg models "$droid_models" "
       .agents.providers[\$seat] |
       .extends == \"acp\" and .command == [\$command,\$role,\"droid\"] and
       .paseoTools.enabled == true and ($droid_env) and
-      ([.models[].id] | sort) == [\"claude-opus-5-5\",\"claude-sonnet-5-5\",\"gemini-4-argon\",\"gpt-6.1-sol\"] and
+      ([.models[].id] | sort) == (\$models | split(\" \") | sort) and
       [.models[] | select(.isDefault == true) | .id] == [\$default] and
       all(.models[]; ([.thinkingOptions[].id] | sort) == [\"low\",\"medium\"])
     " "$paseo_config" >/dev/null || fail "$seat: wrong launcher, tools, env or model/effort"
-    for model in claude-opus-5-5 claude-sonnet-5-5 gpt-6.1-sol gemini-4-argon; do
+    for model in $droid_models; do
       for effort in low medium; do
         # auto-high: lower Droid modes stop on a permission request for every Paseo MCP call.
         jq -e --arg seat "$seat" --arg model "$model" --arg effort "$effort" '
@@ -538,12 +549,13 @@ sys.exit(installed.is_symlink() or not installed.is_file() or installed.read_byt
 PY
   done
   if jq -e '.agents.providers["droid-peer"].enabled == true' "$paseo_config" >/dev/null; then
-    # Requested efforts advertised by Droid ACP, not generic Paseo metadata.
+    # Requested efforts advertised by Droid ACP, not generic Paseo metadata; the same models as omp-peer-1…3.
     droid_efforts='{
-      "gemini-4-argon":["low","medium"], "gemini-3.8-flash":["low","medium"],
-      "claude-opus-5-5":["low","medium"], "claude-sonnet-5-5":["low","medium"],
-      "claude-haiku-5-5":["low","medium"], "gpt-6.1-sol":["low","medium"],
-      "glm-5.3":["low","high"], "kimi-k3":["low","high"],
+      "claude-haiku-5-5":["low","medium"], "claude-sonnet-5-5":["low","medium"],
+      "claude-opus-5-5":["low","medium"], "claude-fable-5.1":["low","medium"],
+      "gpt-6-astra":["low","medium"], "gpt-6.1-sol":["low","medium"],
+      "gpt-6.1-terra":["low","medium"], "gpt-6-luna":["low","medium"],
+      "gemini-3.8-flash":["low","medium"], "glm-5.3":["low","high"], "kimi-k3":["low","high"],
       "deepseek-v4.1-flash-1017":["low"]
     }'
     jq -e --arg command "$kit/setup/role-agent" --argjson efforts "$droid_efforts" '

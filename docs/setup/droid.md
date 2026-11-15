@@ -32,7 +32,7 @@ Merge the `droid-peer` entry and its `droid-peer--*` profiles from
 | Command | `["<KIT>/setup/role-agent","peer","droid"]` |
 | Paseo tools | Disabled |
 | Default model | `claude-haiku-5-5`, default effort `low` |
-| Models/profiles | Nine models, 17 supported profiles listed below; each defaults to `low` |
+| Models/profiles | Twelve models, 23 supported profiles listed below (the models of `omp-peer-1`…`3`); each defaults to `low` |
 
 Each model exposes only its requested supported low/medium or low/high choices, not every upstream effort. The checker requires every `droid-peer` profile to
 carry a valid `thinkingOptionId` and `modeId: "auto-high"`. A Lead gives the profile id to
@@ -103,20 +103,27 @@ model using `session/set_config_option` with `configId=model`, then inspect the 
 `reasoning_effort` select. This verifies advertised per-model choices, not successful model
 execution, authentication for inference, or Paseo integration. No model prompt was executed.
 
+Last checked on Droid 1.12.1 (2026-11-15) with the `env` of each of `droid-peer`, `droid-lead`,
+`droid-supervisor`, `droid-peer-2` and `droid-peer-3`; all five gave the same result.
+`gemini-4-argon` is no longer offered: `session/set_config_option` returns `Invalid model: gemini-4-argon`.
+
 | Model ID | ACP-advertised reasoning efforts | Exposed choices / profile suffixes |
 |---|---|---|
-| `gemini-4-argon` | low, medium, high | low, medium |
-| `gemini-3.8-flash` | low, medium, high | low, medium |
-| `claude-opus-5-5` | low, medium, high, xhigh, max | low, medium |
-| `claude-sonnet-5-5` | off, low, medium, high, xhigh, max | low, medium |
 | `claude-haiku-5-5` | off, low, medium, high, xhigh, max | low, medium |
+| `claude-sonnet-5-5` | off, low, medium, high, xhigh, max | low, medium |
+| `claude-opus-5-5` | low, medium, high, xhigh, max | low, medium |
+| `claude-fable-5.1` | off, low, medium, high, xhigh, max | low, medium |
+| `gpt-6-astra` | low, medium, high, xhigh, max | low, medium |
 | `gpt-6.1-sol` | low, medium, high, xhigh, max | low, medium |
+| `gpt-6.1-terra` | none, low, medium, high, xhigh, max | low, medium |
+| `gpt-6-luna` | none, low, medium, high, xhigh, max | low, medium |
+| `gemini-3.8-flash` | low, medium, high | low, medium |
 | `glm-5.3` | low, high, max | low, high |
 | `kimi-k3` | off, low, high, max | low, high |
 | `deepseek-v4.1-flash-1017` | off, low, high, max | low (requested: low only) |
 
 Profile IDs follow `droid-peer--<model-id-with-dots-replaced-by-hyphens>--<effort>`, for example
-`droid-peer--gpt-6-1-sol--medium`; the profile's `model` stays `gpt-6.1-sol`. There are 17 Droid
+`droid-peer--gpt-6-1-sol--medium`; the profile's `model` stays `gpt-6.1-sol`. There are 23 `droid-peer`
 profiles total. The checker requires all supported profiles and rejects missing or extra models,
 missing choices, mismatched provider/model/effort, and fabricated medium options or profiles for the
 low/high models.
@@ -149,21 +156,26 @@ low/high models does not prove runtime medium support.
   `role-agent peer droid` restored one session with `session/resume` and with `session/load`, each
   in a new process; the proxy did not add the role instructions again, and the `session/load`
   replay held them one time.
+  New models (Droid 1.12.1, `low`, `auto-high`, 2026-11-15): `droid-lead` `claude-fable-5.1` and
+  `gpt-6-astra` (8 tools: seven Paseo tools and `epistex_assign`), `droid-supervisor` `gemini-3.8-flash`
+  (15 Paseo tools), and `droid-peer`, `droid-peer-2`, `droid-peer-3` `claude-fable-5.1`, `gpt-6-astra`,
+  `gpt-6.1-terra`, `gpt-6-luna` (`droid-peer-2`/`3` also `claude-haiku-5-5`) each reported its model and
+  role heading; Peers saw no Paseo tool.
 
 
 ## droid-lead
 
 Provider `droid-lead`, command `["<KIT>/setup/role-agent","lead","droid"]`, Lead Paseo tool policy
-per SETUP.md (51-entry deny-list). Models `claude-opus-5-5`, `claude-sonnet-5-5`, `gpt-6.1-sol`,
-`gemini-4-argon` with low/medium effort. Profiles carry `modeId: "auto-high"` (all operations are
+per SETUP.md (51-entry deny-list). Models `claude-opus-5-5` (default), `claude-fable-5.1`, `gpt-6-astra`,
+`gpt-6.1-sol` and `claude-sonnet-5-5` with low/medium effort, the same as `omp-lead`. Profiles carry `modeId: "auto-high"` (all operations are
 auto-approved, so Lead never waits for permission). Droid's advertised modes: `normal`, `spec`, `auto-low`,
 `auto-medium`, `auto-high`.
 
 ## droid-supervisor
 
 Provider `droid-supervisor`, command `["<KIT>/setup/role-agent","supervisor","droid"]`, Supervisor
-Paseo tool policy per SETUP.md (46-entry deny-list). Same four models and low/medium efforts as
-`droid-lead`; default `claude-sonnet-5-5`, `low`. Profiles `droid-supervisor--<model>--<effort>`
+Paseo tool policy per SETUP.md (46-entry deny-list). Models `claude-sonnet-5-5` (default), `claude-opus-5-5`,
+`gpt-6.1-sol` and `gemini-3.8-flash` with low/medium effort, the same as `omp-supervisor`; default effort `low`. Profiles `droid-supervisor--<model>--<effort>`
 carry `modeId: "auto-high"`: in `normal`, `auto-low` and `auto-medium` the seat stops on a
 permission request for every Paseo MCP call (verified live with `list_workspaces`).
 

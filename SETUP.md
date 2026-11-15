@@ -102,7 +102,10 @@ not measured cost or speed: Supervisor observes and supports Human without imple
 Peers or accepting candidates; Lead coordinates, reviews and accepts; Peer implements, verifies and
 hands off evidence. Effort and model names do not establish price or latency.
 
-Follow the [MCP reference](https://paseo.sh/docs/mcp.md) when materializing a profile:
+A Lead gives a Peer profile id to `epistex_assign`; the tool copies `provider`, `model`, `modeId`,
+`thinkingOptionId` and `featureValues` from the profile, and the notes of a Peer profile say so.
+A Supervisor opens a Lead with `create_agent` and follows the
+[MCP reference](https://paseo.sh/docs/mcp.md) when materializing the profile:
 
 | Profile field | `create_agent` field |
 |---|---|

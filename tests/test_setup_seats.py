@@ -589,9 +589,16 @@ class SetupSeatsTest(unittest.TestCase):
                                      {k: v for k, v in new.items() if k != "notes"})
                     if new != foreign:
                         self.assertNotIn("cheap/fast", new["notes"])
-                        self.assertIn("featureValues to settings.features", new["notes"])
-                        self.assertIn("modeId to settings.modeId", new["notes"])
-                        self.assertIn("thinkingOptionId to settings.thinkingOptionId", new["notes"])
+                        # A Lead has no create_agent, so a Peer profile names epistex_assign and no create_agent field.
+                        if re.search(r"-peer(-\d+)?$", new["provider"]):
+                            self.assertIn("profile id to epistex_assign", new["notes"])
+                            self.assertNotIn("create_agent", new["notes"])
+                            self.assertNotIn("settings.", new["notes"])
+                        else:
+                            self.assertNotIn("epistex_assign", new["notes"])
+                            self.assertIn("featureValues to settings.features", new["notes"])
+                            self.assertIn("modeId to settings.modeId", new["notes"])
+                            self.assertIn("thinkingOptionId to settings.thinkingOptionId", new["notes"])
                 again = subprocess.run(command, input=result.stdout, text=True,
                                        capture_output=True, check=True)
                 self.assertEqual(json.loads(again.stdout), data)

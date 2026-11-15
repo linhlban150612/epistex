@@ -21,7 +21,13 @@ def epistex_role:
       (if $profile.thinkingOptionId != null then
          " Thinking setting: " + $profile.thinkingOptionId + "."
        else "" end) +
-      " Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability. Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
+      " Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability." +
+      # A Lead has no create_agent: the delivery plugin tool reads a Peer profile itself. A Supervisor opens a Lead with create_agent.
+      (if $role == "peer" then
+         " A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
+       else
+         " Materialize provider/model as create_agent.provider; if model is absent, discover it with list_models first. Copy modeId to settings.modeId, thinkingOptionId to settings.thinkingOptionId, and featureValues to settings.features. Omit absent optional settings; never infer them. Supply the task in initialPrompt."
+       end)
     )
   end
 )

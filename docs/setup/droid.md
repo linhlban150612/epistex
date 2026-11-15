@@ -35,8 +35,9 @@ Merge the `droid-peer` entry and its `droid-peer--*` profiles from
 | Models/profiles | Nine models, 17 supported profiles listed below; each defaults to `low` |
 
 Each model exposes only its requested supported low/medium or low/high choices, not every upstream effort. The checker requires every `droid-peer` profile to
-carry a valid `thinkingOptionId` and `modeId: "auto-high"`. The orchestrator must copy provider, model,
-`thinkingOptionId` and `modeId` into `create_agent`. Without `auto-high` a Peer starts in Droid's
+carry a valid `thinkingOptionId` and `modeId: "auto-high"`. A Lead gives the profile id to
+`epistex_assign`, which copies provider, model, `thinkingOptionId` and `modeId` from the profile; a
+Lead has no `create_agent`. Without `auto-high` a Peer starts in Droid's
 `normal` mode and stops on its first `edit` permission request; with it the edit runs without a
 request (both verified live).
 

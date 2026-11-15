@@ -24,7 +24,7 @@ Merge the `agy-peer` entry and its model profiles from `examples/paseo-providers
 
 A seat model ID carries the effort: `agy acp` maps `gemini-4-argon-low` to model `gemini-4-argon` with `thought_level` `low`, so profiles have no `thinkingOptionId`. `setup-seats.sh --check` enforces the model lists, the profiles and the modes.
 
-`agy acp` advertises the modes `default`, `accept-edits` and `plan`; `plan` does not write. Each `daemon.agentProfiles` entry selects the mode with `modeId`, and the orchestrator must copy it into `create_agent`. Verified live: a Peer in `accept-edits` created a file and ran shell commands with no permission request; a Lead in `default` ran shell reads and Paseo tools with no permission request.
+`agy acp` advertises the modes `default`, `accept-edits` and `plan`; `plan` does not write. Each `daemon.agentProfiles` entry selects the mode with `modeId`, a Supervisor must copy it into `create_agent` for a Lead, and `epistex_assign` copies it from the profile for a Peer (a Lead has no `create_agent`). Verified live: a Peer in `accept-edits` created a file and ran shell commands with no permission request; a Lead in `default` ran shell reads and Paseo tools with no permission request.
 
 `role-agent` states the session cwd in each session's first prompt, together with the role instructions; after `session/load` or `session/resume` in a new proxy process it repeats only the cwd line, because the restored history already holds the role. The registry binary needed this line, because it ran shell commands in its own directory. `agy acp` ran `pwd` in the session cwd in every live check; the line is kept.
 

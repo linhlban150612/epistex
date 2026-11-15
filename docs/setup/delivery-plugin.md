@@ -227,7 +227,11 @@ Leads (2026-11-14): `droid-lead`, `kiro-lead`, `claude-lead`, `codex-lead` and `
 listed seven Paseo tools and `epistex_assign`, had no `create_agent`, and created a Peer with
 `epistex_assign`; each receipt held `HANDBACK_VALID` and `briefCodes: []`. The Cursor Lead asked
 permission twice in that run: for a `git` shell command, and for its attempt to call the absent
-`create_agent`. Not covered live: the
+`create_agent`. On 2026-11-15 `amp-lead`, `agy-lead` and `omp-lead` gave the same result: no
+`create_agent`, a Peer created with `epistex_assign`, one `HANDBACK_VALID` with `briefCodes: []`
+and no `[Agent finished]`. The Amp and Antigravity Leads listed the seven Paseo tools; the OMP Lead
+was asked only for tool names that contain `paseo` or `epistex`, and OMP names have no prefix, so
+it listed `epistex_assign` only. Not covered live: the
 snapshot baseline, a round above 1 for a replacement Peer, and a Lead that chooses the tool in a
 real task without a prompt that names it.
 

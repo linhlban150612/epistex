@@ -37,8 +37,9 @@ Không thêm MCP server vào new/load của Peer.
 Default model của `kiro-peer` và `kiro-supervisor` là `claude-sonnet-5.5` (effort `low`) để giảm chi phí; `setup/kiro-peer.json` và
 `setup/kiro-supervisor.json` đặt `model` là `claude-sonnet-5.5`, `setup/kiro-lead.json` đặt `claude-opus-5.5`: adapter yêu cầu model ban đầu của session nằm trong `MODELS`, nên bỏ trường này làm launch lỗi "Kiro restored an unsupported mode/model". Paseo vẫn đổi model qua profile: V3 không có `session/set_model`, adapter trả `-32601` để Paseo dùng `session/set_config_option` `configId=model`. `kiro-lead` giữ default `claude-opus-5.5` ở seat config. Opus vẫn chọn tay qua profile.
 
-Orchestrator copy `provider`, `model`, `thinkingOptionId` vào `create_agent`, dùng project
-workspace. Truyền `modeId` tường minh bằng mode cố định của seat (`epistex_peer`, `epistex_lead`,
+Supervisor copy `provider`, `model`, `thinkingOptionId` vào `create_agent`, dùng project
+workspace. Lead không có `create_agent`: Lead truyền profile id cho `epistex_assign`, và tool này
+copy các trường đó từ profile. Truyền `modeId` tường minh bằng mode cố định của seat (`epistex_peer`, `epistex_lead`,
 `epistex_supervisor`); mọi mode switch khác bị từ chối. Paseo không kế thừa mode của Lead
 ([SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)), nên mọi profile có mode cố định của seat: `kiro-peer` `epistex_peer`, `kiro-lead`
 `epistex_lead`, `kiro-supervisor` `epistex_supervisor`; `setup-seats.sh --check` từ chối giá trị khác.

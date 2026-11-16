@@ -28,7 +28,7 @@ export interface ContributeOptions {
 
 export const PLUGIN_ID = "epistex-delivery";
 /** The Paseo releases the plugin was verified on. `paseo-plugin.json` carries the same range. */
-export const PASEO_RANGE = ">=0.15.0 <0.16";
+export const PASEO_RANGE = ">=0.16.0 <0.17";
 
 export const consoleLogger: Logger = {
   info: (message) => console.log(`[${PLUGIN_ID}] ${message}`),
@@ -42,7 +42,7 @@ export const HOOKS = ["agent.turn.after", "agent.permission.before"] as const;
 const OPEN_HOOK = "agent.open.before";
 
 /**
- * Register the delivery hooks. Fail closed: when the server context lacks the 0.15 lifecycle API
+ * Register the delivery hooks. Fail closed: when the server context lacks the lifecycle API
  * (`server.addHook`) or rejects one of the hooks, log the reason, unregister what was registered
  * and return a no-op cleanup. The plugin then stays loaded but inert; it never guesses another API.
  */

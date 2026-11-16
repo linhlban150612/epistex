@@ -59,10 +59,9 @@ function assistant(text: string, seqEnd: number, extra: Partial<TimelineEntry> &
 
 function peerTurn(overrides: Partial<TurnEndedEvent> = {}): TurnEndedEvent {
   return {
-    agent: { id: "peer-1", workspaceId: null, parentAgentId: "lead-1", provider: "codex-peer", cwd: "/w", title: null },
+    agent: { id: "peer-1", workspaceId: null, parentAgentId: "lead-1", provider: "codex-peer", cwd: "/w", title: null, background: false, metadata: {} },
     turnId: "t1",
     outcome: { kind: "completed" },
-    timeline: [],
     ...overrides,
   };
 }
@@ -210,7 +209,7 @@ test("busy Lead: record stays pending; the Lead's own turn_ended flushes it in c
 
     fake.agents["lead-1"] = leadIdle;
     await delivery.onTurnEnded(
-      peerTurn({ agent: { id: "lead-1", workspaceId: null, parentAgentId: "sup-1", provider: "amp-lead", cwd: "/w", title: null }, turnId: "lt1" }),
+      peerTurn({ agent: { id: "lead-1", workspaceId: null, parentAgentId: "sup-1", provider: "amp-lead", cwd: "/w", title: null, background: false, metadata: {} }, turnId: "lt1" }),
       fake.paseo,
     );
     assert.deepEqual(fake.sent.map((s) => s.options.sourceAgentId), ["peer-1", "peer-2"]);
@@ -477,7 +476,7 @@ test("permission request: sent to the Lead's Supervisor with its IDs, recorded o
     assert.equal(outbox.records().length, 1);
     fake.agents["sup-1"] = { id: "sup-1", provider: "claude-supervisor", status: "idle" };
     await delivery.onTurnEnded(
-      peerTurn({ agent: { id: "sup-1", workspaceId: null, parentAgentId: null, provider: "claude-supervisor", cwd: "/s", title: null } }),
+      peerTurn({ agent: { id: "sup-1", workspaceId: null, parentAgentId: null, provider: "claude-supervisor", cwd: "/s", title: null, background: false, metadata: {} } }),
       fake.paseo,
     );
     assert.equal(outbox.records().length, 1, "the Supervisor's own turn is never recorded");
@@ -544,7 +543,7 @@ test("first receipt of a Peer checks the Lead's brief: a failed brief warns the 
     assert.doesNotMatch(fake.sent[0].text, /warning:/);
   });
   await scratch(async (delivery, outbox) => {
-    // Paseo 0.15.4: a first prompt that is only the Lead's message is a tool_call row with agentMessage.
+    // Paseo 0.15.4 and 0.16.0: a first prompt that is only the Lead's message is a tool_call row with agentMessage.
     const row = (id: string): TimelineEntry => ({
       item: { type: "tool_call", agentMessage: { event: "message", sender: { id }, text: "Task ID: T-1 | Round: 1. Read a.txt." } },
       seqEnd: 1,

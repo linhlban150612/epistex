@@ -12,9 +12,9 @@ export const SUPERVISOR_PROVIDER = /^[a-z]+-supervisor(--.*)?$/;
 const PARENT_LABEL = "paseo.parent-agent-id";
 const PAGE_LIMIT = 200;
 const MAX_PAGES = 20;
-const NO_HOOK_AGENT: TurnEndedEvent["agent"] = { id: "", workspaceId: null, parentAgentId: null, provider: "", cwd: "", title: null };
+const NO_HOOK_AGENT: TurnEndedEvent["agent"] = { id: "", workspaceId: null, parentAgentId: null, provider: "", cwd: "", title: null, background: false, metadata: {} };
 
-// The slice of PaseoApi (Paseo >=0.15.0 <0.16) the plugin uses, typed structurally so tests can supply a fake.
+// The slice of PaseoApi (Paseo >=0.16.0 <0.17) the plugin uses, typed structurally so tests can supply a fake.
 export interface TimelineEntry {
   item: {
     type: string;
@@ -205,7 +205,7 @@ export class Delivery {
           const peer = (await paseo.agents.ref(peerAgentId).refresh())?.agent;
           finished = !peer || !!peer.archivedAt || peer.status === "closed";
           if (!peer || peer.status === "running" || peer.status === "initializing") continue;
-          const synthetic: TurnEndedEvent = { agent: { ...NO_HOOK_AGENT, id: peerAgentId, parentAgentId: latest.leadAgentId, provider: peer.provider }, turnId: null, outcome: { kind: "completed" }, timeline: [] };
+          const synthetic: TurnEndedEvent = { agent: { ...NO_HOOK_AGENT, id: peerAgentId, parentAgentId: latest.leadAgentId, provider: peer.provider }, turnId: null, outcome: { kind: "completed" } };
           await this.recordTurn(synthetic, latest.leadAgentId, paseo, false);
         } catch (error) {
           // A Peer whose cwd is gone (deleted scratch clone) makes the timeline read fail; one

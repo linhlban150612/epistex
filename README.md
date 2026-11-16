@@ -91,7 +91,7 @@ Runtime layout, resume selection, environment variables and the legacy `seatwork
 | `setup/check-brief`, `setup/check-handoff`, `setup/fail-on-base` | Mechanical gates for briefs, handoffs and reproducible-bug fixes |
 | `setup/verify` | The kit's four verification checks in one command; last line `VERIFY OK` |
 | `.agents/skills/*/SKILL.md` | Lead skills: Dual-Lane review, context reset, seat recovery, rework escalation, handling reopen/dependency requests, proof (acceptance order and external handoffs); Peer skill: waiting on long jobs; installed per project by `setup-seats.sh --project` into `.agents/skills/`, `.claude/skills/` and `.kiro/skills/` |
-| `plugins/epistex-delivery/`, `docs/setup/delivery-plugin.md` | Required Paseo `>=0.15.0 <0.16` server plugin that relays a Peer's end-of-turn handback to its Lead; installed through `setup-seats.sh --install-plugin` after Human approval |
+| `plugins/epistex-delivery/`, `docs/setup/delivery-plugin.md` | Required Paseo `>=0.16.0 <0.17` server plugin that relays a Peer's end-of-turn handback to its Lead; installed through `setup-seats.sh --install-plugin` after Human approval |
 | `.pi/settings.json`, `.omp/config.yml` | Checkout-scoped Pi/OMP compaction settings |
 | `examples/AGENTS_MD_SNIPPET.md`, `examples/WORKSPACE_PROTOCOL.md`, `examples/LEAD_INITIAL_PROMPT.md`, `examples/target-repo/` | Contract, policy, Lead startup and verify templates for target repos |
 | `eval/` | Peer behavior scenarios run against real agents; results stay outside Git |
@@ -121,7 +121,7 @@ recovery checks.
   the source: that is a trade-off change for the Human to decide, not a fix.
 
 - Paseo is the sole agent control plane and owns lifecycle and topology. Inspect live state before
-  operating. Paseo `>=0.15.0 <0.16` is required: the mandatory delivery plugin is verified on that
+  operating. Paseo `>=0.16.0 <0.17` is required: the mandatory delivery plugin is verified on that
   range. A Peer cut mid-turn by a daemon restart yields `was closed`, not `finished`, and its round
   must be reassigned; archived agents stay out of `list_agents`. A `send_agent_prompt` receipt only
   proves the prompt was queued.

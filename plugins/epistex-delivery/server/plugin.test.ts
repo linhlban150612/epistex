@@ -9,10 +9,9 @@ function recorder() {
 }
 
 const event: TurnEndedEvent = {
-  agent: { id: "peer-1", workspaceId: null, parentAgentId: "lead-1", provider: "codex-peer", cwd: "/w", title: null },
+  agent: { id: "peer-1", workspaceId: null, parentAgentId: "lead-1", provider: "codex-peer", cwd: "/w", title: null, background: false, metadata: {} },
   turnId: "t1",
   outcome: { kind: "completed" },
-  timeline: [],
 };
 
 test("0.14 server with only on(): nothing registered, error logged", () => {
@@ -81,7 +80,7 @@ test("compatible server: both hooks registered and routed, handler errors logged
   await handlers.get("agent.permission.before")!({ agent: event.agent, request: { id: "req-1" } }, {});
   assert.deepEqual(seen, ["turn peer-1", "turn peer-1", "permission req-1"]);
   assert.deepEqual(lines, [
-    "info registered agent.turn.after, agent.permission.before (Paseo >=0.15.0 <0.16)",
+    "info registered agent.turn.after, agent.permission.before (Paseo >=0.16.0 <0.17)",
     "error agent.turn.after handler failed for peer-1: handler boom",
   ]);
   cleanup();

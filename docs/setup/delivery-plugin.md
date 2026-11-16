@@ -1,4 +1,4 @@
-# Epistex delivery plugin (Paseo >=0.15.0 <0.16)
+# Epistex delivery plugin (Paseo >=0.16.0 <0.17)
 
 `plugins/epistex-delivery/` is a required Paseo **server plugin** and the only report channel
 from a Peer to the Lead that created it. [OVERVIEW.md](../../plugins/epistex-delivery/OVERVIEW.md)
@@ -63,7 +63,7 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
 - **Brief check** (`server/brief.ts`, a port of `setup/check-brief`; `brief.test.ts` holds the
   parity cases; `tests/fixtures/briefs/` holds shapes of real briefs, with `expected.json` as for
   the handoffs). On a Peer's first receipt the plugin reads the Peer's first prompt: a `tool_call`
-  row with `agentMessage` from this Lead (how Paseo 0.15.4 shows a prompt that is only an agent
+  row with `agentMessage` from this Lead (how Paseo 0.15.4 and 0.16.0 show a prompt that is only an agent
   message), or the Lead's `agent-message` envelope inside a `user_message` (role instructions before
   it are left out). It stores the codes in `briefCodes`; an empty list is a pass. A failed brief adds
   `warning: brief failed check-brief: <codes>`. A first prompt that is not this Lead's agent
@@ -151,7 +151,7 @@ without that prefix is below `server/dist/server/server/` of `@getpaseo/server`,
 |---|---|---|
 | Plugin entry | `index.server.ts`/`.tsx` (a legacy `index.ts`/`.tsx` entry is rejected with a migration error), default export `contribute(server) => cleanup`; `cleanup` must be a function. `contribute` receives no `PaseoApi`: `paseo` arrives in the hook context `(payload, {paseo, signal})`. | `plugins/compiler-build.js`, `plugins/bundle-evaluator.js`, `plugins/plugin-process.js` |
 | Hooks | `server.addHook(name, handler)` (hook names added in v0.14); `server.on`/`before` are deprecated and removed after 2027-04-30. `agent.turn.after` (legacy alias `agent.turn_ended`) and `agent.permission.before`. | `plugin/dist/server/lifecycle.d.ts`, `plugin/dist/server/lifecycle.js` |
-| Hook payload | `{agent: {id, workspaceId, parentAgentId, provider, cwd, title}, turnId, outcome: {kind: completed\|failed\|canceled, ...}, timeline: []}`. `timeline` is deprecated and always empty, so the handler must `timeline.refetch`. | `plugins/lifecycle/index.js` |
+| Hook payload | `{agent: {id, workspaceId, parentAgentId, provider, cwd, title, background, metadata}, turnId, outcome: {kind: completed\|failed\|canceled, ...}}`. The payload carries no history (0.16 removed the always-empty `timeline` field), so the handler must `timeline.refetch`. | `plugin/dist/server/lifecycle.d.ts`, `plugins/lifecycle/index.js` |
 | Hook emission | Emitted for every live `turn_completed`/`turn_failed`/`turn_canceled` stream event, including background completions (a repeat for an already finalized turn and history replay emit nothing); `internal` agents emit nothing. A throwing handler is logged, never replayed. | `plugins/lifecycle/index.js`, `agent/agent-manager.js` |
 | Agent tools | `agent.open.before` receives `{request: {agentId, provider, purpose, tools, ...}}` and may return a changed request; a tool is `{name, title, description, input: zod schema, execute(input, {agent, paseo})}` and returns `{text, isError?}`. Paseo validates `input` before `execute`. A seat sees a plugin tool only when its `paseoTools.enabled` is true. | `plugin/dist/server/index.d.ts`, live probe |
 | Agent creation | `paseo.agents.create({config: {provider: "<seat>/<model>", modeId?, thinkingOptionId?}, cwd, parent, title, prompt})` returns a handle with `id` and sets the label `paseo.parent-agent-id`; it sends no finish notification to the parent. | live probe |
@@ -186,7 +186,7 @@ bash <KIT>/setup/setup-seats.sh --check            # range, path, pluginsEnabled
 A daemon started with `pluginsEnabled: false` shows the new entry as `disabled` until
 `paseo reload`.
 
-`setup-seats.sh` shares the `>=0.15.0 <0.16` range with `paseo-plugin.json` and `server/plugin.ts`
+`setup-seats.sh` shares the `>=0.16.0 <0.17` range with `paseo-plugin.json` and `server/plugin.ts`
 and fails when they drift; a prerelease counts as its stable core. It refuses to install under
 `--check`, when `paseo --version` is outside the range, or when `pluginsEnabled` is not `true`; it
 never edits `config.json` itself. With the plugin installed, `--check` fails when the entry is not
@@ -208,8 +208,11 @@ Human decisions; Git history holds their dates and earlier variants.
 5. The plugin is **required**: the role prompts carry no workaround for
    [#6346](https://github.com/getpaseo/paseo/issues/6346), so a host without the plugin has no
    mitigation and `setup-seats.sh --check` fails until it is installed.
-6. Paseo requirement `>=0.15.0 <0.16` (0.14 has no `addHook`); the dev dependency is
-   `@getpaseo/plugin` 0.15.3. Paseo 0.16 needs a new SDK check.
+6. Paseo requirement `>=0.16.0 <0.17`; the dev dependency is `@getpaseo/plugin` 0.16.0. A daemon
+   outside the range refuses to load the plugin, so each new Paseo minor needs a new SDK check
+   (typecheck, tests, one live Lead and Peer run) before the range moves. The plugin types follow
+   the 0.16 SDK (no `timeline` in the `agent.turn.after` payload; `background` and `metadata` on
+   the hook agent); 0.15 is no longer in the range.
 7. `agents.resumeOnStartup` stays off: when on, a Peer cut by a daemon restart gets "Resume
    working." and keeps writing its round while the Lead treats it as `was closed` and reassigns it.
 8. One report channel: the Lead calls `send_agent_prompt` for a Peer with
@@ -270,8 +273,22 @@ the worktree relative to it. Not covered live: `pi-peer` (its `openai-codex` log
 `omp-peer`, `omp-peer-3`, `droid-peer-3`, `copilot-peer` (disabled), a tool refusal, a rework
 round, and whether a Peer sees any catalog tool (not asked).
 
+Paseo 0.16.0 (2026-11-16, daemon and CLI 0.16.0, Droid 1.12.1, a daemon with its own `PASEO_HOME`,
+a copy of the live seat config and this plugin directory): with the earlier range
+`>=0.15.0 <0.16`, `paseo plugin install` failed and a configured entry loaded as `failed`
+(`requires Paseo >=0.15.0 <0.16. Your daemon is 0.16.0`). With `>=0.16.0 <0.17` the plugin loaded
+as `running` and registered the three hooks. A `droid-lead` (Sonnet 5.5) listed seven Paseo tools
+and `epistex_assign`, had no `create_agent`, and created a `droid-peer` (Haiku 5.5) with
+`epistex_assign`; the Peer committed and called `epistex_submit_handoff`; the Lead got one
+`HANDBACK_VALID` (`submitted: true`, `briefCodes: []`) and no `[Agent finished]`. A root
+`droid-peer` listed `epistex_submit_handoff` and no catalog tool. After a plugin reload, the
+reconcile read the one watched Peer and sent no second delivery. Not run again on 0.16.0: the
+other backends, `PERMISSION_REQUESTED`, a text handoff through the parser, the Peer reminder,
+re-anchoring, reconcile after a daemon restart with missed turns, a tool refusal and a rework
+round.
+
 Fault injection (a busy Lead, missed turns plus reconcile, a crash between fsync and send, a Peer
-cut mid-turn) was run only on Paseo 0.14.0, below the required range, and not again on 0.15.x.
+cut mid-turn) was run only on Paseo 0.14.0, below the required range, and not again on 0.15.x or 0.16.0.
 Not covered live: a real missed `notifyOnFinish` (#6346) on a background completion; native
 `host unreachable`/`host removed` (one host only). A Peer that ends without a turn end the plugin
 observes is a missing handoff.

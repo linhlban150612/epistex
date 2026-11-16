@@ -9,9 +9,9 @@ errs=0
 project=
 plugin_action=
 plugin_dir="$kit/plugins/epistex-delivery"
-plugin_range='>=0.15.0 <0.16'
-plugin_min=0.15.0
-plugin_below=0.16.0
+plugin_range='>=0.16.0 <0.17'
+plugin_min=0.16.0
+plugin_below=0.17.0
 plugin_installed=0
 fail() { printf '  ! %s\n' "$*" >&2; errs=$((errs + 1)); }
 usage() { printf 'usage: %s [--check] [--project <path>] [--install-plugin | --remove-plugin]\n' "$0" >&2; exit 2; }
@@ -115,7 +115,7 @@ for name in codex-room role-agent kiro-acp claude-sdk amp-acp agy-acp devin-acp 
 done
 
 # The delivery plugin is verified on the Paseo releases in one range; manifest, guard and this checker share it.
-# A prerelease counts as its stable core (as Paseo itself checks requirements.paseo): 0.15.0-beta.1 is 0.15.0.
+# A prerelease counts as its stable core (as Paseo itself checks requirements.paseo): 0.16.0-beta.1 is 0.16.0.
 paseo_in_range() {
   local core=${1%%[-+]*}
   [[ "$core" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1

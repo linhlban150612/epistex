@@ -72,7 +72,7 @@ Verified live: a Claude Lead or Supervisor in mode `default` gets that error for
 creates the agent in the profile's mode when the profile carries one.
 Groups blocked for Lead: 11 schedule/heartbeat, 22 browser, 5 terminal, 17 workspace/agent/provider/host/permission;
 for Supervisor that last group is down to 9 (see the list in the
-[provider example](examples/paseo-providers.json)). Paseo `>=0.15.0 <0.16` is required: the mandatory [delivery plugin](docs/setup/delivery-plugin.md) is verified on that range (reason: [known limitations](README.md#cautions-and-known-limitations)); the daemon and CLI must be the same version.
+[provider example](examples/paseo-providers.json)). Paseo `>=0.16.0 <0.17` is required: the mandatory [delivery plugin](docs/setup/delivery-plugin.md) is verified on that range (reason: [known limitations](README.md#cautions-and-known-limitations)); the daemon and CLI must be the same version.
 `speak` cannot be blocked and is outside the catalog. A test pins the 62-name catalog to force a review
 when Paseo is upgraded. The `--check` script confirms the exact deny-list on every enabled provider.
 
@@ -177,7 +177,7 @@ wrong model, effort or tool permission, or if a prompt or template names a skill
 location; if you use `CODEX_BIN`, set the same value for the checker and the providers. A passing result
 does not prove auth, the daemon, model availability or a successful launch: those are steps 2 and 8.
 
-The [delivery plugin](docs/setup/delivery-plugin.md) is required and verified on Paseo `>=0.15.0 <0.16`: `--check` fails
+The [delivery plugin](docs/setup/delivery-plugin.md) is required and verified on Paseo `>=0.16.0 <0.17`: `--check` fails
 when it is not installed from the kit path, when the range does not match, `pluginsEnabled` is off or the daemon version is
 outside the range. `--check` also fails when `agents.resumeOnStartup` (0.15+) is on; keep it off.
 `--check` also fails when an active Paseo workspace or project (`projects/workspaces.json`, `projects/projects.json`

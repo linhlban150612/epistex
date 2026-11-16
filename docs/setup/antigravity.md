@@ -15,7 +15,7 @@ Observed on 2026-11-14: with the registry binary (the installed build and 1.5.0)
 
 ## Configure Paseo
 
-Merge the `agy-peer` entry and its model profiles from `examples/paseo-providers.json`; replace `<KIT>` with the absolute repository path. The provider extends `acp`, invokes `setup/role-agent peer agy`, and has Paseo tools disabled.
+Merge the `agy-peer` entry and its model profiles from `examples/paseo-providers.json`; replace `<KIT>` with the absolute repository path. The provider extends `acp`, invokes `setup/role-agent peer agy`, and has all 62 Paseo catalog tools in `disabledTools`, so it sees only the plugin tool `epistex_submit_handoff`.
 
 | Seat | Models (first is the default) | `modeId` |
 |---|---|---|
@@ -45,4 +45,4 @@ A seat model ID carries the effort: `agy acp` maps `gemini-4-argon-low` to model
 
 Live status of model confirmation (2026-11-14, raw ACP through the launcher): after a refused selection (`Unknown model ID`), the prompt was refused by the seat; after `gemini-4-argon-low` was selected, the prompt ran.
 
-Live status (2026-11-14, `agy` 1.5.9, Paseo 0.15.4): `agy-lead` `gemini-4-argon-low` reported "Gemini 4 Argon (Low)", the Lead heading, the session cwd and nine Paseo tools. `agy-peer` `gemini-4-argon-low` and `gemini-4-hydrogen-low` reported their model, the Peer heading, the session cwd and no Paseo tool, and each wrote a file. Through `epistex_assign`, a `droid-lead` created an `agy-peer--gemini-4-hydrogen-medium` Peer: it reported "Gemini 4 Hydrogen (Medium)", wrote its file with no permission request, and the Lead got one `HANDBACK_VALID`. With the confirming launcher, `agy-lead` `gemini-4-argon-medium` and `agy-peer` `gemini-4-hydrogen-low` reported their model and completed their prompts through Paseo.
+Live status (2026-11-14, `agy` 1.5.9, Paseo 0.15.4): `agy-lead` `gemini-4-argon-low` reported "Gemini 4 Argon (Low)", the Lead heading and the session cwd; on 2026-11-15 `agy-lead` listed the seven Lead tools and `epistex_assign`, had no `create_agent`, and created a Peer with `epistex_assign` ([verification status](delivery-plugin.md#verification-status)). `agy-peer` `gemini-4-argon-low` and `gemini-4-hydrogen-low` reported their model, the Peer heading, the session cwd and no Paseo tool, and each wrote a file. Through `epistex_assign`, a `droid-lead` created an `agy-peer--gemini-4-hydrogen-medium` Peer: it reported "Gemini 4 Hydrogen (Medium)", wrote its file with no permission request, and the Lead got one `HANDBACK_VALID`. With the confirming launcher, `agy-lead` `gemini-4-argon-medium` and `agy-peer` `gemini-4-hydrogen-low` reported their model and completed their prompts through Paseo.

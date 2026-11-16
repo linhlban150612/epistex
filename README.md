@@ -7,7 +7,7 @@ backends listed below, with Paseo as the sole control plane.
 |---|---|---|
 | Supervisor | Cross-project observation, opening Leads, helping the Human, and event-triggered interventions (permissions, cancel, mode); writes, receives, and reviews no artifacts | Enabled |
 | Lead | Assigning tasks, requesting rework, and deciding acceptance | Enabled |
-| Peer | Implementing within owned scope, verification, and handoff | Disabled |
+| Peer | Implementing within owned scope, verification, and handoff | Enabled with all 62 catalog tools blocked; sees only the plugin tool `epistex_submit_handoff` |
 
 Human implementation requests normally authorize the Lead to assign Peers and review/rework
 within scope, unless the Human limits delegation. The Peer is the sole writer for implementation,
@@ -29,7 +29,7 @@ instructions to each new session's first prompt — **not the system prompt**. A
 with `session/load` or `session/resume` already holds the role in its history, so the proxy does
 not add it again; a backend that compacts the role out of a loaded session does not get it back.
 The Kiro and Cursor proxies refuse prompts in a session restored with `session/resume`.
-Droid Lead/Supervisor use the injected Paseo MCP; Droid Peer has Paseo tools disabled. All Droid
+Droid seats use the injected Paseo MCP with their role's tool policy. All Droid
 seats run a `PreToolUse` hook that denies Droid's native subagents, Missions, loops and automations;
 for Droid Lead/Supervisor it also denies shell commands that commit, push, merge, remove a worktree or deploy.
 
@@ -91,7 +91,7 @@ Runtime layout, resume selection, environment variables and the legacy `seatwork
 | `setup/check-brief`, `setup/check-handoff`, `setup/fail-on-base` | Mechanical gates for briefs, handoffs and reproducible-bug fixes |
 | `setup/verify` | The kit's four verification checks in one command; last line `VERIFY OK` |
 | `.agents/skills/*/SKILL.md` | Lead skills: Dual-Lane review, context reset, seat recovery, rework escalation, handling reopen/dependency requests, proof (acceptance order and external handoffs); Peer skill: waiting on long jobs; installed per project by `setup-seats.sh --project` into `.agents/skills/`, `.claude/skills/` and `.kiro/skills/` |
-| `plugins/epistex-delivery/`, `docs/setup/delivery-plugin.md` | Required Paseo `>=0.16.0 <0.17` server plugin that relays a Peer's end-of-turn handback to its Lead; installed through `setup-seats.sh --install-plugin` after Human approval |
+| `plugins/epistex-delivery/`, `docs/setup/delivery-plugin.md` | Required Paseo server plugin that relays a Peer's end-of-turn handback to its Lead; installed through `setup-seats.sh --install-plugin` after Human approval |
 | `.pi/settings.json`, `.omp/config.yml` | Checkout-scoped Pi/OMP compaction settings |
 | `examples/AGENTS_MD_SNIPPET.md`, `examples/WORKSPACE_PROTOCOL.md`, `examples/LEAD_INITIAL_PROMPT.md`, `examples/target-repo/` | Contract, policy, Lead startup and verify templates for target repos |
 | `eval/` | Peer behavior scenarios run against real agents; results stay outside Git |
@@ -121,8 +121,8 @@ recovery checks.
   the source: that is a trade-off change for the Human to decide, not a fix.
 
 - Paseo is the sole agent control plane and owns lifecycle and topology. Inspect live state before
-  operating. Paseo `>=0.16.0 <0.17` is required: the mandatory delivery plugin is verified on that
-  range. A Peer cut mid-turn by a daemon restart yields `was closed`, not `finished`, and its round
+  operating. The Paseo version range is the one the mandatory
+  [delivery plugin](docs/setup/delivery-plugin.md) is verified on. A Peer cut mid-turn by a daemon restart yields `was closed`, not `finished`, and its round
   must be reassigned; archived agents stay out of `list_agents`. A `send_agent_prompt` receipt only
   proves the prompt was queued.
 - Temporary SLP workaround: [#3256](https://github.com/getpaseo/paseo/issues/3256)

@@ -111,8 +111,7 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
   nothing to the Lead. One reminder only: when the Peer's next turn again has no valid handoff, the
   Lead gets `TURN_ENDED_INVALID_HANDOFF` with `warning: peer was reminded once and again ended its
   turn without a handoff`, plus the warnings of the reminded turn. A handoff with a header and wrong
-  cells goes to the Lead at once, and a restart catch-up never reminds. Of the 145 invalid receipts
-  of 2026-11-02..14, 16 were cut turns and 37 had no header.
+  cells goes to the Lead at once, and a restart catch-up never reminds.
   A `completed` turn with no new assistant message is logged and not delivered (a replayed hook
   lands here); `failed`/`canceled` turns without a message become `TURN_ENDED_NO_MESSAGE`. Root
   agents and children of non-Lead parents are ignored.
@@ -219,10 +218,8 @@ Human decisions; Git history holds their dates and earlier variants.
    `notifyOnFinish: false`, and `epistex_assign` creates a Peer with no finish notification. Native notifications put every handback into the Lead's context twice,
    cut it at 4000 characters, and can be missed (#6346). Both hooks register or neither.
 9. A Lead creates a new Peer only with `epistex_assign`: `create_agent` is blocked in the Lead tool
-   policy, so a brief that fails the schema or the baseline check cannot reach a Peer. The tool was
-   verified live on all eight Lead backends before the block. A Supervisor keeps `create_agent` to
-   open Leads.
-
+   policy, so a brief that fails the schema or the baseline check cannot reach a Peer. A Supervisor
+   keeps `create_agent` to open Leads.
 10. A Peer hands over with `epistex_submit_handoff`. A plugin tool reaches a session only through
     the Paseo channel, so every Peer seat has `paseoTools.enabled: true` with all 62 catalog tools
     in `disabledTools`: the Peer sees the handoff tool and no Paseo tool. `setup-seats.sh --check`
@@ -231,64 +228,45 @@ Human decisions; Git history holds their dates and earlier variants.
 
 ## Verification status
 
-Verified live with real role seats on Paseo 0.15.x: hook registration, handback delivery as
-`HANDBACK_VALID` (including trailing text after the handoff), receipt `outcome` for completed and
-canceled turns, `PERMISSION_REQUESTED` routed to the Supervisor and answered there, a single
-handoff in the Lead timeline with `notifyOnFinish: false`, re-anchoring after a Peer timeline
-replacement, and unwatching dead Peers on reconcile. Run logs stay outside Git in the local
+Live runs used real role seats; their logs stay outside Git in the local
 `eval/results/delivery-plugin-live-runs.md`.
 
-`epistex_assign` (2026-11-14, Paseo 0.15.4, `droid-lead` Sonnet 5.5 with a `droid-peer` Haiku 5.5
-profile): round 7 was rejected by the schema before the tool ran; a wrong `base_sha` returned
-`BASELINE_STALE` and a Lead profile returned `PROFILE_NOT_PEER`, each with no Peer created; valid
-input returned `ASSIGNED`, the receipt held the task, round 1 and `briefCodes: []`, and the Lead got
-one `HANDBACK_VALID` and no native finish notification. The same four calls gave the same results
-on `claude-lead` (Opus 5.5), `codex-lead` (GPT-6.1 Sol), `omp-lead` (Sonnet 5.5), `kiro-lead`
-(Sonnet 5.5), `cursor-lead` (Gemini 4 Carbon), `amp-lead` (`medium`) and `agy-lead`, each with a
-`droid-peer` profile. Kiro and Cursor
-Leads have a tool allowlist: before `epistex_assign` was in `setup/kiro-lead.json`, the Kiro Lead
-did not see the tool and the Cursor Lead stopped on a permission request. After `create_agent` was blocked for
-Leads (2026-11-14): `droid-lead`, `kiro-lead`, `claude-lead`, `codex-lead` and `cursor-lead` each
-listed seven Paseo tools and `epistex_assign`, had no `create_agent`, and created a Peer with
-`epistex_assign`; each receipt held `HANDBACK_VALID` and `briefCodes: []`. The Cursor Lead asked
-permission twice in that run: for a `git` shell command, and for its attempt to call the absent
-`create_agent`. On 2026-11-15 `amp-lead`, `agy-lead` and `omp-lead` gave the same result: no
-`create_agent`, a Peer created with `epistex_assign`, one `HANDBACK_VALID` with `briefCodes: []`
-and no `[Agent finished]`. The Amp and Antigravity Leads listed the seven Paseo tools; the OMP Lead
-was asked only for tool names that contain `paseo` or `epistex`, and OMP names have no prefix, so
-it listed `epistex_assign` only. Not covered live: the
-snapshot baseline, a round above 1 for a replacement Peer, and a Lead that chooses the tool in a
-real task without a prompt that names it.
+- **Paseo 0.16.0** (2026-11-16, Droid 1.12.1, a separate daemon with a copy of the live seat
+  config): the plugin loaded as `running` and registered its three hooks. A `droid-lead`
+  (Sonnet 5.5) listed seven Paseo tools and `epistex_assign`, had no `create_agent`, and created a
+  `droid-peer` (Haiku 5.5) with `epistex_assign`; the Peer committed and called
+  `epistex_submit_handoff`; the Lead got one `HANDBACK_VALID` (`submitted: true`, `briefCodes: []`)
+  and no `[Agent finished]`. A root `droid-peer` listed `epistex_submit_handoff` and no catalog
+  tool. After a plugin reload, reconcile read the watched Peer and sent no second delivery.
+- **Delivery core** (Paseo 0.15.x): hook registration, `HANDBACK_VALID` with trailing text,
+  receipt `outcome` for completed and canceled turns, `PERMISSION_REQUESTED` routed to the
+  Supervisor and answered there, one handoff in the Lead timeline with `notifyOnFinish: false`,
+  re-anchoring after a Peer timeline replacement, and unwatching dead Peers on reconcile.
+- **`epistex_assign`** (Paseo 0.15.4, 2026-11-14 and 15): on `droid-lead`, `claude-lead`,
+  `codex-lead`, `omp-lead`, `kiro-lead`, `cursor-lead`, `amp-lead` and `agy-lead`, each with a
+  `droid-peer` profile, round 7 was rejected by the schema, a wrong `base_sha` returned
+  `BASELINE_STALE`, a Lead profile returned `PROFILE_NOT_PEER` (no Peer created in either case),
+  and valid input returned `ASSIGNED` with a receipt holding the task, round 1 and
+  `briefCodes: []`, then one `HANDBACK_VALID` and no native finish notification. With
+  `create_agent` blocked, each Lead had no `create_agent` and listed the seven Lead tools and
+  `epistex_assign` (the OMP Lead was asked only for names containing `paseo` or `epistex`). Kiro
+  and Cursor Leads see the tool only through their allowlists (`setup/kiro-lead.json`, which
+  `setup/cursor-acp` also reads); the Cursor Lead still asks permission for `git` shell commands.
+- **`epistex_submit_handoff`** (Paseo 0.15.4, 2026-11-15, briefs that did not name the tool):
+  `droid-peer`, `claude-peer`, `kiro-peer`, `amp-peer`, `agy-peer`, `omp-peer-1`, `omp-peer-2` and
+  `devin-peer` committed and submitted `commit`; `droid-peer-2` submitted `none` for a read-only
+  task; `codex-peer` could not write `.git` in its sandbox and submitted `BLOCKED` with a
+  `snapshot`; `cursor-peer` submitted after two shell permission requests were allowed by hand (the
+  Human's Cursor config allows only `ls` and `pwd`; the tool call needed no request). Every Lead
+  got one `HANDBACK_VALID` with `submitted: true` and no `[Agent finished]`. A snapshot file inside
+  the worktree is stored relative to it, so the scope warning compares it with the brief.
+- **Fault injection** (a busy Lead, missed turns plus reconcile, a crash between fsync and send, a
+  Peer cut mid-turn): Paseo 0.14.0 only, below the required range.
 
-`epistex_submit_handoff` (2026-11-15, Paseo 0.15.4): a `droid-lead` gave one task to one Peer per
-seat with `epistex_assign`; the brief did not name the handoff tool. `droid-peer`, `claude-peer`,
-`kiro-peer`, `amp-peer`, `agy-peer`, `omp-peer-1`, `omp-peer-2` and `devin-peer` committed and
-called the tool (`commit`); `droid-peer-2` got a read-only task and submitted candidate `none`;
-`codex-peer` could not write `.git` in its sandbox and submitted `BLOCKED` with a `snapshot`;
-`cursor-peer` submitted after two shell permission requests were allowed by hand (the Human's
-Cursor config allows only `ls` and `pwd`; the tool call itself needed no request). Every Lead got
-one `HANDBACK_VALID` with `submitted: true` and no `[Agent finished]`. The Codex Peer named its
-snapshot file by absolute path, which gave a false scope warning; the tool now writes a path inside
-the worktree relative to it. Not covered live: `pi-peer` (its `openai-codex` login had expired),
-`omp-peer`, `omp-peer-3`, `droid-peer-3`, `copilot-peer` (disabled), a tool refusal, a rework
-round, and whether a Peer sees any catalog tool (not asked).
-
-Paseo 0.16.0 (2026-11-16, daemon and CLI 0.16.0, Droid 1.12.1, a daemon with its own `PASEO_HOME`,
-a copy of the live seat config and this plugin directory): with the earlier range
-`>=0.15.0 <0.16`, `paseo plugin install` failed and a configured entry loaded as `failed`
-(`requires Paseo >=0.15.0 <0.16. Your daemon is 0.16.0`). With `>=0.16.0 <0.17` the plugin loaded
-as `running` and registered the three hooks. A `droid-lead` (Sonnet 5.5) listed seven Paseo tools
-and `epistex_assign`, had no `create_agent`, and created a `droid-peer` (Haiku 5.5) with
-`epistex_assign`; the Peer committed and called `epistex_submit_handoff`; the Lead got one
-`HANDBACK_VALID` (`submitted: true`, `briefCodes: []`) and no `[Agent finished]`. A root
-`droid-peer` listed `epistex_submit_handoff` and no catalog tool. After a plugin reload, the
-reconcile read the one watched Peer and sent no second delivery. Not run again on 0.16.0: the
-other backends, `PERMISSION_REQUESTED`, a text handoff through the parser, the Peer reminder,
-re-anchoring, reconcile after a daemon restart with missed turns, a tool refusal and a rework
-round.
-
-Fault injection (a busy Lead, missed turns plus reconcile, a crash between fsync and send, a Peer
-cut mid-turn) was run only on Paseo 0.14.0, below the required range, and not again on 0.15.x or 0.16.0.
-Not covered live: a real missed `notifyOnFinish` (#6346) on a background completion; native
+Not covered live: on 0.16.0, every behavior above except the first item and on backends other
+than Droid; the snapshot baseline of `epistex_assign`, a round above 1 for a replacement Peer, and
+a Lead that chooses the tool without a prompt that names it; `epistex_submit_handoff` on
+`pi-peer`, `omp-peer`, `omp-peer-3`, `droid-peer-3` and `copilot-peer`, a tool refusal and a rework
+round; a real missed `notifyOnFinish` (#6346) on a background completion; native
 `host unreachable`/`host removed` (one host only). A Peer that ends without a turn end the plugin
 observes is a missing handoff.

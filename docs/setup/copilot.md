@@ -8,7 +8,7 @@ Copilot chỉ có seat Peer: `setup/copilot-acp` từ chối mọi role khác `p
 | Field | `copilot-peer` |
 |---|---|
 | `command` | `["<KIT>/setup/role-agent","peer","copilot"]` |
-| `paseoTools.enabled` | `false` |
+| `paseoTools.enabled` | `true`, đủ 62 tool catalog trong `disabledTools`; chỉ `epistex_submit_handoff` của plugin |
 | `models` | `gemini-3.8-flash`, `kimi-k3`, `claude-haiku-5.5`, `grok-4.7`, `claude-sonnet-5.5` |
 | `thinkingOptions` | `low`, `medium` cho từng model |
 

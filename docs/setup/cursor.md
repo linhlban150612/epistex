@@ -76,12 +76,8 @@ Nguồn: [ACP](https://cursor.com/docs/cli/acp),
 [Grok 4.7](https://cursor.com/docs/models/grok-4-7).
 Capability chọn tham số và các giá trị phản hồi đã được kiểm tra trực tiếp trên phiên bản nêu trên.
 
-Live E2E (CLI `2026.10.22-27dcf5f`): `cursor-peer` `grok-4.7-low` launch qua
-Paseo, nhận `# Common contract` cộng `# Peer — independent co-worker`, CWD là project, không thấy tool
-Paseo. Catalog native có `Task` (subagent của Cursor) và MCP `semble`; đây không phải Paseo MCP.
-
-Live (2026-11-14, CLI `2026.11.13-eacade1`, Paseo 0.15.4): `cursor-peer` `composer-2.5` nhận heading Peer,
-CWD đúng, không có tool Paseo. `cursor-supervisor` `grok-4.7-high-500k` thấy đúng 15 tool Paseo;
-`cursor-lead` `gemini-4-carbon-high` thấy đúng 8 tool (trước khi `create_agent` bị chặn cho Lead). Cả hai gọi `list_workspaces` và `list_profiles`
-không có permission request. Trước khi launcher thêm token `Mcp(paseo:…)`, cả hai dừng ở permission request.
+Live (2026-11-14, CLI `2026.11.13-eacade1`, Paseo 0.15.4): `cursor-peer` `composer-2.5` nhận `# Common contract`
+cộng heading Peer, CWD đúng, không có tool Paseo. Catalog native có `Task` (subagent của Cursor) và MCP riêng
+của Human (ví dụ `semble`); đây không phải Paseo MCP. `cursor-supervisor` `grok-4.7-high-500k` thấy đúng 15 tool Paseo;
+`cursor-lead` thấy 7 tool Lead cộng `epistex_assign`. Cả hai gọi tool Paseo không có permission request.
 Catalog tham số của ba model lấy từ probe ACP không gửi prompt.

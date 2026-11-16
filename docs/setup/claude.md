@@ -11,7 +11,7 @@ Merge hai provider vào `.agents.providers`, với cấu hình:
 | `command` | `["<KIT>/setup/role-agent", "lead", "claude"]` | `["<KIT>/setup/role-agent", "peer", "claude"]` |
 | `enabled` | `true` | `true` |
 | `env` | `{"CLAUDE_CODE_AUTO_COMPACT_WINDOW":"200000"}` | same as `claude-lead` |
-| `paseoTools.enabled` | `true` | `false` |
+| `paseoTools.enabled` | `true` | `true`, đủ 62 tool catalog trong `disabledTools` |
 | `models[0].id` | `claude-opus-5-5` | `claude-sonnet-5-5` |
 | `models[0].isDefault` | `true` | `true` |
 | `models[0].thinkingOptions` | `[{"id":"low","label":"Low","isDefault":true}]` | `[{"id":"low","label":"Low","isDefault":true}]` |

@@ -165,11 +165,12 @@ Lead launch bốn profile qua Paseo sau frozen-candidate review; lấy actual se
 raw `config_option_update`, `_kiro/tools/didChange` và `_kiro/mcp/status` hoặc chạy metadata probe trên chính
 candidate. Trong live task prompt, yêu cầu agent mô tả heading role **đã nhận trong session**,
 liệt kê tools thực sự thấy và in `pwd`; không coi đọc lại file prompt là proof injection.
-Peer phải nhận `# Peer — independent co-worker`, project CWD, không Paseo/subagent tools.
-Trạng thái live (CLI 2.33.1 đến 3.1.0; 3.2.1: launch `kiro-peer` Sonnet/low, heading role, CWD, không Paseo tools): bốn profile `kiro-peer` và `kiro-lead`/`kiro-supervisor`
+Peer phải nhận `# Peer — independent co-worker`, project CWD, không tool catalog Paseo hoặc subagent; chỉ `epistex_submit_handoff`.
+Trạng thái live (CLI 2.33.1 đến 3.1.0; 3.2.1: launch `kiro-peer` Sonnet/low, heading role, CWD): bốn profile `kiro-peer` và `kiro-lead`/`kiro-supervisor`
 Sonnet/low launch với đúng mode/model/effort, nhận `# Common contract` cộng heading role, CWD là project;
-Peer chỉ có native tools; catalog Lead có đúng 8 tool `paseo::*` (kiểm lại 2026-11-12, Paseo 0.15.4; từ 2026-11-14 là 7 tool cộng `epistex_assign`), không có `speak`;
-Lead gọi `list_workspaces` không bị hỏi quyền; `kiro-lead` tạo `kiro-peer` qua `create_agent` (nay bị chặn cho Lead; Lead dùng `epistex_assign`);
+Peer có native tools và gọi `epistex_submit_handoff`; catalog Lead có 7 tool Lead cộng `epistex_assign`, không có `speak`
+và `create_agent`; Lead gọi `list_workspaces` không bị hỏi quyền và tạo `kiro-peer` qua `epistex_assign`
+([verification status](delivery-plugin.md#verification-status));
 handback đi qua [delivery plugin](delivery-plugin.md), không qua native notification. Chưa live-cover `session/cancel`,
 `session/resume` và `session/load` qua lifecycle Paseo. Chưa kiểm qua Paseo thì chỉ kết luận ACP metadata/fixture verified, không kết luận seat đã được chấp nhận.
 

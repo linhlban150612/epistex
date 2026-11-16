@@ -14,7 +14,7 @@ Merge hai provider vào `.agents.providers`, không thay provider `amp-acp` hi�
 | `command` | `["<KIT>/setup/role-agent", "lead", "amp"]` | `["<KIT>/setup/role-agent", "peer", "amp"]` |
 | `enabled` | `true` | `true` |
 | `env` | `{}` | `{}` |
-| `paseoTools.enabled` | `true` | `false` |
+| `paseoTools.enabled` | `true` | `true`, đủ 62 tool catalog trong `disabledTools` |
 | `models[0].id` | `medium` | `low` |
 | `models[0].label` | `Medium` | `Low` |
 | `models[0].isDefault` | `true` | `true` |

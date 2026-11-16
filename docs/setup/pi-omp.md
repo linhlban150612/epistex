@@ -14,7 +14,7 @@ Merge vào `.agents.providers`, giữ nguyên provider và state hiện có:
 | `command` | `["<KIT>/setup/role-agent", "peer", "pi"]` | `["<KIT>/setup/role-agent", "peer", "omp"]` |
 | `enabled` | `true` | `true` |
 | `env` | `{}` | `{}` |
-| `paseoTools.enabled` | `false` | `false` |
+| `paseoTools.enabled` | `true`, đủ 62 tool catalog trong `disabledTools` | same as `pi-peer` |
 | `models[0].id` | `huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017` | `huggingface/deepseek-ai/DeepSeek-V4.1-Flash-1017` |
 | `models[0].isDefault` | `true` | `true` |
 | `models[0].thinkingOptions` | `[{"id":"low","label":"Low","isDefault":true}]` | same as `pi-peer` |
@@ -60,7 +60,7 @@ cùng role ([droid.md](droid.md)). `omp-peer` ở trên giữ nguyên.
 |---|---|---|---|---|
 | `omp-supervisor` | `["<KIT>/setup/role-agent","supervisor","omp"]` | 15 tool Supervisor | `claude-sonnet-5-5`, `claude-opus-5-5`, `gpt-6.1-sol`, `gemini-3.8-flash`; low/medium | `claude-sonnet-5-5`, low |
 | `omp-lead` | `["<KIT>/setup/role-agent","lead","omp"]` | 7 tool Lead cộng `epistex_assign` | `claude-opus-5-5`, `claude-fable-5.1`, `gpt-6-astra`, `gpt-6.1-sol`, `claude-sonnet-5-5`; low/medium | `claude-opus-5-5`, low |
-| `omp-peer-1`…`3` | `["<KIT>/setup/role-agent","peer","omp"]` | tắt | `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5`, `claude-fable-5.1`, `gpt-6-astra`, `gpt-6.1-sol`, `gpt-6.1-terra`, `gpt-6-luna`, `gemini-3.8-flash`: low/medium; `glm-5.3`, `kimi-k3`: low/high; `deepseek-v4.1-flash-1017`: low | `claude-haiku-5-5`, low |
+| `omp-peer-1`…`3` | `["<KIT>/setup/role-agent","peer","omp"]` | 0 tool; chỉ `epistex_submit_handoff` của plugin | `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5`, `claude-fable-5.1`, `gpt-6-astra`, `gpt-6.1-sol`, `gpt-6.1-terra`, `gpt-6-luna`, `gemini-3.8-flash`: low/medium; `glm-5.3`, `kimi-k3`: low/high; `deepseek-v4.1-flash-1017`: low | `claude-haiku-5-5`, low |
 
 Fable 5.1 cần account Factory bật data sharing cho publisher `anthropic`; nếu không, prompt dừng với
 `PERMISSION_DENIED` ("Access to this model requires data sharing to be enabled for publisher 'anthropic'").
@@ -84,13 +84,11 @@ Trạng thái live (2026-11-15, OMP 18.20.2): cả năm seat chạy với `OMP_P
 (`epistex-omp-lead`, `epistex-omp-supervisor`, `epistex-omp-peer-1`…`3`), mỗi profile một account Factory
 khác nhau. Mỗi seat ở mode `full`, model mặc định/low, nhận heading role đúng, CWD đúng và ghi session vào
 profile riêng. `omp-supervisor` thấy 15 tool Paseo, `omp-lead` thấy 7 tool Paseo cộng `epistex_assign`,
-`omp-peer-1`…`3` không có tool Paseo. Model mới, mỗi seat một launch ở low: `omp-lead` `gpt-6-astra`,
+`omp-peer-1`…`3` không có tool Paseo. Các model khác, mỗi seat một launch ở low: `omp-lead` `gpt-6-astra`,
 `omp-supervisor` `gemini-3.8-flash` và `omp-peer-1`…`3` `gpt-6-astra`, `gpt-6.1-terra`, `gpt-6-luna` nhận
 heading role đúng; `claude-fable-5.1` chạy trên `omp-peer-1` và `omp-peer-2`, bị `PERMISSION_DENIED` trên
 `omp-lead` và `omp-peer-3` (account chưa bật data sharing cho `anthropic`).
 
-Trạng thái live (2026-11-14, OMP 18.20.0, Paseo 0.15.4, login mặc định): `omp-supervisor` Sonnet/low thấy
-đúng 15 tool Paseo, `omp-lead` Opus/low thấy đúng 8 tool (trước khi `create_agent` bị chặn cho Lead); cả hai gọi `list_workspaces` không bị hỏi quyền
-và nhận heading role đúng. `omp-peer-1` Haiku/low nhận `# Peer — independent co-worker`, CWD đúng, không có
-tool Paseo. Tool native `task` của OMP vẫn có ở mọi seat OMP; đó không phải Paseo MCP và prompt role cấm
+Trên login mặc định (2026-11-14, OMP 18.20.0, Paseo 0.15.4), `omp-supervisor` và `omp-lead` gọi `list_workspaces`
+không bị hỏi quyền. Tool native `task` của OMP vẫn có ở mọi seat OMP; đó không phải Paseo MCP và prompt role cấm
 dùng nó để delegate.

@@ -131,7 +131,8 @@ for line in sys.stdin:
     if method == "initialize":
         negotiated = p["clientCapabilities"].get("_meta", {}).get("parameterizedModelPicker") is True
         seat_config = json.loads(pathlib.Path(os.environ["CURSOR_CONFIG_DIR"], "cli-config.json").read_text())
-        result = {"protocolVersion":1, "allow":seat_config.get("permissions", {}).get("allow")}
+        result = {"protocolVersion":1, "allow":seat_config.get("permissions", {}).get("allow"),
+                  "approvalMode":seat_config.get("approvalMode")}
     elif method in ("session/new", "session/load"):
         result = {"sessionId":"seat", "models":{"currentModelId":"unsafe-default"}}
     elif method == "session/set_config_option":
@@ -208,8 +209,9 @@ for line in sys.stdin:
                         env={**os.environ, "PATH": folder, "HOME": folder, "CURSOR_CONFIG_DIR": str(config), "FAULT": ""})
                     replies = {r["id"]: r for r in map(json.loads, result.stdout.splitlines()) if "id" in r}
                     self.assertEqual(replies[1]["result"]["models"]["currentModelId"], default, result.stderr)
-                    # Cursor ACP has no bypass mode: a Lead is allowed exactly its Paseo tools and epistex_assign,
-                    # a Peer only the handoff tool, and only in the seat's private copy of cli-config.json.
+                    # Every seat runs in Run Everything; a Lead is also allowed exactly its Paseo tools and
+                    # epistex_assign, a Peer only the handoff tool, and only in the seat's private cli-config.json.
+                    self.assertEqual(replies[0]["result"]["approvalMode"], "unrestricted")
                     self.assertEqual(replies[0]["result"]["allow"], ["Mcp(paseo:epistex_submit_handoff)"] if role == "peer" else [
                         f"Mcp(paseo:{tool})" for tool in (
                             "list_workspaces", "list_providers", "list_models", "list_profiles",

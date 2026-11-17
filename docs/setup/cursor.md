@@ -25,13 +25,21 @@ For each enabled seat, `--check` checks the launcher, the tools, the exact model
 
 Each role can select only its own models; the launcher rejects models of other roles.
 
-## Paseo tools for Lead and Supervisor
+## Run Everything and Paseo tools
 
-Cursor ACP has only the modes `agent`, `plan` and `ask`; it has no bypass mode. Without extra configuration, Lead and
-Supervisor stop at a permission request on each Paseo tool call (checked live). The launcher adds the token
-`Mcp(paseo:<tool>)` to `permissions.allow` for exactly the Paseo tools that the role keeps (the Lead set plus `epistex_assign`, the Supervisor set; see [SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor); taken
-from `setup/kiro-<role>.json`). It does this only in the seat's private copy of `cli-config.json`. The user's `cli-config.json`
-does not change. Peer gets no token. Other tools still follow Cursor permissions.
+Cursor ACP has only the modes `agent`, `plan` and `ask`; it has no bypass mode. Without extra configuration, a seat
+stops at a permission request on each shell command outside the Human allowlist and on each Paseo tool call
+(checked live). Every Cursor seat runs in Run Everything: the launcher sets `"approvalMode": "unrestricted"`, the
+setting that `--force`/`--yolo` turn on in the interactive CLI and that `cursor-agent acp` reads only from
+`cli-config.json`. The launcher also adds the token `Mcp(paseo:<tool>)` to `permissions.allow` for exactly the Paseo
+tools that the role keeps (the Lead set plus `epistex_assign`, the Supervisor set, the Peer only
+`epistex_submit_handoff`; see [SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor); taken from
+`setup/kiro-<role>.json`), so Paseo calls also run when a team admin blocks MCP auto-run. It does both only in the
+seat's private copy of `cli-config.json`. The user's `cli-config.json` does not change. A team admin who disables Run
+Everything overrides it.
+
+Live (2026-11-17, CLI `2026.11.13-eacade1`): with the setting, `cursor-peer` ran a write command and `cursor-lead` a
+read command outside the allowlist with no permission request; without it, the same prompts asked permission.
 
 ## Select model and reasoning level
 
@@ -55,12 +63,13 @@ Cursor writes ACP parameters to `cli-config.json`. The launcher uses a private c
 `CURSOR_CONFIG_DIR` in a temporary directory with private permissions. The other files are linked to the original Cursor
 directory to keep auth, MCP, rules and session history. `acp-config.json` is also kept separate.
 Do not change the global model configuration. The temporary directory is deleted when the launcher exits; the original session history is kept.
-Do not use `--force`, `--yolo` or `--approve-mcps` to bypass permission errors.
+Do not add `--force`, `--yolo` or `--approve-mcps` to the launch: `acp` has no such options, and Run Everything comes
+from the private `cli-config.json`.
 
 ## Check after an update
 
 After `paseo reload`, create a new session for each profile. Check the model, reasoning level, Fast off,
-Peer role, CWD and the actual tools. The `paseoTools` deny-list does not disable Cursor's own MCP. The launcher adds `Mcp(paseo:epistex_submit_handoff)` to the Peer `permissions.allow`; shell commands outside the Human allowlist still ask for permission.
+Peer role, CWD and the actual tools. The `paseoTools` deny-list does not disable Cursor's own MCP. Check that a shell command outside the Human allowlist runs without a permission request (Run Everything).
 If Cursor reports a plan or quota limit, report BLOCKED; do not change the model or upgrade the plan.
 
 ## Automatic context compaction

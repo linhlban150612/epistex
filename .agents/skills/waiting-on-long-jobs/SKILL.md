@@ -1,7 +1,7 @@
 ---
 name: waiting-on-long-jobs
 description: Peer procedure for a command that can run longer than one tool call, such as a build, test suite, benchmark, training run, migration or deploy. Use before starting such a job, and before ending a turn while a process you started is still running.
-compatibility: Requires nohup and GNU coreutils tail (`tail --pid`); BSD and macOS tail do not have it.
+compatibility: Requires nohup, pkill and GNU coreutils tail (`tail --pid`); BSD and macOS tail do not have it.
 ---
 
 # Waiting on long jobs
@@ -11,15 +11,24 @@ nothing wakes you when a background job finishes. A turn that ends with "the job
 report when it is done" leaves the Lead with no result and no event to wait for. So a job is
 either finished inside the turn, or handed over with what the Lead needs to follow it.
 
+Paseo can list an agent's background tasks above the composer and keep the agent marked Running.
+That indicator is for the Human. It does not keep your turn open and it sends nothing to the Lead
+when the job ends, so it does not replace the wait or the handoff below.
+
 ## Start the job so it can be followed
 
-Start it detached, with its output in a file, and record the PID:
+Start it detached, with its output in a file and its exit code in a second file, and record the
+PID:
 
 ```bash
-nohup <command> > <log> 2>&1 & echo $!
+nohup sh -c '<command>; echo $? > <log>.exit' > <log> 2>&1 & echo $!
 ```
 
 Put the log outside tracked files. Do not start a second copy to see more output; read the log.
+
+Use this form, not the backend's own background feature (a `run_in_background` shell, a monitor, a
+background terminal). The native feature gives no PID, log path and exit-code file that the Lead
+can read from outside your session, and its completion can start a turn the Lead did not ask for.
 
 ## Wait inside the turn
 
@@ -32,8 +41,12 @@ tail --pid=<pid> -f /dev/null    # returns when the process exits
 
 If your shell tool has a time limit per call, repeat the blocking call; each call is one wait, and
 the turn stays open. Between calls, read the tail of the log and stop the job when it has clearly
-failed. When the process exits, read the exit status and the log before you report: an exit is not
-a pass.
+failed. The PID is the `sh` wrapper's: stop the job with `pkill -P <pid>`, which ends the command
+and lets the wrapper write the exit code. `kill <pid>` ends only the wrapper and leaves the command
+running.
+
+When the process exits, read `<log>.exit` and the log before you report: an exit is not a pass,
+and a missing `<log>.exit` means the wrapper was killed, not that the job passed.
 
 ## When the job cannot finish in the turn
 
@@ -41,7 +54,7 @@ Use this only when the wait is longer than your turn can hold, or the brief give
 Return the six-cell handoff with `Outcome: partial` and put in it:
 
 - the exact command, the PID and the host it runs on;
-- the absolute log path and its last lines;
+- the absolute log path and its last lines, and that the exit code will be in `<log>.exit`;
 - what result means pass and what means fail;
 - in `Ownership`: that the process is still running and still yours.
 

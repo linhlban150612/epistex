@@ -1,19 +1,19 @@
-# SETUP — GitHub Copilot Peer qua ACP
+# SETUP — GitHub Copilot Peer through ACP
 
-Dùng các bước chung trong [SETUP.md](../../SETUP.md), gồm mục
-[ACP proxy seats](../../SETUP.md#acp-proxy-seats). Kiểm executable, auth và discovery của `copilot` trước.
+Use the common steps in [SETUP.md](../../SETUP.md), including the section
+[ACP proxy seats](../../SETUP.md#acp-proxy-seats). Check the `copilot` executable, auth and discovery first.
 
-Copilot chỉ có seat Peer: `setup/copilot-acp` từ chối mọi role khác `peer`.
+Copilot has only a Peer seat: `setup/copilot-acp` rejects every role other than `peer`.
 
 | Field | `copilot-peer` |
 |---|---|
 | `command` | `["<KIT>/setup/role-agent","peer","copilot"]` |
-| `paseoTools.enabled` | `true`, đủ 62 tool catalog trong `disabledTools`; chỉ `epistex_submit_handoff` của plugin |
+| `paseoTools.enabled` | `true`, Peer deny-list (every catalog tool blocked; [SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)); only the plugin tool `epistex_submit_handoff` |
 | `models` | `gemini-3.8-flash`, `kimi-k3`, `claude-haiku-5.5`, `grok-4.7`, `claude-sonnet-5.5` |
-| `thinkingOptions` | `low`, `medium` cho từng model |
+| `thinkingOptions` | `low`, `medium` for each model |
 
-Profile pins: mỗi model ở `low` và `medium` (10 profile `copilot-peer--<model-slug>--<thinking>`).
+Profile pins: each model at `low` and `medium` (10 profiles `copilot-peer--<model-slug>--<thinking>`).
 
-`role-agent peer copilot` chuyển sang `setup/copilot-acp peer` bằng `os.execv`; launcher chạy
-`copilot --acp`. ACP hiện trả mode `https://agentclientprotocol.com/protocol/session-modes#agent`
-cho phiên smoke test; không suy ra mode ID `default` từ nhãn/default summary.
+`role-agent peer copilot` switches to `setup/copilot-acp peer` with `os.execv`; the launcher runs
+`copilot --acp`. ACP currently returns the mode `https://agentclientprotocol.com/protocol/session-modes#agent`
+for the smoke-test session; do not infer the mode ID `default` from the label/default summary.

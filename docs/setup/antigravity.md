@@ -15,7 +15,7 @@ Observed on 2026-11-14: with the registry binary (the installed build and 1.5.0)
 
 ## Configure Paseo
 
-Merge the `agy-peer` entry and its model profiles from `examples/paseo-providers.json`; replace `<KIT>` with the absolute repository path. The provider extends `acp`, invokes `setup/role-agent peer agy`, and has all 62 Paseo catalog tools in `disabledTools`, so it sees only the plugin tool `epistex_submit_handoff`.
+Merge the `agy-peer` entry and its model profiles from `examples/paseo-providers.json`; replace `<KIT>` with the absolute repository path. The provider extends `acp`, invokes `setup/role-agent peer agy`, and has the Peer deny-list (every Paseo catalog tool in `disabledTools`; [SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)), so it sees only the plugin tool `epistex_submit_handoff`.
 
 | Seat | Models (first is the default) | `modeId` |
 |---|---|---|

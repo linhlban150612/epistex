@@ -1,83 +1,83 @@
-# SETUP — Cursor Supervisor, Lead và Peer qua ACP
+# SETUP — Cursor Supervisor, Lead and Peer through ACP
 
-Dùng các bước chung trong [SETUP.md](../../SETUP.md), gồm mục
-[ACP proxy seats](../../SETUP.md#acp-proxy-seats). Kiểm executable, auth và discovery của `cursor-agent` trước.
+Use the common steps in [SETUP.md](../../SETUP.md), including the section
+[ACP proxy seats](../../SETUP.md#acp-proxy-seats). First check the `cursor-agent` executable, auth and discovery.
 
 | Field | `cursor-supervisor` | `cursor-lead` | `cursor-peer` |
 |---|---|---|---|
 | `command` | `["<KIT>/setup/role-agent","supervisor","cursor"]` | `[…,"lead","cursor"]` | `[…,"peer","cursor"]` |
-| `paseoTools` | 15 tool Supervisor | 7 tool Lead | 0 tool; chỉ `epistex_submit_handoff` của plugin |
-| `models` (đầu tiên là default) | `grok-4.7-medium-500k`; `grok-4.7-high-500k` | `gemini-4-carbon-medium`; `gemini-4-carbon-high` | `composer-2.5`; `grok-4.7-low`; `grok-4.7-medium` |
-| `thinkingOptions` | Không có; launcher chuyển model ID thành tham số ACP | như bên trái | như bên trái |
+| `paseoTools` | Supervisor tool set ([SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)) | Lead tool set ([SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)) | No Paseo tools; only the plugin tool `epistex_submit_handoff` |
+| `models` (first is default) | `grok-4.7-medium-500k`; `grok-4.7-high-500k` | `gemini-4-carbon-medium`; `gemini-4-carbon-high` | `composer-2.5`; `grok-4.7-low`; `grok-4.7-medium` |
+| `thinkingOptions` | None; the launcher converts the model ID to ACP parameters | same as left | same as left |
 | Profile pin | `cursor-supervisor--grok-4-7-medium-500k`, `--grok-4-7-high-500k` | `cursor-lead--gemini-4-carbon-medium`, `--high` | `cursor-peer--composer-2-5`, `--grok-4-7-low`, `--grok-4-7-medium` |
-| `modeId` | `agent` | `agent` | `agent` (`plan`/`ask` không ghi file) |
+| `modeId` | `agent` | `agent` | `agent` (`plan`/`ask` do not write files) |
 
-`--check` kiểm launcher, tool, đúng danh sách model, default và đủ profile với `modeId: agent` cho mỗi seat đang bật.
-`role-agent <role> cursor` chuyển sang `setup/cursor-acp <role>` bằng `os.execv`; launcher chạy
-`cursor-agent acp`. Các ID trên là ID của seat, không phải ID gửi trực tiếp cho Cursor ACP.
+For each enabled seat, `--check` checks the launcher, the tools, the exact model list, the default and that all profiles exist with `modeId: agent`.
+`role-agent <role> cursor` switches to `setup/cursor-acp <role>` with `os.execv`; the launcher runs
+`cursor-agent acp`. The IDs above are seat IDs. They are not the IDs sent directly to Cursor ACP.
 
 | Seat model ID | `model` | `reasoning_effort` | `context` | `fast` |
 |---|---|---|---|---|
 | `grok-4.7-medium-500k`, `grok-4.7-high-500k` | `grok-4.7` | `medium`, `high` | `500k` | `false` |
-| `gemini-4-carbon-medium`, `gemini-4-carbon-high` | `gemini-4-carbon` | `medium`, `high` | không có | không có |
-| `composer-2.5` | `composer-2.5` | không có | không có | `false` |
+| `gemini-4-carbon-medium`, `gemini-4-carbon-high` | `gemini-4-carbon` | `medium`, `high` | none | none |
+| `composer-2.5` | `composer-2.5` | none | none | `false` |
 | `grok-4.7-low`, `grok-4.7-medium` | `grok-4.7` | `low`, `medium` | `256k` | `false` |
 
-Mỗi role chỉ chọn được model của role đó; launcher từ chối model của role khác.
+Each role can select only its own models; the launcher rejects models of other roles.
 
-## Tool Paseo của Lead và Supervisor
+## Paseo tools for Lead and Supervisor
 
-Cursor ACP chỉ có mode `agent`, `plan`, `ask`; không có bypass mode. Không có cấu hình thêm, Lead và
-Supervisor dừng ở permission request tại mỗi lần gọi tool Paseo (kiểm live). Launcher thêm token
-`Mcp(paseo:<tool>)` vào `permissions.allow` cho đúng các tool Paseo role đó giữ (Lead 7 cộng `epistex_assign`, Supervisor 15, lấy
-từ `setup/kiro-<role>.json`), và chỉ trong bản sao `cli-config.json` riêng của seat. `cli-config.json` của
-người dùng không đổi. Peer không nhận token nào. Tool khác vẫn theo quyền của Cursor.
+Cursor ACP has only the modes `agent`, `plan` and `ask`; it has no bypass mode. Without extra configuration, Lead and
+Supervisor stop at a permission request on each Paseo tool call (checked live). The launcher adds the token
+`Mcp(paseo:<tool>)` to `permissions.allow` for exactly the Paseo tools that the role keeps (the Lead set plus `epistex_assign`, the Supervisor set; see [SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor); taken
+from `setup/kiro-<role>.json`). It does this only in the seat's private copy of `cli-config.json`. The user's `cli-config.json`
+does not change. Peer gets no token. Other tools still follow Cursor permissions.
 
-## Chọn model và mức suy luận
+## Select model and reasoning level
 
-Trên CLI `2026.10.18-ea085cb`, danh sách CLI có `grok-4.7-low` và `grok-4.7-medium`,
-nhưng ACP mặc định từ chối hai ID này. Danh mục ACP chỉ công bố biến thể lấy từ tham số
-đã lưu. Cấu hình `high, fast=true` có thể vì vậy còn hiệu lực khi client không xử lý lỗi chọn model.
-Thêm `--model` trước `acp` không sửa được trường hợp đã kiểm tra.
+On CLI `2026.10.18-ea085cb`, the CLI list contains `grok-4.7-low` and `grok-4.7-medium`,
+but ACP rejects these two IDs by default. The ACP catalog publishes only variants taken from the saved
+parameters. Because of this, a `high, fast=true` configuration can stay in effect when the client does not handle a model selection error.
+Adding `--model` before `acp` did not fix the tested case.
 
-Launcher khai báo `clientCapabilities._meta.parameterizedModelPicker=true`. Sau `session/new`
-hoặc `session/load`, launcher dùng `session/set_config_option` để đặt các tham số của model default
-của role theo bảng trên (ví dụ Peer: `model=composer-2.5`, `fast=false`). Khi Paseo chọn profile khác,
-launcher đặt tham số của model đó bằng cùng giao thức.
-Launcher kiểm tra đủ các giá trị trong phản hồi Cursor trước khi nhận prompt. Nếu Cursor gửi
-`current_model_update` hoặc `config_option_update` mâu thuẫn với lựa chọn đã xác nhận, launcher
-hủy xác nhận đó và chặn prompt tiếp theo cho đến khi chọn lại model và xác nhận đủ các giá trị.
-Session khôi phục bằng `session/resume` không được launcher theo dõi, nên prompt của session đó bị từ chối; hãy dùng `session/load` hoặc tạo phiên mới.
-Nếu chọn model thất bại hoặc Cursor trả giá trị khác, launcher chặn prompt. Không fallback sang Auto,
-model khác, effort khác hoặc Fast. Không thêm `thinkingOptionId` vào profile.
+The launcher declares `clientCapabilities._meta.parameterizedModelPicker=true`. After `session/new`
+or `session/load`, the launcher uses `session/set_config_option` to set the parameters of the role's default model
+from the table above (for example Peer: `model=composer-2.5`, `fast=false`). When Paseo selects a different profile,
+the launcher sets the parameters of that model with the same protocol.
+The launcher checks all values in the Cursor response before it accepts a prompt. If Cursor sends
+`current_model_update` or `config_option_update` that conflicts with the confirmed selection, the launcher
+cancels that confirmation and blocks the next prompt until the model is selected again and all values are confirmed.
+The launcher does not track a session restored with `session/resume`, so it rejects prompts for that session; use `session/load` or create a new session.
+If model selection fails or Cursor returns a different value, the launcher blocks the prompt. It does not fall back to Auto,
+another model, another effort or Fast. Do not add `thinkingOptionId` to profiles.
 
-Cursor ghi các tham số ACP vào `cli-config.json`. Launcher dùng bản sao riêng qua
-`CURSOR_CONFIG_DIR` trong thư mục tạm có quyền riêng tư. Các tệp khác được liên kết về thư mục
-Cursor gốc để giữ auth, MCP, rules và lịch sử phiên. `acp-config.json` cũng được tách riêng.
-Không thay cấu hình model toàn cục. Thư mục tạm bị xóa khi launcher kết thúc; lịch sử phiên gốc được giữ.
-Không dùng `--force`, `--yolo` hoặc `--approve-mcps` để vượt lỗi quyền.
+Cursor writes ACP parameters to `cli-config.json`. The launcher uses a private copy through
+`CURSOR_CONFIG_DIR` in a temporary directory with private permissions. The other files are linked to the original Cursor
+directory to keep auth, MCP, rules and session history. `acp-config.json` is also kept separate.
+Do not change the global model configuration. The temporary directory is deleted when the launcher exits; the original session history is kept.
+Do not use `--force`, `--yolo` or `--approve-mcps` to bypass permission errors.
 
-## Kiểm tra sau cập nhật
+## Check after an update
 
-Sau `paseo reload`, tạo phiên mới cho mỗi profile. Kiểm tra model, mức suy luận, Fast off,
-vai trò Peer, CWD và công cụ thực tế. Deny-list `paseoTools` không tắt MCP riêng của Cursor. Launcher thêm `Mcp(paseo:epistex_submit_handoff)` vào `permissions.allow` của Peer; lệnh shell ngoài allowlist của Human vẫn hỏi quyền.
-Nếu Cursor báo giới hạn gói hoặc quota, báo BLOCKED; không đổi model hoặc nâng cấp gói.
+After `paseo reload`, create a new session for each profile. Check the model, reasoning level, Fast off,
+Peer role, CWD and the actual tools. The `paseoTools` deny-list does not disable Cursor's own MCP. The launcher adds `Mcp(paseo:epistex_submit_handoff)` to the Peer `permissions.allow`; shell commands outside the Human allowlist still ask for permission.
+If Cursor reports a plan or quota limit, report BLOCKED; do not change the model or upgrade the plan.
 
-## Tự động thu gọn ngữ cảnh
+## Automatic context compaction
 
-CLI chưa có tùy chọn ngưỡng token được xác minh trong tài liệu cấu hình, help hoặc ACP config options
-(kiểm lại trên `2026.11.13-eacade1`: ACP chỉ có `mode`, `model`, `reasoning_effort`, `context`, `fast`).
-Giữ cơ chế mặc định của backend; không thêm khóa phỏng đoán. Ngưỡng 200.000 token của các seat khác
-không áp dụng được cho Cursor. `/summarize` (alias `/compress`) là lệnh thủ công.
+The CLI has no token threshold option that is verified in the configuration docs, help or ACP config options
+(checked again on `2026.11.13-eacade1`: ACP has only `mode`, `model`, `reasoning_effort`, `context`, `fast`).
+Keep the backend default behavior; do not add guessed keys. The 200.000-token threshold of the other seats
+does not apply to Cursor. `/summarize` (alias `/compress`) is a manual command.
 
-Nguồn: [ACP](https://cursor.com/docs/cli/acp),
-[cấu hình CLI](https://cursor.com/docs/cli/reference/configuration),
-[khả năng CLI](https://cursor.com/docs/cli/using),
+Sources: [ACP](https://cursor.com/docs/cli/acp),
+[CLI configuration](https://cursor.com/docs/cli/reference/configuration),
+[CLI capabilities](https://cursor.com/docs/cli/using),
 [Grok 4.7](https://cursor.com/docs/models/grok-4-7).
-Capability chọn tham số và các giá trị phản hồi đã được kiểm tra trực tiếp trên phiên bản nêu trên.
+The parameter selection capability and the response values were checked directly on the version above.
 
-Live (2026-11-14, CLI `2026.11.13-eacade1`, Paseo 0.15.4): `cursor-peer` `composer-2.5` nhận `# Common contract`
-cộng heading Peer, CWD đúng, không có tool Paseo. Catalog native có `Task` (subagent của Cursor) và MCP riêng
-của Human (ví dụ `semble`); đây không phải Paseo MCP. `cursor-supervisor` `grok-4.7-high-500k` thấy đúng 15 tool Paseo;
-`cursor-lead` thấy 7 tool Lead cộng `epistex_assign`. Cả hai gọi tool Paseo không có permission request.
-Catalog tham số của ba model lấy từ probe ACP không gửi prompt.
+Live (2026-11-14, CLI `2026.11.13-eacade1`, Paseo 0.15.4): `cursor-peer` `composer-2.5` received `# Common contract`
+plus the Peer heading, correct CWD, no Paseo tools. The native catalog has `Task` (Cursor's subagent) and the Human's own
+MCP (for example `semble`); these are not Paseo MCP. `cursor-supervisor` `grok-4.7-high-500k` saw exactly the Supervisor Paseo tool set ([SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor));
+`cursor-lead` saw the Lead tool set plus `epistex_assign`. Both called Paseo tools without a permission request.
+The parameter catalog of the three models came from an ACP probe that sent no prompt.

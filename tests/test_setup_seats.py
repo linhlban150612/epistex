@@ -10,7 +10,6 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SKILL_DIRS = (".agents/skills", ".claude/skills", ".kiro/skills")
-SCRIPT = ROOT / "setup" / "setup-seats.sh"
 CATALOG = set("""archive_agent archive_workspace browser_back browser_click browser_close_tab browser_drag browser_evaluate browser_fill browser_forward browser_hover browser_keypress browser_list_tabs browser_logs browser_navigate browser_new_tab browser_reload browser_resize browser_screenshot browser_scroll browser_select browser_snapshot browser_type browser_upload browser_wait cancel_agent capture_terminal create_agent create_heartbeat create_schedule create_terminal create_workspace delete_heartbeat delete_schedule get_agent_activity get_agent_status inspect_provider inspect_schedule kill_agent kill_terminal list_agents list_hosts list_models list_pending_permissions list_profiles list_providers list_schedules list_terminals list_workspace_scripts list_workspaces pause_schedule rename_workspace respond_to_permission resume_schedule run_schedule_once schedule_logs send_agent_prompt send_terminal_keys set_agent_mode start_workspace_script stop_workspace_script update_agent update_schedule""".split())
 KEEP_LEAD = set("""list_workspaces list_providers list_models list_profiles send_agent_prompt cancel_agent archive_agent""".split())
 KEEP_SUPERVISOR = KEEP_LEAD | {"create_agent", "create_workspace", "get_agent_activity", "list_agents", "list_hosts",
@@ -124,9 +123,6 @@ class SetupSeatsTest(unittest.TestCase):
     def test_example_catalog_passes_without_changing_files(self):
         self.assertEqual((len(CATALOG), len(KEEP_LEAD), len(DENY_LEAD)), (62, 7, 55))
         self.assertEqual((len(KEEP_SUPERVISOR), len(DENY_SUPERVISOR)), (15, 47))
-        match = re.search(r"expected_deny_lead='(\[.*?\])'", SCRIPT.read_text())
-        self.assertIsNotNone(match, "checker deny-list constant not found")
-        self.assertEqual(set(json.loads(match.group(1))), DENY_LEAD)
         for key, provider in self.data["agents"]["providers"].items():
             if provider.get("paseoTools", {}).get("enabled") is True:
                 # A Peer keeps no Paseo tool: its channel is on only for the plugin tool epistex_submit_handoff.

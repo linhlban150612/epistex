@@ -30,7 +30,7 @@ Merge the `droid-peer` entry and its `droid-peer--*` profiles from
 |---|---|
 | Provider | `droid-peer`, extends `acp` |
 | Command | `["<KIT>/setup/role-agent","peer","droid"]` |
-| Paseo tools | Enabled with all 62 catalog tools in `disabledTools`; only the plugin tool `epistex_submit_handoff` |
+| Paseo tools | Enabled with the Peer deny-list (every catalog tool blocked; [SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)); only the plugin tool `epistex_submit_handoff` |
 | Default model | `claude-haiku-5-5`, default effort `low` |
 | Models/profiles | Twelve models, 23 supported profiles listed below (the models of `omp-peer-1`…`3`); each defaults to `low` |
 
@@ -166,7 +166,7 @@ low/high models does not prove runtime medium support.
 ## droid-lead
 
 Provider `droid-lead`, command `["<KIT>/setup/role-agent","lead","droid"]`, Lead Paseo tool policy
-per SETUP.md (55-entry deny-list). Models `claude-opus-5-5` (default), `claude-fable-5.1`, `gpt-6-astra`,
+per [SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor). Models `claude-opus-5-5` (default), `claude-fable-5.1`, `gpt-6-astra`,
 `gpt-6.1-sol` and `claude-sonnet-5-5` with low/medium effort, the same as `omp-lead`. Profiles carry `modeId: "auto-high"` (all operations are
 auto-approved, so Lead never waits for permission). Droid's advertised modes: `normal`, `spec`, `auto-low`,
 `auto-medium`, `auto-high`.
@@ -174,7 +174,7 @@ auto-approved, so Lead never waits for permission). Droid's advertised modes: `n
 ## droid-supervisor
 
 Provider `droid-supervisor`, command `["<KIT>/setup/role-agent","supervisor","droid"]`, Supervisor
-Paseo tool policy per SETUP.md (47-entry deny-list). Models `claude-sonnet-5-5` (default), `claude-opus-5-5`,
+Paseo tool policy per [SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor). Models `claude-sonnet-5-5` (default), `claude-opus-5-5`,
 `gpt-6.1-sol` and `gemini-3.8-flash` with low/medium effort, the same as `omp-supervisor`; default effort `low`. Profiles `droid-supervisor--<model>--<effort>`
 carry `modeId: "auto-high"`: in `normal`, `auto-low` and `auto-medium` the seat stops on a
 permission request for every Paseo MCP call (verified live with `list_workspaces`).

@@ -221,8 +221,8 @@ Human decisions; Git history holds their dates and earlier variants.
    policy, so a brief that fails the schema or the baseline check cannot reach a Peer. A Supervisor
    keeps `create_agent` to open Leads.
 10. A Peer hands over with `epistex_submit_handoff`. A plugin tool reaches a session only through
-    the Paseo channel, so every Peer seat has `paseoTools.enabled: true` with all 62 catalog tools
-    in `disabledTools`: the Peer sees the handoff tool and no Paseo tool. `setup-seats.sh --check`
+    the Paseo channel, so every Peer seat has `paseoTools.enabled: true` with every catalog tool
+    in `disabledTools` ([SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)): the Peer sees the handoff tool and no Paseo tool. `setup-seats.sh --check`
     enforces the list. The text handoff and its two parsers stay as the fallback and for the
     Lead's `setup/check-handoff`; they are not removed until no Peer session uses them.
 

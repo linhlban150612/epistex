@@ -1,9 +1,9 @@
-# SETUP — Hai seat Claude riêng
+# SETUP — Two separate Claude seats
 
-Giữ nguyên contract/protocol và các bước backup, merge, MCP injection, reload, live verification
-trong [SETUP.md](../../SETUP.md). Không dùng `codex-room` cho Claude.
-Kiểm `claude --version`, `claude auth status` và `paseo provider models claude --json` trước.
-Merge hai provider vào `.agents.providers`, với cấu hình:
+Keep the contract/protocol and the backup, merge, MCP injection, reload and live verification steps
+in [SETUP.md](../../SETUP.md) unchanged. Do not use `codex-room` for Claude.
+Check `claude --version`, `claude auth status` and `paseo provider models claude --json` first.
+Merge the two providers into `.agents.providers` with this configuration:
 
 | Field | `claude-lead` | `claude-peer` |
 |---|---|---|
@@ -11,7 +11,7 @@ Merge hai provider vào `.agents.providers`, với cấu hình:
 | `command` | `["<KIT>/setup/role-agent", "lead", "claude"]` | `["<KIT>/setup/role-agent", "peer", "claude"]` |
 | `enabled` | `true` | `true` |
 | `env` | `{"CLAUDE_CODE_AUTO_COMPACT_WINDOW":"200000"}` | same as `claude-lead` |
-| `paseoTools.enabled` | `true` | `true`, đủ 62 tool catalog trong `disabledTools` |
+| `paseoTools.enabled` | `true` | `true`, Peer deny-list (every catalog tool blocked; [SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)) |
 | `models[0].id` | `claude-opus-5-5` | `claude-sonnet-5-5` |
 | `models[0].isDefault` | `true` | `true` |
 | `models[0].thinkingOptions` | `[{"id":"low","label":"Low","isDefault":true}]` | `[{"id":"low","label":"Low","isDefault":true}]` |
@@ -27,48 +27,48 @@ Profile pins:
 | `claude-supervisor` | `claude-opus-5-5` | `low`, `medium` |
 | `claude-supervisor` | `claude-fable-5-1` | `medium` (unverified: provider credits) |
 
-`claude-supervisor` chạy `role-agent supervisor claude`, Paseo tools bật.
+`claude-supervisor` runs `role-agent supervisor claude`, with Paseo tools enabled.
 
-Claude Lead dùng deny-list tại [SETUP.md §3](../../SETUP.md); không áp dụng cho Peer.
-Profile `claude-lead` và mọi profile `claude-peer` dùng `modeId: "bypassPermissions"`; `--check` từ chối
-profile `claude-peer` thiếu mode này. Live: với `acceptEdits`, Peer non-interactive dừng ở
-permission request Bash khi chạy `python3`/`git commit`; với `bypassPermissions` thì không.
+Claude Lead uses the deny-list in [SETUP.md §3](../../SETUP.md); it does not apply to Peer.
+The `claude-lead` profile and every `claude-peer` profile use `modeId: "bypassPermissions"`; `--check` rejects
+a `claude-peer` profile without this mode. Live: with `acceptEdits`, a non-interactive Peer stops at a
+Bash permission request when it runs `python3`/`git commit`; with `bypassPermissions` it does not.
 
-Đặt label/description theo role và thay `<KIT>` bằng đường dẫn tuyệt đối. `role-agent` và
-`claude-sdk` phải executable. `role-agent <role> claude` chuyển sang launcher riêng
-`setup/claude-sdk <role>` bằng `os.execv`, cùng quy ước với `kiro-acp`. Launcher giữ CWD của Paseo và dùng Claude home/auth hiện có; không sinh hai
-Codex runtime hay thay canonical Claude settings. Trong Claude SDK stream-json, launcher
-thêm prompt role vào `request.appendSystemPrompt` của bản tin `control_request` / `initialize`,
-giữ nguyên system prompt, append text và các field khác của SDK. Flag CLI
-`--append-system-prompt` đơn lẻ không đủ: field `appendSystemPrompt` trong `initialize` thay flag đó.
-Một field trong `initialize` chỉ thay flag CLI tương ứng; flag không có field tương ứng vẫn có hiệu lực.
-Paseo gửi `initialize` với `hooks`, `appendSystemPrompt`,
-`forwardSubagentText`, `perTaskStopAffordance`, và tự đặt `--model`, `--effort`, `--thinking`,
+Set the label/description by role and replace `<KIT>` with the absolute path. `role-agent` and
+`claude-sdk` must be executable. `role-agent <role> claude` switches to the separate launcher
+`setup/claude-sdk <role>` with `os.execv`, the same convention as `kiro-acp`. The launcher keeps the Paseo CWD and uses the existing Claude home/auth; it does not create two
+Codex runtimes or change the canonical Claude settings. In the Claude SDK stream-json, the launcher
+adds the role prompt to `request.appendSystemPrompt` of the `control_request` / `initialize` message,
+and keeps the system prompt, the append text and the other SDK fields unchanged. The single CLI flag
+`--append-system-prompt` is not sufficient: the `appendSystemPrompt` field in `initialize` replaces that flag.
+A field in `initialize` replaces only the matching CLI flag; a flag without a matching field stays in effect.
+Paseo sends `initialize` with `hooks`, `appendSystemPrompt`,
+`forwardSubagentText`, `perTaskStopAffordance`, and sets `--model`, `--effort`, `--thinking`,
 `--thinking-display`, `--permission-mode`, `--permission-prompt-tool stdio`, `--setting-sources`,
-`--allow-dangerously-skip-permissions`, `--include-partial-messages`; không thêm các flag đó vào
-`command`. Vì `--allow-dangerously-skip-permissions` luôn có, `set_agent_mode` có thể chuyển một
-seat đang chạy sang `bypassPermissions`. Paseo chỉ thêm `--disallowedTools` khi runtime settings có
-tool bị chặn; launch thường không có. `claude-sdk` thêm `--disallowed-tools` cho `Agent`, `Task`,
-`Workflow`, `CronCreate`, `CronDelete`, `CronList`, `ScheduleWakeup`, `RemoteTrigger`: Paseo quản lý
-topology và seat không tạo schedule/heartbeat. Kiểm danh sách tool bằng launch thật.
+`--allow-dangerously-skip-permissions`, `--include-partial-messages` itself; do not add those flags to
+`command`. Because `--allow-dangerously-skip-permissions` is always present, `set_agent_mode` can switch a
+running seat to `bypassPermissions`. Paseo adds `--disallowedTools` only when the runtime settings have
+a blocked tool; a normal launch has none. `claude-sdk` adds `--disallowed-tools` for `Agent`, `Task`,
+`Workflow`, `CronCreate`, `CronDelete`, `CronList`, `ScheduleWakeup`, `RemoteTrigger`: Paseo manages
+topology and the seat does not create schedules/heartbeats. Check the tool list with a real launch.
 
-Riêng seat Peer, `claude-sdk` thêm `--settings` với một hook `PreToolUse` cho `Bash`:
-`setup/claude-guard`. Hook từ chối (exit 2) ba dạng lệnh: `rm` có cờ recursive và force trên đường
-dẫn ngoài workspace (`$CLAUDE_PROJECT_DIR`, hoặc Git top level của `cwd`; `/tmp/<x>` và
-`/var/tmp/<x>` được phép; đường dẫn có `$VAR` hoặc `$(…)` bị từ chối), `git push` với `--force`,
-`-f`, `--force-with-lease`, `--mirror` hoặc `+refspec`, và `git reset --hard`. Nếu Paseo đã truyền
-`--settings`, launcher giữ nội dung đó và thêm hook; giá trị không đọc được làm launch dừng.
-Đây là guard theo backend, không phải sandbox: hook so khớp chữ của lệnh, ở Claude chỉ seat Peer có
-hook (Droid Peer dùng cùng bộ luật `setup/seat_guard.py` qua `setup/droid-guard`),
-và không chặn lệnh bị giấu (file script, `xargs`, `find -delete`, tool khác). Mọi seat vẫn chạy cùng
-một Unix user. Kiểm hook bằng launch thật: yêu cầu Peer chạy `git reset --hard` trong một repo thử.
+For the Peer seat only, `claude-sdk` adds `--settings` with one `PreToolUse` hook for `Bash`:
+`setup/claude-guard`. The hook rejects (exit 2) three command forms: `rm` with recursive and force flags on a path
+outside the workspace (`$CLAUDE_PROJECT_DIR`, or the Git top level of `cwd`; `/tmp/<x>` and
+`/var/tmp/<x>` are allowed; a path with `$VAR` or `$(…)` is rejected), `git push` with `--force`,
+`-f`, `--force-with-lease`, `--mirror` or `+refspec`, and `git reset --hard`. If Paseo already passed
+`--settings`, the launcher keeps that content and adds the hook; an unreadable value stops the launch.
+This is a per-backend guard, not a sandbox: the hook matches the command text, in Claude only the Peer seat has
+the hook (Droid Peer uses the same rule set `setup/seat_guard.py` through `setup/droid-guard`),
+and it does not block hidden commands (script files, `xargs`, `find -delete`, other tools). All seats still run as the same
+Unix user. Check the hook with a real launch: ask Peer to run `git reset --hard` in a test repo.
 
-Sau `paseo reload`, tạo phiên mới với model, `thinking=low` và mode lấy từ discovery.
-Yêu cầu agent in heading role **từ system instructions đang hoạt động**, không đọc file prompt
-để thay bằng chứng. Lead phải có heading `# Lead — Project Lead & binding technical arbiter`,
-thấy Paseo tools và gọi được một tool read-only; Peer phải có heading
-`# Peer — independent co-worker` và không thấy Paseo tools kể cả qua deferred tool discovery.
-Lead điều phối Peer Claude bằng `claude-peer`, không dùng provider Claude gốc.
+After `paseo reload`, create a new session with the model, `thinking=low` and the mode from discovery.
+Ask the agent to print the role heading **from the active system instructions**; do not let it read the prompt file
+as a substitute for evidence. Lead must have the heading `# Lead — Project Lead & binding technical arbiter`,
+see Paseo tools and be able to call one read-only tool; Peer must have the heading
+`# Peer — independent co-worker` and must not see Paseo tools, also through deferred tool discovery.
+Lead coordinates Claude Peers with `claude-peer`, not with the original Claude provider.
 
-`setup-seats.sh --check` kiểm các supervisor seat. Kiểm field provider và chạy launch thật cho các role.
-Đây là role/MCP separation, không phải OS sandbox hay hai credential home cô lập.
+`setup-seats.sh --check` checks the supervisor seats. Check the provider fields and run real launches for the roles.
+This is role/MCP separation, not an OS sandbox or two isolated credential homes.

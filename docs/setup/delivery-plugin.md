@@ -268,7 +268,7 @@ Live runs used real role seats; their logs stay outside Git in the local
 Not covered live: on 0.16.0, every behavior above except the first item and on backends other
 than Droid; the snapshot baseline of `epistex_assign`, a round above 1 for a replacement Peer, and
 a Lead that chooses the tool without a prompt that names it; `epistex_submit_handoff` on
-`pi-peer`, `omp-peer`, `omp-peer-3`, `droid-peer-3` and `copilot-peer`, a tool refusal and a rework
+`pi-peer`, `omp-peer`, `droid-peer-3` and `copilot-peer`, a tool refusal and a rework
 round; a real missed `notifyOnFinish` (#6346) on a background completion; native
 `host unreachable`/`host removed` (one host only). A Peer that ends without a turn end the plugin
 observes is a missing handoff.

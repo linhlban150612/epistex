@@ -1,4 +1,4 @@
-# SETUP — Pi Peer and OMP seats
+# SETUP — Pi and OMP Peer seats
 
 Use the backup, merge, protocol, reload and live verification steps in
 [SETUP.md](../../SETUP.md). Before configuration, check the `pi` and `omp` executables,
@@ -49,46 +49,5 @@ or change credentials; role/MCP separation is not an OS sandbox.
 
 Do not use `github-copilot/gpt-6-luna` (Copilot quota 429). Grok 4.7 uses xAI OAuth (`xai` in Pi, `xai-oauth` in OMP), not OpenRouter. OMP compaction still uses the fixed `thresholdTokens` in `.omp/config.yml`.
 
-## OMP seats on Factory models
-
-`omp-supervisor`, `omp-lead`, `omp-peer-1`, `omp-peer-2` and `omp-peer-3` use the OMP provider `factory-droid`.
-The OMP `factory-droid` catalog has no `gemini-4-*` (`Model "factory-droid/gemini-4-argon" not found`, also after
-`omp models refresh factory-droid`); Droid 1.12.1 also no longer has this model. The model list is the same as the Droid seats
-of the same role ([droid.md](droid.md)). The `omp-peer` seat above stays unchanged.
-
-| Seat | `command` | Paseo tools | Model (`factory-droid/<id>`) | Default |
-|---|---|---|---|---|
-| `omp-supervisor` | `["<KIT>/setup/role-agent","supervisor","omp"]` | Supervisor tool set ([SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)) | `claude-sonnet-5-5`, `claude-opus-5-5`, `gpt-6.1-sol`, `gemini-3.8-flash`; low/medium | `claude-sonnet-5-5`, low |
-| `omp-lead` | `["<KIT>/setup/role-agent","lead","omp"]` | Lead tool set plus `epistex_assign` ([SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor)) | `claude-opus-5-5`, `claude-fable-5.1`, `gpt-6-astra`, `gpt-6.1-sol`, `claude-sonnet-5-5`; low/medium | `claude-opus-5-5`, low |
-| `omp-peer-1`…`3` | `["<KIT>/setup/role-agent","peer","omp"]` | No Paseo tools; only the plugin tool `epistex_submit_handoff` | `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5`, `claude-fable-5.1`, `gpt-6-astra`, `gpt-6.1-sol`, `gpt-6.1-terra`, `gpt-6-luna`, `gemini-3.8-flash`: low/medium; `glm-5.3`, `kimi-k3`: low/high; `deepseek-v4.1-flash-1017`: low | `claude-haiku-5-5`, low |
-
-Fable 5.1 requires a Factory account with data sharing enabled for the publisher `anthropic`; otherwise the prompt stops with
-`PERMISSION_DENIED` ("Access to this model requires data sharing to be enabled for publisher 'anthropic'").
-
-Every seat has `extends: "omp"`; every profile has `modeId: full`. The Lead and Supervisor deny-lists follow
-[SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor). Paseo connects MCP to OMP through its own
-bridge, so Paseo tools appear as normal OMP tools. For each enabled seat, `setup-seats.sh --check` checks the launcher, the tools,
-env, model/effort and that all profiles exist.
-
-**Separate login for each seat.** The OMP provider `factory-droid` uses the login stored in the OMP profile. It does not
-read an API key from env. The seat `env` is `{}` (the default login in `~/.omp/agent`, shared) or exactly one
-`OMP_PROFILE` (the profile name, unique for each seat). To separate logins: run `omp --profile <name>`, log in to
-Factory with `/login` (or `omp --profile <name> login factory-droid`), then set `"env": {"OMP_PROFILE": "<name>"}`
-for the seat, run `paseo reload` and do a test launch. Check that new sessions are in `~/.omp/profiles/<name>/agent/sessions`,
-not in `~/.omp/agent/sessions`. Use a different Factory account for each profile if you need a separate quota.
-Do not use the existing profile names `omp-lead` or `omp-peer`: their `AGENTS.md` can point to a different prompt.
-A new profile has no `config.yml`, extensions or memory from `~/.omp/agent`; an old seat agent stores its sessions
-in `~/.omp/agent`, so create a new agent after you change `OMP_PROFILE`.
-
-Live status (2026-11-15, OMP 18.20.2): all five seats run with `OMP_PROFILE` `epistex-<seat>`
-(`epistex-omp-lead`, `epistex-omp-supervisor`, `epistex-omp-peer-1`…`3`), each profile with a different Factory
-account. Each seat is in mode `full` with the default model at low, receives the correct role heading and CWD and writes sessions to
-its own profile. `omp-supervisor` sees the Supervisor Paseo tool set and `omp-lead` sees the Lead Paseo tool set plus `epistex_assign` ([SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor));
-`omp-peer-1`…`3` have no Paseo tools. Other models, one launch per seat at low: `omp-lead` `gpt-6-astra`,
-`omp-supervisor` `gemini-3.8-flash` and `omp-peer-1`…`3` `gpt-6-astra`, `gpt-6.1-terra`, `gpt-6-luna` receive the
-correct role heading; `claude-fable-5.1` runs on `omp-peer-1` and `omp-peer-2` and gets `PERMISSION_DENIED` on
-`omp-lead` and `omp-peer-3` (the account does not have data sharing enabled for `anthropic`).
-
-On the default login (2026-11-14, OMP 18.20.0, Paseo 0.15.4), `omp-supervisor` and `omp-lead` call `list_workspaces`
-without a permission prompt. The OMP native tool `task` is still present in every OMP seat; it is not Paseo MCP and the role prompt forbids
-its use for delegation.
+The OMP native tool `task` is present in `omp-peer`; it is not Paseo MCP and the role prompt forbids its use for
+delegation.

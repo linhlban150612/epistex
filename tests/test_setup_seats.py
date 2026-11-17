@@ -54,8 +54,7 @@ class SetupSeatsTest(unittest.TestCase):
         providers["droid-supervisor"]["command"] = [str(self.kit / "setup" / "role-agent"), "supervisor", "droid"]
         providers["amp-lead"]["command"] = [str(self.kit / "setup" / "role-agent"), "lead", "amp"]
         providers["amp-peer"]["command"] = [str(self.kit / "setup" / "role-agent"), "peer", "amp"]
-        for name in ("devin-peer", "devin-supervisor", "cursor-lead", "cursor-supervisor", "omp-lead", "omp-supervisor",
-                     "omp-peer-1", "omp-peer-2", "omp-peer-3"):
+        for name in ("devin-peer", "devin-supervisor", "cursor-lead", "cursor-supervisor"):
             providers[name]["command"][0] = str(self.kit / "setup" / "role-agent")
         providers["claude-lead"]["command"] = [str(self.kit / "setup" / "role-agent"), "lead", "claude"]
         providers["cursor-peer"]["command"] = [str(self.kit / "setup" / "role-agent"), "peer", "cursor"]
@@ -205,8 +204,8 @@ class SetupSeatsTest(unittest.TestCase):
              "codex-peer: paseoTools.disabledTools must exactly match"),
             ("peer with a Paseo tool", deny("droid-peer", sorted(CATALOG - {"send_agent_prompt"})),
              "droid-peer: paseoTools.disabledTools must exactly match"),
-            ("peer with the Lead deny-list", deny("omp-peer-1", sorted(DENY_LEAD)),
-             "omp-peer-1: paseoTools.disabledTools must exactly match"),
+            ("peer with the Lead deny-list", deny("devin-peer", sorted(DENY_LEAD)),
+             "devin-peer: paseoTools.disabledTools must exactly match"),
             ("peer without the Paseo channel", lambda d: seat(d, "claude-peer").__setitem__("paseoTools", {"enabled": False}),
              "claude-peer: paseoTools.enabled must be true"),
             ("MCP injection disabled", lambda d: d["daemon"]["mcp"].__setitem__("enabled", False),
@@ -299,7 +298,7 @@ class SetupSeatsTest(unittest.TestCase):
             ("kiro supervisor expensive default", default_model("kiro-supervisor", "claude-opus-5.5"),
              "kiro-supervisor: wrong launcher, tools or model/effort"),
             # Droid seats
-            # Devin, Cursor and OMP Factory seats
+            # Devin and Cursor seats
             ("devin peer permission mode", lambda d: profile(d, "devin-peer--swe-2-high--medium").__setitem__(
                 "modeId", "accept-edits"), "devin-peer: every profile needs modeId bypass"),
             ("devin supervisor without Paseo tools", lambda d: seat(d, "devin-supervisor")["paseoTools"].__setitem__(
@@ -316,19 +315,6 @@ class SetupSeatsTest(unittest.TestCase):
              "cursor-peer: wrong launcher, tools, models or profiles"),
             ("cursor lead plan mode", lambda d: profile(d, "cursor-lead--gemini-4-carbon-high").__setitem__(
                 "modeId", "plan"), "cursor-lead: every profile needs modeId agent"),
-            ("omp lead with a Peer role", lambda d: seat(d, "omp-lead")["command"].__setitem__(1, "peer"),
-             "omp-lead: wrong launcher, tools, env, model/effort or profiles"),
-            ("omp peer on another provider", lambda d: seat(d, "omp-peer-2")["models"][0].__setitem__(
-                "id", "openrouter/google/gemini-4-argon"), "omp-peer-2: wrong launcher, tools, env, model/effort or profiles"),
-            ("omp seat with a Factory key", lambda d: seat(d, "omp-peer-1").__setitem__("env", {"FACTORY_API_KEY": "fk-a"}),
-             "omp-peer-1: wrong launcher, tools, env, model/effort or profiles"),
-            ("omp seats share a profile", lambda d: [seat(d, name).__setitem__("env", {"OMP_PROFILE": "shared"})
-                                                     for name in ("omp-lead", "omp-peer-3")],
-             "omp seats: each OMP_PROFILE must be unique"),
-            ("omp supervisor profile missing", lambda d: drop(d, "omp-supervisor--factory-droid-gpt-6-1-sol--medium"),
-             "omp-supervisor: wrong launcher, tools, env, model/effort or profiles"),
-            ("omp peer write approval mode", lambda d: profile(d, "omp-peer-3--factory-droid-kimi-k3--high").__setitem__(
-                "modeId", "write"), "omp-peer-3: every profile needs modeId full"),
             ("droid peer unwrapped", lambda d: seat(d, "droid-peer").__setitem__(
                 "command", ["droid", "exec", "--output-format", "acp"]), "droid-peer: wrong launcher, tools, env or model/effort"),
             ("droid peer with lead role", lambda d: seat(d, "droid-peer").__setitem__(

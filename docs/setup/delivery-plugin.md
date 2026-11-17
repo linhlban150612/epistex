@@ -207,11 +207,13 @@ Human decisions; Git history holds their dates and earlier variants.
 5. The plugin is **required**: the role prompts carry no workaround for
    [#6346](https://github.com/getpaseo/paseo/issues/6346), so a host without the plugin has no
    mitigation and `setup-seats.sh --check` fails until it is installed.
-6. Paseo requirement `>=0.16.0 <0.17`; the dev dependency is `@getpaseo/plugin` 0.16.0. A daemon
+6. Paseo requirement `>=0.16.0 <0.17`; the dev dependency is `@getpaseo/plugin` 0.16.1. A daemon
    outside the range refuses to load the plugin, so each new Paseo minor needs a new SDK check
    (typecheck, tests, one live Lead and Peer run) before the range moves. The plugin types follow
    the 0.16 SDK (no `timeline` in the `agent.turn.after` payload; `background` and `metadata` on
-   the hook agent); 0.15 is no longer in the range.
+   the hook agent); 0.15 is no longer in the range. 0.16.1 is a fix release with the same SDK:
+   `@getpaseo/plugin` and `@getpaseo/protocol` change only their version, and `@getpaseo/client`
+   changes only the text of its request-timeout error.
 7. `agents.resumeOnStartup` stays off: when on, a Peer cut by a daemon restart gets "Resume
    working." and keeps writing its round while the Lead treats it as `was closed` and reassigns it.
 8. One report channel: the Lead calls `send_agent_prompt` for a Peer with

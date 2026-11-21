@@ -39,10 +39,47 @@ change works.
 5. **Diff.** Read the full baseline-to-candidate diff. Read load-bearing code line by line:
    state changes, deletion, authentication, money, concurrency, migration, and any line the proof
    did not exercise.
-6. **Close.** Finish the § Acceptance checklist. Record the proof class and each unresolved
-   finding in the accept summary.
+6. **Safety fact.** Follow § Safety fact for a behaviour change.
+7. **Close.** Finish the § Acceptance checklist. Record the proof class, the safety fact with its
+   level and each unresolved finding in the accept summary.
 
 Do not run checks that the Human has not authorized, and do not write a fix yourself.
+
+## Safety fact
+
+A list of callers is not the answer: a search gives that in a second. The question is what the
+change breaks outside the diff. Most changes that look risky are safe because of one fact, for
+example "this call removes only cache entries that are already dead, and does nothing else".
+When that fact holds, most risks are cleared together; when it does not, the proof class does
+not help.
+
+1. **State it.** From the diff, write the one or two facts that the safety of the change depends
+   on. Include what the diff does not show: what the change now does differently.
+2. **Look where a search stops.** Check what a symbol search does not find:
+   - the source of the library that the change calls, at the pinned version, with local patches;
+   - the order of execution: startup, shutdown, retry, concurrent callers;
+   - other readers of the same data: a JSON shape, a DB column, a wire or file format, a
+     configuration key, a feature flag, code in another language or repository.
+
+   A search that finds nothing is an answer; say where you looked. Do not invent a caller or
+   an API.
+3. **Give each fact a level.** Use the highest level that the handoff or your own read reaches:
+
+   | Level | The fact is |
+   |---|---|
+   | `claimed` | Said by the Peer or by you, with no location |
+   | `cited` | Shown at a real `file:line`, or in the library's own source |
+   | `walked` | The failure path was followed step by step and does not reach the bad case |
+   | `ran` | A script or test called the real code and would fail if the fact was false; output is in the handoff |
+   | `reproduced` | Seen in the real flow; this is proof class `e2e` or `observed` for this fact |
+
+4. **Decide.** A behaviour change whose safety fact is `claimed` goes back as rework for proof:
+   ask the Peer for one small script or test that calls the real code and fails loudly when the
+   fact is false. `cited` and `walked` are your own read; accept them only for a change that is
+   easy to reverse, and record the fact as `unproven`. For a change under `LEAD.md` § Review gate,
+   the fact must be `ran` or `reproduced`, or the Human accepts it as `unproven`.
+5. **Record.** In the accept summary: the fact, its level, the risks you confirmed, the risks you
+   checked and cleared, and the cheapest check that catches the real defect.
 
 ## Handoff from outside the room
 

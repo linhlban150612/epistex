@@ -1,6 +1,6 @@
 ---
 name: dual-lane-review
-description: Independent two-lane review for complex or review-class tasks. Use when the Lead needs two read-only Peers from different model families to review the same frozen candidate blindly against one property checklist, then reconcile shared findings and divergences.
+description: Independent two-lane review for complex or review-class tasks. Use when the Lead needs two read-only Peers from different model families to try to break the same frozen candidate blindly against one property checklist, prove findings with a run where possible, then verify and reconcile shared findings and divergences.
 ---
 
 # Dual-Lane review
@@ -51,6 +51,25 @@ Judge evidence by the common proof rule (`COMMON.md` §Evidence): if the behavio
 and the proof would still pass, it is not evidence. Exit 0 and "tests pass" are signals, not
 proof.
 
+## Break, then prove
+
+A lane tries to break the candidate; it does not confirm it. A run is stronger proof than a read.
+
+- `proof: run`: the lane ran a command on the frozen candidate and the output shows the defect.
+  The finding gives the exact command, the output it printed and the output the brief requires.
+- `proof: read`: the lane read the defect but did not run it. The finding quotes the code or
+  diff hunk, names the run that would prove it and gives the reason the lane did not run it.
+
+A lane runs a repro only on a scratch copy of the frozen candidate outside the repository:
+`scratch=$(mktemp -d); git archive "$candidate" | tar -x -C "$scratch"`, or a copy of the
+checksummed snapshot paths. It writes nothing in the repository or a worktree, and uses no ports,
+no test DB and no full suite. Repro files stay in the scratch directory; the finding carries the
+full command so the Lead can run it again. When `WORKSPACE_PROTOCOL.md` or the Human does not
+allow lane runs, every finding is `proof: read`.
+
+Leave out remarks on style, naming and structure that fail no property, and risks that need a
+future change to matter. No findings is a valid result.
+
 ## Finding format
 
 Each lane reports every finding in this format. One finding has one property and one location.
@@ -60,7 +79,9 @@ Each lane reports every finding in this format. One finding has one property and
   property: <P-id>
   location: <path>:<line or range> | <commit/snapshot path> | brief:<requirement>
   severity: blocker | major | minor
-  evidence: <quoted code, command and real output, or diff hunk>
+  proof: run | read
+  evidence: <run: exact command, printed output, required output |
+             read: quoted code or diff hunk, the run that would prove it, why it did not run>
   claim: <one sentence: what is wrong>
 ```
 
@@ -69,9 +90,10 @@ from the object (`git show "$candidate":path`), for snapshots from the checksumm
 (`LEAD.md` §Ownership). A `P5-complete` finding for a missing requirement has no path; its
 location is the requirement in the brief: `brief:<requirement>`.
 
-Each lane also reports one line for each property: `<P-id>: pass | fail | not-checked (reason)`.
+Each lane also reports one line for each property: `<P-id>: pass | fail | not-checked (reason)`,
+and before them one line `intent: <the task in the lane's own words>`.
 
-A lane returns both inside its six-cell handoff (`PEER.md` §Handoff): property lines and
+A lane returns all three inside its six-cell handoff (`PEER.md` §Handoff): intent, property lines and
 findings under `Verification`, the reviewed candidate identity under `Candidate`, and `Scope`
 with `Changed:` empty — a lane writes nothing. `Outcome` keeps its standard form
 (`complete | partial | BLOCKED | REOPEN_REQUEST | DEPENDENCY_REQUEST; Done: …`) plus `blockers: <n>`.
@@ -79,6 +101,9 @@ with `Changed:` empty — a lane writes nothing. `Outcome` keeps its standard fo
 - `blocker`: the lane judges the candidate unsafe to accept.
 - `major`: rework is necessary, but the change is not unsafe.
 - `minor`: an optional improvement.
+
+Findings of one lane that share one root cause are one finding. Severity does not depend on
+`proof`: a `blocker` with `proof: read` stays a blocker until the Lead verifies it in step 3.
 
 Two findings **match** when their locations overlap and their claims describe the same defect.
 The property may differ: `P1-behavior` and `P2-scope` overlap, so one lane may file a change
@@ -100,25 +125,37 @@ record the higher one.
 1. Open two read-only Peers (Architect or Scout) from different model families. Record each
    lane's model ID and family evidence.
 2. Send both lanes an identical neutral brief on the same frozen candidate, in the `LEAD.md`
-   §Delegation assignment format: first person, blind, with `Authority: read-only, no commits`.
+   §Delegation assignment format: first person, blind, with `Authority: read-only, no commits;
+   repro runs only in a scratch copy outside the repository` (or `no runs` when lane runs are
+   not allowed).
    The brief contains the task, round, candidate identity (`COMMON.md` §Ownership and candidate
    identity: base + candidate SHA, branch, worktree; or snapshot checksums + paths), the
-   reviewed scope (the writer's owned scope when there is one), the property list, the finding
-   format and the gate results from step 0. Neither lane holds the test lane: the gate results
+   reviewed scope (the writer's owned scope when there is one), the property list, § Break,
+   then prove, the finding format and the gate results from step 0. Neither lane holds the test lane: the gate results
    stand in for the suite, and a lane runs only read-only checks that need no ports or test DB
    (`COMMON.md` §Evidence: one shared test lane). Neither brief mentions the other lane; neither
    Peer sees the other's output until both have handed back.
-3. Match the findings of the two lanes. Matched findings are **high-confidence**. A property one
+3. **Verify.** Check each finding of both lanes before you match them. For `proof: run`, run
+   the exact command again on a scratch copy of the frozen candidate when you are authorized to
+   run it; keep the finding when the output shows the failure and the failure breaks the brief
+   or a property, and drop it when the output does not. A command you are not authorized to run
+   leaves the finding in place, marked `unverified`. For `proof: read`, read the quoted location
+   in the frozen candidate; drop the finding when the quote is not there or does not show the
+   claim. A dropped finding does not go to matching or cross-critique. Record for each lane the
+   count of dropped findings and the reasons in the accept summary. Compare each `intent` line
+   with the brief: when a lane's intent differs, record the difference and judge that lane's
+   `P5-complete` findings against the brief, not against its intent.
+4. Match the kept findings of the two lanes. Matched findings are **high-confidence**. A property one
    lane marks `not-checked` and the other `pass` is a **coverage gap**, not a divergence: record
    it with the lane's reason in the accept summary; it does not go to cross-critique.
-4. Divergences go to **blind cross-critique**. A divergence is a finding raised by one lane only,
+5. Divergences go to **blind cross-critique**. A divergence is a finding raised by one lane only,
    a contradictory claim, or a property one lane marks `pass` and the other marks `fail`. Send each
    Peer the other's divergent findings framed as third-party, naming task, round, candidate
    and property. **At most 2 rounds.** After each round a lane hands back its full property
    lines and findings again: a withdrawn finding keeps its id with `status: withdrawn` and the
    reason, an upheld one is unchanged, a new one takes the next id, and each property line is
    updated to match. The Lead matches against the latest handoff from each lane.
-5. The Lead is the final arbiter: record anything still divergent as an unresolved finding,
+6. The Lead is the final arbiter: record anything still divergent as an unresolved finding,
    with its property. No third Peer, no tie-breaker. Archive both Peers when done.
 
 Findings are review input, not rework authority (`COMMON.md` §Ownership and candidate

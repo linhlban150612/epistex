@@ -10,6 +10,13 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SKILL_DIRS = (".agents/skills", ".claude/skills", ".kiro/skills")
+
+
+def seat_skills(kit):
+    return sorted(p.parent.name for p in kit.glob(".agents/skills/*/SKILL.md")
+                  if "\n  scope: kit-maintenance\n" not in p.read_text())
+
+
 CATALOG = set("""archive_agent archive_workspace browser_back browser_click browser_close_tab browser_drag browser_evaluate browser_fill browser_forward browser_hover browser_keypress browser_list_hosts browser_list_tabs browser_logs browser_navigate browser_new_tab browser_reload browser_resize browser_screenshot browser_scroll browser_select browser_snapshot browser_type browser_upload browser_wait cancel_agent capture_terminal create_agent create_heartbeat create_schedule create_terminal create_workspace delete_heartbeat delete_schedule get_agent_activity get_agent_status inspect_provider inspect_schedule kill_agent kill_terminal list_agents list_hosts list_models list_pending_permissions list_profiles list_providers list_schedules list_terminals list_workspace_scripts list_workspaces pause_schedule rename_workspace respond_to_permission resume_schedule run_schedule_once schedule_logs send_agent_prompt send_terminal_keys set_agent_mode start_workspace_script stop_workspace_script subscribe_change_request unsubscribe_change_request update_agent update_schedule""".split())
 KEEP_LEAD = set("""list_workspaces list_providers list_models list_profiles send_agent_prompt cancel_agent archive_agent
 get_agent_status list_pending_permissions""".split())
@@ -696,8 +703,10 @@ class SetupSeatsTest(unittest.TestCase):
 
     def test_project_installs_and_checks_every_kit_skill(self):
         self.save()
-        kit_skills = sorted(p.parent.name for p in self.kit.glob(".agents/skills/*/SKILL.md"))
+        kit_skills = seat_skills(self.kit)
         self.assertIn("handling-reopen", kit_skills)
+        self.assertNotIn("no-comments", kit_skills)
+        self.assertNotIn("correct", kit_skills)
         project = pathlib.Path(self.temporary.name) / "project"
         project.mkdir()
         subprocess.run(["git", "init", "-q", str(project)], check=True)
@@ -776,7 +785,7 @@ class SetupSeatsTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("(untracked in Git)", result.stdout)
         self.assertEqual(sorted(p.parent.name for p in plain.glob(".agents/skills/*/SKILL.md")),
-                         sorted(p.parent.name for p in self.kit.glob(".agents/skills/*/SKILL.md")))
+                         seat_skills(self.kit))
 
         linked = pathlib.Path(self.temporary.name) / "linked"
         (linked / ".agents").mkdir(parents=True)

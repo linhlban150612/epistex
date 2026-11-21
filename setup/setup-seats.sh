@@ -42,8 +42,12 @@ done
 
 skill_dirs=(.agents/skills .claude/skills .kiro/skills)
 skills_report=
-kit_skills=("$kit"/.agents/skills/*/SKILL.md)
-[[ -f "${kit_skills[0]}" ]] || fail 'no kit skills under .agents/skills/'
+kit_skills=()
+for skill in "$kit"/.agents/skills/*/SKILL.md; do
+  [[ -f "$skill" ]] || continue
+  grep -qx '  scope: kit-maintenance' "$skill" || kit_skills+=("$skill")
+done
+(( ${#kit_skills[@]} )) || { fail 'no kit skills under .agents/skills/'; kit_skills=("$kit/.agents/skills/none/SKILL.md"); }
 while IFS= read -r path; do
   [[ -f "$kit/$path" ]] || fail "$path: referenced by a prompt or template but missing from the kit"
 done < <(grep -rhoE '\.agents/skills/[A-Za-z0-9_-]+/SKILL\.md' "$kit/agents" "$kit/examples" | sort -u)

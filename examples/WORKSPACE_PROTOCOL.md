@@ -69,6 +69,9 @@ Refer to Authority in `AGENTS.md`; record only additional coordination decisions
 - A task with a job that can outlast one tool call (build, benchmark, training, deploy): name the
   `waiting-on-long-jobs` skill (`.agents/skills/waiting-on-long-jobs/SKILL.md`) in the brief. The
   Peer waits inside its turn or returns `partial` with PID and log path.
+- A task that reports a measured number (benchmark, speedup, regression, eval result): name the
+  `benchmark-checklist` skill (`.agents/skills/benchmark-checklist/SKILL.md`) in the brief and
+  authorize the repeat runs that it needs.
 - repository-specific worktree location/convention:
 - integration owner:
 

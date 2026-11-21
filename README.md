@@ -91,7 +91,7 @@ Runtime layout, resume selection, environment variables and the legacy `seatwork
 | `setup/check-brief`, `setup/check-handoff`, `setup/fail-on-base` | Mechanical gates for briefs, handoffs and reproducible-bug fixes |
 | `setup/verify` | The kit's five verification checks in one command; last line `VERIFY OK` |
 | `setup/lint-comments`, `setup/comment-baseline.json` | Comment ban with a ratchet baseline |
-| `.agents/skills/*/SKILL.md` | Lead skills: Dual-Lane review, context reset, seat recovery, rework escalation, handling reopen/dependency requests, proof (acceptance order and external handoffs); Peer skill: waiting on long jobs; installed per project by `setup-seats.sh --project` into `.agents/skills/`, `.claude/skills/` and `.kiro/skills/` |
+| `.agents/skills/*/SKILL.md` | Lead skills: Dual-Lane review, context reset, seat recovery, rework escalation, handling reopen/dependency requests, proof (acceptance order and external handoffs); Peer skills: waiting on long jobs, benchmark checklist; installed per project by `setup-seats.sh --project` into `.agents/skills/`, `.claude/skills/` and `.kiro/skills/`. `no-comments` and `correct` have `metadata.scope: kit-maintenance`: they maintain this repository and are not installed |
 | `plugins/epistex-delivery/`, `docs/setup/delivery-plugin.md` | Required Paseo server plugin that relays a Peer's end-of-turn handback to its Lead; installed through `setup-seats.sh --install-plugin` after Human approval |
 | `.pi/settings.json`, `.omp/config.yml` | Checkout-scoped Pi/OMP compaction settings |
 | `examples/AGENTS_MD_SNIPPET.md`, `examples/WORKSPACE_PROTOCOL.md`, `examples/LEAD_INITIAL_PROMPT.md`, `examples/target-repo/` | Contract, policy, Lead startup and verify templates for target repos |

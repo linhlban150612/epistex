@@ -234,8 +234,11 @@ class LeadSkillsTest(unittest.TestCase):
         protocol = (ROOT / "examples/WORKSPACE_PROTOCOL.md").read_text()
         entry_points = lead + "\n" + protocol
         paths = set(re.findall(r"`(\.agents/skills/[\w-]+/SKILL\.md)`", entry_points))
-        on_disk = {p.relative_to(ROOT).as_posix() for p in ROOT.glob(".agents/skills/*/SKILL.md")}
-        self.assertEqual(paths, on_disk, "every kit skill is reachable from the Lead prompt or protocol template")
+        on_disk = {p.relative_to(ROOT).as_posix() for p in ROOT.glob(".agents/skills/*/SKILL.md")
+                   if "\n  scope: kit-maintenance\n" not in p.read_text()}
+        self.assertEqual(paths, on_disk, "every seat skill is reachable from the Lead prompt or protocol template")
+        self.assertTrue((ROOT / ".agents/skills/no-comments/SKILL.md").is_file())
+        self.assertNotIn(".agents/skills/no-comments/SKILL.md", on_disk)
         for path in paths:
             self.assertRegex((ROOT / path).read_text(), rf"(?m)^name: {path.split('/')[2]}$", path)
         prompt = subprocess.run([sys.executable, str(ROOT / "setup/role_prompt.py"), "lead"],

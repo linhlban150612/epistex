@@ -83,6 +83,19 @@ Peer challenges the solution with `REOPEN_REQUEST`, or implements it because it 
 | Valid receipts per provider/model, as recorded; invalid reason codes | `eval/report --receipts [DIR] --agents <agents.json>`; `DIR` is the receipt store or `eval/extract-receipts` fixtures. Test seats (Peer cwd `/tmp/epistex-live-*`, task `T-<n>`, `MODE-OK`, `NO_SPIKE_TOOL`) are left out unless `--include-test-seats` is given. Older receipts take the codes from `reasons` |
 | Catch by mechanism | `real-tasks.csv` → `caught_by`; a gate that no row names over a sample of real tasks is a candidate for removal |
 
+Before you report or act on a number from this folder, answer two questions with the files of
+the runs, not with the summary row:
+
+- **Did it error?** Count the runs where the turn did not complete (status `permission`, timeout,
+  empty `handoff.txt`) apart from the runs that the Peer finished. A fast run can be a refusal;
+  a slow run can be a timeout. Report both counts next to the number.
+- **Did it even happen?** Confirm that each counted run did the task: `candidate.patch` has the
+  change when the scenario expects one, and `check-handoff.txt` shows that the rerun commands
+  ran. A run that matches `expect` because nothing ran is not a match of behaviour.
+
+Give the run count with each number. One run per seat is one observation, not a difference
+between seats.
+
 Real tasks are recorded by hand in `eval/results/real-tasks.csv`, template in
 [REAL_TASKS_TEMPLATE.csv](REAL_TASKS_TEMPLATE.csv): one row per Lead acceptance decision, with
 wrong acceptances, escaped bugs and review minutes. `caught_by` names the mechanism that found

@@ -1,5 +1,3 @@
-# Run with --argjson catalog true for the backend catalog, false for live config.
-# Only Epistex role profiles are normalized; provider definitions and state are untouched.
 def epistex_role:
   .provider | capture("^(codex|claude|amp|agy|pi|omp|copilot|cursor|kiro|droid|devin)-(?<role>lead|peer|supervisor)(-[0-9]+)?$") | .role;
 
@@ -22,7 +20,6 @@ def epistex_role:
          " Thinking setting: " + $profile.thinkingOptionId + "."
        else "" end) +
       " Model names and effort settings are not evidence of cost or speed. Before delegation, confirm project authorization and provider availability." +
-      # A Lead has no create_agent: the delivery plugin tool reads a Peer profile itself. A Supervisor opens a Lead with create_agent.
       (if $role == "peer" then
          " A Lead gives this profile id to epistex_assign, which copies provider, model, modeId, thinkingOptionId and featureValues from the profile; never retype or infer them. Supply the task in the tool's fields."
        else

@@ -9,11 +9,9 @@ export default function (server: PluginServerContext) {
   const outbox = new Outbox(defaultOutboxDirectory());
   const delivery = new Delivery({ outbox, log: consoleLogger });
   const assign = assignTool(hostDeps(consoleLogger));
-  // The outbox is loaded on the first lifecycle event; a tool call can come first.
   const submit = submitTool(submitDeps(consoleLogger, async (peerAgentId, submission) => (await delivery.ready(), outbox.setSubmission(peerAgentId, submission))));
   return contribute(server, {
     log: consoleLogger,
-    // Lead seats get the typed assignment tool, Peer seats the typed handoff tool; every other session is left as it is.
     onOpen: (request) => {
       if (request.purpose !== "interactive") return undefined;
       const tool = LEAD_PROVIDER.test(request.provider) ? assign : PEER_SEAT.test(request.provider) ? submit : null;

@@ -34,8 +34,25 @@
 
 - Run `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests` for implementation changes.
 - Run `python3 -c 'compile(open("setup/codex-room").read(), "setup/codex-room", "exec")'`, `bash -n setup/setup-seats.sh` and `git diff --check`.
-- `setup/verify` runs these four checks in one command; its last line is `VERIFY OK` only when all pass.
+- Run `setup/lint-comments`. Code has no comments: a known weakness goes to an issue.
+  `setup/comment-baseline.json` is a ratchet; a limit only goes down.
+- `setup/verify` runs these five checks in one command; its last line is `VERIFY OK` only when all pass.
 - Do not run the installed-provider check against live config in isolated tests; report it pending
   when the configured Supervisor provider is not installed.
 - For launch/auth/model/tool-policy changes, verify actual Paseo launches for the affected roles;
   static checks and fixture tests alone are insufficient.
+
+## Measures (Goodhart rule)
+
+- A number that the kit can raise by itself is not a measure of the kit. Test results, `VERIFY OK`,
+  gate verdicts, valid receipts and the comment count are guards: they show that a known defect
+  did not return. They do not show that the kit works.
+- A test or a gate expects a fact (exit status, file, Git object, sent message) or a status that
+  an agent declared. It does not expect words in a prompt or a handoff.
+- Do not change a prompt, gate, parser, fixture or expected value to make a check pass. Change it
+  when a real task shows a defect; then the check is a regression probe.
+- Do not label a fixture with the parser under test. Do not score old records again with the
+  current parser.
+- Tools print rows and counts. They do not print a score for a seat, a provider or a model.
+- The measures that decide are live Paseo launches and the real-task records that a person
+  writes (`eval/README.md`).

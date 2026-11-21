@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Validate the kit and installed Paseo providers; --check never changes files.
 set -euo pipefail
 
 kit=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
@@ -9,9 +8,9 @@ errs=0
 project=
 plugin_action=
 plugin_dir="$kit/plugins/epistex-delivery"
-plugin_range='>=0.16.0 <0.17'
-plugin_min=0.16.0
-plugin_below=0.17.0
+plugin_range='>=0.17.0 <0.18'
+plugin_min=0.17.0
+plugin_below=0.18.0
 plugin_installed=0
 fail() { printf '  ! %s\n' "$*" >&2; errs=$((errs + 1)); }
 usage() { printf 'usage: %s [--check] [--project <path>] [--install-plugin | --remove-plugin]\n' "$0" >&2; exit 2; }
@@ -26,7 +25,6 @@ while (( $# )); do
   esac
   shift
 done
-# Installing or removing the plugin edits the Human's config.json through the daemon: never in --check.
 [[ -z "$plugin_action" || "$dry" == 0 ]] || usage
 
 for name in bash jq python3 dirname chmod grep sort diff cp mkdir git; do
@@ -42,10 +40,6 @@ for seat in LEAD PEER SUPERVISOR; do
     || fail "$seat: common contract and role prompt must load within 16 KiB combined"
 done
 
-# Skills load only from a directory the backend reads: the project's .agents/skills for Amp, Codex,
-# OMP, Cursor, Antigravity and Droid; .claude/skills for Claude Code; .kiro/skills for Kiro. Pi gates
-# project skills behind project trust, so role-agent passes it the kit skills. Every skill the prompts
-# and templates name must exist in the kit and be installed per project.
 skill_dirs=(.agents/skills .claude/skills .kiro/skills)
 skills_report=
 kit_skills=("$kit"/.agents/skills/*/SKILL.md)
@@ -82,8 +76,6 @@ if [[ -n "$project" ]]; then
         [[ -f "$project/$path" ]] || fail "$project: WORKSPACE_PROTOCOL.md names $path but it is not installed"
       done < <(grep -oE '\.agents/skills/[A-Za-z0-9_-]+/SKILL\.md' "$project/WORKSPACE_PROTOCOL.md" | sort -u)
     fi
-    # Installed skills are process documents: keep them out of the target repository unless the
-    # Human already tracks them. The repository-local exclude file never changes tracked files.
     for dir in "${skill_dirs[@]}"; do
       skills_git=untracked
       if exclude=$(cd -- "$project" && git rev-parse --git-path info/exclude 2>/dev/null); then
@@ -114,8 +106,6 @@ for name in codex-room role-agent kiro-acp claude-sdk amp-acp agy-acp devin-acp 
   [[ -x "$wrapper" ]] || fail "$wrapper is not executable"
 done
 
-# The delivery plugin is verified on the Paseo releases in one range; manifest, guard and this checker share it.
-# A prerelease counts as its stable core (as Paseo itself checks requirements.paseo): 0.16.0-beta.1 is 0.16.0.
 paseo_in_range() {
   local core=${1%%[-+]*}
   [[ "$core" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
@@ -144,7 +134,6 @@ if [[ ! -f "$kit/.omp/config.yml" ]] || ! grep -Eq '^[[:space:]]*thresholdTokens
   fail '.omp/config.yml: need thresholdTokens: 200000'
 fi
 
-# Human opt-in is user-wide, so this observation must never gate workspace setup.
 if ! jq -e '.agent.compaction_threshold_tokens == 200000' \
   "${XDG_CONFIG_HOME:-$HOME/.config}/devin/config.json" >/dev/null 2>&1; then
   printf '  note: Devin user-wide agent.compaction_threshold_tokens is absent or != 200000 (informational only)\n'
@@ -165,14 +154,9 @@ else
       select((.key | startswith("claude-")) and .value.enabled == true) | .key
   ' "$paseo_config")
 
-  expected_deny_lead='["archive_workspace","browser_back","browser_click","browser_close_tab","browser_drag","browser_evaluate","browser_fill","browser_forward","browser_hover","browser_keypress","browser_list_tabs","browser_logs","browser_navigate","browser_new_tab","browser_reload","browser_resize","browser_screenshot","browser_scroll","browser_select","browser_snapshot","browser_type","browser_upload","browser_wait","capture_terminal","create_agent","create_heartbeat","create_schedule","create_terminal","create_workspace","delete_heartbeat","delete_schedule","get_agent_activity","get_agent_status","inspect_provider","inspect_schedule","kill_agent","kill_terminal","list_agents","list_hosts","list_pending_permissions","list_schedules","list_terminals","list_workspace_scripts","pause_schedule","rename_workspace","respond_to_permission","resume_schedule","run_schedule_once","schedule_logs","send_terminal_keys","set_agent_mode","start_workspace_script","stop_workspace_script","update_agent","update_schedule"]'
-  # Lead creates a Peer only with the delivery plugin tool epistex_assign: no create_agent.
-  # Lead waits for deliveries and never answers a permission: no status, list, activity, permission or mode tools.
-  # Supervisor keeps them, except get_agent_status (list_agents gives the status).
-  # Peer keeps no Paseo tool. Its Paseo channel is on only for the delivery plugin tool epistex_submit_handoff,
-  # which is not in the catalog: a seat with the channel off cannot see a plugin tool.
-  expected_deny_peer=$(jq -c '. + ["archive_agent","cancel_agent","list_models","list_profiles","list_providers","list_workspaces","send_agent_prompt"] | sort' <<<"$expected_deny_lead")
-  expected_deny_supervisor=$(jq -c '. - ["create_agent","create_workspace","get_agent_activity","list_agents","list_hosts","list_pending_permissions","respond_to_permission","set_agent_mode"]' <<<"$expected_deny_lead")
+  expected_deny_lead='["archive_workspace","browser_back","browser_click","browser_close_tab","browser_drag","browser_evaluate","browser_fill","browser_forward","browser_hover","browser_keypress","browser_list_hosts","browser_list_tabs","browser_logs","browser_navigate","browser_new_tab","browser_reload","browser_resize","browser_screenshot","browser_scroll","browser_select","browser_snapshot","browser_type","browser_upload","browser_wait","capture_terminal","create_agent","create_heartbeat","create_schedule","create_terminal","create_workspace","delete_heartbeat","delete_schedule","get_agent_activity","inspect_provider","inspect_schedule","kill_agent","kill_terminal","list_agents","list_hosts","list_schedules","list_terminals","list_workspace_scripts","pause_schedule","rename_workspace","respond_to_permission","resume_schedule","run_schedule_once","schedule_logs","send_terminal_keys","set_agent_mode","start_workspace_script","stop_workspace_script","subscribe_change_request","unsubscribe_change_request","update_agent","update_schedule"]'
+  expected_deny_peer=$(jq -c '. + ["archive_agent","cancel_agent","get_agent_status","list_models","list_pending_permissions","list_profiles","list_providers","list_workspaces","send_agent_prompt"] | sort' <<<"$expected_deny_lead")
+  expected_deny_supervisor=$(jq -c '. + ["get_agent_status"] - ["create_agent","create_workspace","get_agent_activity","list_agents","list_hosts","respond_to_permission","set_agent_mode"]' <<<"$expected_deny_lead")
 
   while IFS= read -r provider; do
     [[ -n "$provider" ]] || continue
@@ -190,7 +174,6 @@ else
       (.key | test("^(codex|claude|amp|agy|pi|omp|copilot|cursor|kiro|droid|devin)-(lead|peer|supervisor)(-[0-9])?$")))) | .key' "$paseo_config")
   jq -e '.daemon.mcp.enabled != false and .daemon.mcp.injectIntoAgents == true' \
     "$paseo_config" >/dev/null || fail 'Paseo MCP injection is not enabled'
-  # A backend seat other than Codex is checked only when the config has it and does not disable it (SETUP.md §4).
   seat_on() {
     jq -e --arg seat "$1" '.agents.providers | has($seat) and .[$seat].enabled != false' "$paseo_config" >/dev/null
   }
@@ -254,11 +237,9 @@ else
         .thinkingOptionId == $effort and .modeId == "auto-review")
     ' "$paseo_config" >/dev/null || fail "codex-peer: missing or wrong gpt-6.1-terra $effort profile (modeId must be auto-review)"
   done
-  # acceptEdits and default stop a non-interactive Claude Peer on its first Bash permission request.
   jq -e 'all(.daemon.agentProfiles[]? | select(.provider == "claude-peer"); .modeId == "bypassPermissions")
   ' "$paseo_config" >/dev/null || fail "claude-peer: every profile needs modeId bypassPermissions"
   if jq -e '.agents.providers["claude-peer"].enabled == true' "$paseo_config" >/dev/null; then
-    # claude-sdk passes this PreToolUse hook to the Claude Peer seat; a hook that cannot run denies nothing.
     guard="$kit/setup/claude-guard" allow=0 deny=0
     printf '{"tool_name":"Bash","tool_input":{"command":"git status"},"cwd":"/"}' |
       CLAUDE_PROJECT_DIR=/ "$guard" >/dev/null 2>&1 || allow=$?
@@ -267,8 +248,6 @@ else
     (( allow == 0 && deny == 2 )) ||
       fail 'claude-peer: setup/claude-guard must be executable, allow git status and deny git reset --hard with exit 2'
   fi
-  # Paseo does not inherit the caller's mode into an agent of another provider: create_agent without modeId fails.
-  # Devin bypass: its other modes stop an unattended seat on a permission request.
   for pair in amp-peer:local cursor-peer:agent cursor-lead:agent cursor-supervisor:agent kiro-peer:epistex_peer \
       omp-peer:full \
       devin-peer:bypass devin-supervisor:bypass kiro-lead:epistex_lead kiro-supervisor:epistex_supervisor; do
@@ -329,7 +308,6 @@ else
       ([ $p.models[] | select(.isDefault == true) | .id ]) == ["gemini-3.8-flash-low"] and
       ([ $p.models[].id ] | sort) == ["gemini-3.8-flash-low", "gemini-3.8-flash-medium", "gemini-4-argon-low", "gemini-4-argon-medium", "gemini-4-hydrogen-low", "gemini-4-hydrogen-medium"]
     ' "$paseo_config" >/dev/null || fail 'agy-peer: wrong launcher, permissions or model pins'
-    # accept-edits: `agy acp` has default, accept-edits and plan; plan does not write.
     for model in gemini-3.8-flash-low gemini-3.8-flash-medium gemini-4-argon-low gemini-4-argon-medium gemini-4-hydrogen-low gemini-4-hydrogen-medium; do
       jq -e --arg model "$model" '
         [.daemon.agentProfiles[]? | select(.id == ("agy-peer--" + ($model | gsub("\\.";"-"))))] |
@@ -359,7 +337,6 @@ else
       ' "$paseo_config" >/dev/null || fail "agy-lead: missing or wrong $model profile"
     done
   fi
-  # Devin: one model ID; effort is the ACP thought_level option; the launcher keeps speed standard (Fast off).
   for role in peer supervisor; do
     seat="devin-$role"
     seat_on "$seat" || continue
@@ -378,7 +355,6 @@ else
       ' "$paseo_config" >/dev/null || fail "$seat: missing or wrong swe-2-high $effort profile"
     done
   done
-  # Cursor: a seat model ID carries model, effort, context and Fast off; setup/cursor-acp sets and confirms them.
   for pair in 'supervisor:["grok-4.7-medium-500k","grok-4.7-high-500k"]' 'lead:["gemini-4-carbon-medium","gemini-4-carbon-high"]' \
       'peer:["composer-2.5","grok-4.7-low","grok-4.7-medium"]'; do
     role=${pair%%:*} seat="cursor-${pair%%:*}"
@@ -395,8 +371,6 @@ else
     ' --argjson config "$(jq -c '{daemon: {agentProfiles: [.daemon.agentProfiles[]? | {provider, model}]}}' "$paseo_config")" \
       "$paseo_config" >/dev/null || fail "$seat: wrong launcher, tools, models or profiles"
   done
-  # Droid env is empty (stored login) or a per-seat key plus its own Droid home: Droid rejects
-  # sessions when a key and the stored login in ~/.factory belong to different orgs.
   droid_env='.env == {} or (.env | keys == ["FACTORY_API_KEY","FACTORY_HOME_OVERRIDE"] and
     (.FACTORY_API_KEY | type == "string" and startswith("fk-")) and
     (.FACTORY_HOME_OVERRIDE | type == "string" and startswith("/")))'
@@ -411,16 +385,13 @@ else
       fail "droid seats: FACTORY_HOME_OVERRIDE $home must be an existing non-symlink directory outside the kit"
     elif [[ -L "$home/.factory/settings.json" || ! -f "$home/.factory/settings.json" ]] ||
       ! jq -e '.compactionTokenLimit == 200000' "$home/.factory/settings.json" >/dev/null 2>&1; then
-      # Droid reads only this copy; without it the limit falls back to 250000.
       fail "droid seats: $home/.factory/settings.json must be a regular file (copy, not symlink) with compactionTokenLimit 200000"
     elif jq -e '.hooksDisabled == true' "$home/.factory/settings.json" >/dev/null 2>&1; then
-      # hooksDisabled stops every hook, also the seat guard that role-agent passes with --settings.
       fail "droid seats: $home/.factory/settings.json must not set hooksDisabled: the seat guard is a hook"
     fi
   done <<<"$droid_homes"
   if jq -e '[.agents.providers | to_entries[] | select(.key | test("^droid-(peer|lead|supervisor)$")) |
       .value.enabled == true] | any' "$paseo_config" >/dev/null; then
-    # role-agent passes this PreToolUse hook to every Droid seat; ACP ignores --remove-tools.
     guard="$kit/setup/droid-guard" allow=0 deny=0 push=0 reset=0
     printf '{"tool_name":"Glob"}' | "$guard" >/dev/null 2>&1 || allow=$?
     printf '{"tool_name":"Task"}' | "$guard" >/dev/null 2>&1 || deny=$?
@@ -434,7 +405,6 @@ else
   for role in lead supervisor; do
     seat="droid-$role"
     jq -e --arg seat "$seat" '.agents.providers[$seat].enabled == true' "$paseo_config" >/dev/null || continue
-    # Droid 1.12.1 ACP rejects gemini-4-argon (Invalid model).
     if [[ "$role" == supervisor ]]; then
       default=claude-sonnet-5-5 droid_models='claude-sonnet-5-5 claude-opus-5-5 gpt-6.1-sol gemini-3.8-flash'
     else
@@ -451,7 +421,6 @@ else
     " "$paseo_config" >/dev/null || fail "$seat: wrong launcher, tools, env or model/effort"
     for model in $droid_models; do
       for effort in low medium; do
-        # auto-high: lower Droid modes stop on a permission request for every Paseo MCP call.
         jq -e --arg seat "$seat" --arg model "$model" --arg effort "$effort" '
           [.daemon.agentProfiles[]? | select(.id == ($seat + "--" + ($model | gsub("\\.";"-")) + "--" + $effort))] |
           length == 1 and all(.[];
@@ -489,7 +458,6 @@ else
     kiro_default=claude-sonnet-5.5
     [[ "$role" != lead ]] || kiro_default=claude-opus-5.5
     jq -e --arg seat "$seat" '.agents.providers[$seat].enabled == true' "$paseo_config" >/dev/null || continue
-    # Lead keeps Paseo tools and Peer keeps none (deny-lists enforced above).
     jq -e --arg command "$kit/setup/role-agent" --arg seat "$seat" --arg role "$role" --arg default "$kiro_default" '
       .agents.providers[$seat] |
       .extends == "acp" and .command == [$command,$role,"kiro"] and
@@ -514,7 +482,6 @@ sys.exit(installed.is_symlink() or not installed.is_file() or installed.read_byt
 PY
   done
   if jq -e '.agents.providers["droid-peer"].enabled == true' "$paseo_config" >/dev/null; then
-    # Requested efforts advertised by Droid ACP, not generic Paseo metadata.
     droid_efforts='{
       "claude-haiku-5-5":["low","medium"], "claude-sonnet-5-5":["low","medium"],
       "claude-opus-5-5":["low","medium"], "claude-fable-5.1":["low","medium"],
@@ -534,7 +501,6 @@ PY
         ([.thinkingOptions[].id] | sort) == ($efforts[$model.id] | sort) and
         [.thinkingOptions[] | select(.isDefault == true) | .id] == ["low"])
     ' "$paseo_config" >/dev/null || fail 'droid-peer: wrong launcher, tools, env or model/effort'
-    # auto-high: lower Droid modes stop a non-interactive Peer on its first edit permission request.
     jq -e --argjson efforts "$droid_efforts" '
       . as $config |
       all($efforts | to_entries[]; . as $entry |
@@ -559,12 +525,8 @@ PY
          else ($p | has("thinkingOptionId")) end)
       )] | length == 0
   ' "$paseo_config" >/dev/null || fail 'daemon.agentProfiles: invalid seat, model or thinking option (or malformed mode/features settings)'
-  # Paseo 0.15+ can resume agents cut by a daemon restart (default off). The Lead rules treat a cut Peer
-  # as `was closed` and reassign its round; a resumed Peer would keep writing it. Human decision: keep it off.
   jq -e '.agents.resumeOnStartup != true' "$paseo_config" >/dev/null ||
     fail 'agents.resumeOnStartup must stay off: a resumed Peer keeps writing a round the Lead reassigns'
-  # A live test that removes its scratch directory but leaves the Paseo record makes the daemon log
-  # "Git worktree discovery failed" for that directory every minute. Archived records are history.
   paseo_registry="$(dirname -- "$paseo_config")/projects"
   for kind in workspace project; do
     registry_file="$paseo_registry/${kind}s.json"

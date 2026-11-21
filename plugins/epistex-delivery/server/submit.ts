@@ -1,8 +1,3 @@
-// epistex_submit_handoff: the Peer's typed way to hand work back. The six cells are a schema, so a
-// handoff without a cell, with an unknown outcome or proof class, or with a candidate that has no
-// identity cannot be sent. The candidate is checked against the worktree: commit SHAs must resolve,
-// a snapshot checksum must match the file, and the changed paths of a commit are read from Git, not
-// typed. The handoff is stored and goes to the Lead when the Peer's turn ends (server/delivery.ts).
 import { execFile } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -14,7 +9,6 @@ import type { Submission } from "./outbox.ts";
 import { describe, type Logger } from "./plugin.ts";
 
 export const SUBMIT_TOOL = "epistex_submit_handoff";
-/** A Peer seat as a session's provider, e.g. `droid-peer`, `droid-peer-2`, `omp-peer-1--factory-droid-glm-5-3--low`. */
 export const PEER_SEAT = /^[a-z]+-peer(-\d+)?(--.*)?$/;
 const OUTCOMES = ["complete", "partial", "BLOCKED", "REOPEN_REQUEST", "DEPENDENCY_REQUEST"] as const;
 const PROOF_CLASSES = ["e2e", "observed", "tests-only", "none"] as const;
@@ -45,15 +39,10 @@ export const submitInput = z.object({
 export type SubmitInput = z.infer<typeof submitInput>;
 
 export interface SubmitDeps {
-  /** HEAD commit of a directory, or null when it is not a Git checkout. */
   head(worktree: string): Promise<string | null>;
-  /** Full SHA of a commit in the worktree, or null when it does not resolve. */
   commit(worktree: string, sha: string): Promise<string | null>;
-  /** Paths that differ between two commits. */
   diffPaths(worktree: string, base: string, candidate: string): Promise<string[]>;
-  /** sha256 of a file, or null when it cannot be read. */
   sha256(file: string): Promise<string | null>;
-  /** Keep the handoff until the Peer's turn ends. */
   store(peerAgentId: string, submission: Submission): Promise<void>;
   now(): string;
   id(): string;
@@ -62,14 +51,12 @@ export interface SubmitDeps {
 
 type Cells = Record<CellName, string>;
 
-/** The six-cell text of agents/PEER.md § Handoff. It passes setup/check-handoff --parse-only. */
 export function renderHandoff(taskId: string, round: number, cells: Cells): string {
   return [`Task ID: ${taskId} | Round: ${round}`, "", ...CELLS.map((cell) => `${cell}: ${cells[cell]}`)].join("\n");
 }
 
 const refuse = (code: string, message: string) => ({ isError: true, text: `${code}: ${message}; nothing was sent to the Lead` });
 
-/** Check the handoff against the worktree, render it and store it for the turn end. Every refusal names its code and stores nothing. */
 export async function submit(input: SubmitInput, peer: { id: string; cwd: string; parentAgentId: string | null }, deps: SubmitDeps): Promise<{ text: string; isError?: boolean }> {
   if (!peer.parentAgentId) return refuse("NO_LEAD", "no Lead created this session; give the six-cell handoff as your last message");
   const { candidate } = input;
@@ -86,7 +73,6 @@ export async function submit(input: SubmitInput, peer: { id: string; cwd: string
     cell = `base SHA ${base} + candidate SHA ${head} + branch ${candidate.branch} + worktree ${peer.cwd}`;
     identity = `${base}..${head}`;
   } else if (candidate.kind === "snapshot") {
-    // A path inside the worktree is written relative to it, as the brief's Owned scope names it.
     const files = candidate.files.map((file) => {
       const relative = path.relative(peer.cwd, path.resolve(peer.cwd, file.path));
       return { ...file, path: relative && !relative.startsWith("..") && !path.isAbsolute(relative) ? relative : file.path };
@@ -113,7 +99,6 @@ export async function submit(input: SubmitInput, peer: { id: string; cwd: string
     Ownership: input.ownership,
   };
   const body = renderHandoff(input.task_id, input.round, cells);
-  // The fields pass by construction; this catches a text field with a line that reads as another cell.
   const parsed = classifyHandoff(body);
   const firstLine = (value: string) => value.split("\n")[0].trim();
   const hijacked = CELLS.filter((name) => firstLine(parsed.cells[name] ?? "") !== firstLine(cells[name]));
@@ -135,7 +120,6 @@ function git(worktree: string, args: string[]): Promise<string | null> {
   return new Promise((resolve) => execFile("git", ["-C", worktree, ...args], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 }, (error, stdout) => resolve(error ? null : stdout)));
 }
 
-/** Dependencies on the daemon host: Git and the file system. `store` is the delivery outbox. */
 export function hostDeps(log: Logger, store: SubmitDeps["store"]): SubmitDeps {
   return {
     log,

@@ -1,15 +1,4 @@
 #!/usr/bin/env python3
-"""Mechanical brief gate: check a Lead brief before it goes to a Peer.
-
-Usage: check-brief <brief.txt | brief.json | -> [--json]
-
-A text brief must carry the fields of the assignment template in agents/LEAD.md: Task ID, Round
-(a number), Owned scope, Authority and a baseline identity (a line that says base/baseline with a
-commit SHA, or a sha256 checksum with a path). A JSON brief uses the check-handoff schema:
-task_id, round, owned_scope, commit_allowed, base_sha. The handoff paragraph must not redefine the
-six handoff cells: it refers to § Handoff in the Peer prompt or names all six exact names.
-Prints OK or FAIL with reasons; exit 0 or 1. It checks shape only, not whether the brief is right.
-"""
 import argparse
 import importlib.machinery
 import importlib.util
@@ -18,17 +7,14 @@ import pathlib
 import re
 import sys
 
-sys.dont_write_bytecode = True  # the kit folder stays clean
+sys.dont_write_bytecode = True
 _loader = importlib.machinery.SourceFileLoader(
     "check_handoff", str(pathlib.Path(__file__).resolve().parent / "check-handoff"))
 handoff = importlib.util.module_from_spec(importlib.util.spec_from_loader("check_handoff", _loader))
 _loader.exec_module(handoff)
 PREFIX, EMPH = handoff.PREFIX, handoff.EMPH
-# Label at line start after optional markup, an optional note in parentheses, then the value; or
-# label with a colon inside a line, after a sentence or segment mark ("Project: x / Task ID: y").
 FIELD = (r"(?im)(?:^{prefix}(?:{label}){emph}?(?:[ \t]*\([^()\n]*\))?{emph}?[ \t]*[:|=]?"
          r"|[.;,/|—–(-][ \t]+{emph}?(?:{label}){emph}?[ \t]*:){emph}?[ \t]*(.*)$")
-# A Lead also writes the labels as constants: `TASK_ID:`, `OWNED_SCOPE:`.
 LABELS = {"Task ID": r"(?:Project[ \t]*/[ \t]*)?Task[ _]ID", "Round": "Round", "Owned scope": "Owned[ _]scope",
           "Authority": "Authority"}
 ROUND_NUMBER = re.compile(r"(?i)\bround[*_`]*(?:[ \t]*\([^()\n]*\))?[ \t]*[:=]?[ \t]*[*_`]*(\d+)\b")
@@ -41,20 +27,17 @@ CELL_NAMES = {cell: re.compile(r"(?i)(?<!\w)" + re.escape(cell).replace(r"\ /\ "
 
 
 def field(text, label):
-    """Value of a template field: the rest of its line, else its continuation on the next line."""
     match = re.search(FIELD.format(prefix=PREFIX, emph=EMPH, label=LABELS[label]), text)
     if not match:
         return None
     value = match.group(1).strip(" \t|")
     if not value:
         following = text[match.end():].split("\n")[1:2]
-        # A continuation is indented or a list item ("- x", "1. x"); a line at the margin is the next field.
         value = following[0].strip() if following and re.match(r"[ \t]+\S|[-*+][ \t]|[0-9]+[.)][ \t]", following[0]) else ""
     return value
 
 
 def has_baseline(text):
-    """A base/baseline line that carries a commit SHA, or a sha256 checksum with a path; the identity may be on the next line."""
     lines = text.splitlines()
     for index, line in enumerate(lines):
         if not BASELINE.search(line):
@@ -124,7 +107,7 @@ def check(text):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description="Mechanical brief gate: check a Lead brief before it goes to a Peer.")
     parser.add_argument("brief", help="brief text or brief.json; '-' reads standard input")
     parser.add_argument("--json", action="store_true", help="print the result as JSON (exit status unchanged)")
     args = parser.parse_args(argv)

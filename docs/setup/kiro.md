@@ -63,9 +63,9 @@ kiro-cli agent validate --path ~/.kiro/agents/epistex_lead.json
 Provider: `extends=acp`, command `["<KIT>/setup/role-agent","lead","kiro"]`,
 `paseoTools.enabled=true` with the Lead deny-list from
 [SETUP.md §3](../../SETUP.md#paseo-tools-policy-for-lead-and-supervisor); Paseo enforces that list on the server. The agent file allows only
-the Peer native tags (`read`, `write`, `shell`, `web`) plus `@paseo/epistex_assign` (the [delivery plugin](delivery-plugin.md) tool, the only way for Lead to create a Peer; the adapter requires this tag like every other Paseo tag) and exactly 7 Lead tools in the form
+the Peer native tags (`read`, `write`, `shell`, `web`) plus `@paseo/epistex_assign` (the [delivery plugin](delivery-plugin.md) tool, the only way for Lead to create a Peer; the adapter requires this tag like every other Paseo tag) and exactly 9 Lead tools in the form
 `@paseo/<tool>`. There is no `allowedTools`/`toolsSettings`: permissions are in the agent `permissions.rules`
-(allow `fs_read`, `fs_write`, `shell`, `web_fetch`, `web_search`; Lead adds `mcp` that matches exactly 8 (7 Paseo tools and `epistex_assign`)
+(allow `fs_read`, `fs_write`, `shell`, `web_fetch`, `web_search`; Lead adds `mcp` that matches exactly 10 (9 Paseo tools and `epistex_assign`)
 `paseo/<tool>`), so Lead approves every tool itself (bypass) and Peer is not asked for permission on each call. Kiro
 built-in policy (for example, blocking writes to Kiro's own settings) and denies in other scopes still win; other tools still
 ask through an ACP permission request. There is no `knowledge`: V3 does not advertise this tool as a

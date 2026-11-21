@@ -61,7 +61,8 @@ A Peer seat is denied three destructive `Execute` forms, the same rule set as th
 (`setup/seat_guard.py`):
 
 - `rm` with a recursive flag and a force flag on a path outside the workspace. A path below `/tmp`
-  or `/var/tmp` is allowed. A path the guard cannot read as text (`$VAR`, `$(…)`) is denied.
+  or `/var/tmp` is allowed. A path the guard cannot read as text (`$VAR`, `$(…)`, a relative path after
+  a `cd` it cannot follow) is denied.
 - `git push` with `--force`, `-f`, `--force-with-lease`, `--mirror` or a `+refspec`.
 - `git reset --hard`.
 

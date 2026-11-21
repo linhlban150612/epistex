@@ -4,6 +4,9 @@ This folder measures Peer behavior with real agents through Paseo and the mechan
 (`setup/check-handoff`, `setup/fail-on-base`). It records numbers, not opinions. Results live in
 `eval/results/` (ignored by Git): review evidence stays outside tracked product files.
 
+The Goodhart rule of the repository applies to every scenario, tool and number in this folder:
+[AGENTS.md § Measures](../AGENTS.md#measures-goodhart-rule).
+
 ## What one run does
 
 1. Create a fresh shared clone (`git clone --shared`) of the target repo at `--base-branch` (default `eval-base`), on branch `eval/<run-id>`. A linked worktree is not used: a sandboxed Peer may write only under its cwd, and a linked worktree keeps index and refs in the main repository, so `git commit` fails with `Read-only file system`.
@@ -52,7 +55,7 @@ Exit status: 0 when the run matches `expect`, 1 otherwise.
 | `objective`, `decided`, `verification`, `disposition` | Text rendered into the brief template |
 | `verified_facts` | Optional `Verified facts (no solution)` line under Objective; default says no premise was checked |
 | `omit_round` | Leave `Round` out of the brief and `brief.json` (expects `BLOCKED`) |
-| `brief_json` | `owned_scope`, `excluded_scope`, `required_checks`, `optional_checks`, `commit_allowed`, optional `bug_reproducible` + `regression_check` |
+| `brief_json` | `owned_scope`, `excluded_scope`, `required_checks`, `optional_checks`, `commit_allowed`, optional `bug_reproducible` + `regression_check`, and `regression_test_paths` (globs of the test files that `fail-on-base` copies from the candidate onto the baseline; default `**/test/**`, `**/tests/**`, `**/*test*`) |
 | `expect.status` | Allowed Peer status: `complete`, `partial`, `BLOCKED`, `REOPEN_REQUEST`, `DEPENDENCY_REQUEST` |
 | `expect.gate` | `READY_FOR_REVIEW` or `FAIL` from `check-handoff --rerun` |
 | `expect.fail_on_base` | `FAIL_ON_BASE_OK` for reproducible-bug scenarios |
@@ -60,7 +63,6 @@ Exit status: 0 when the run matches `expect`, 1 otherwise.
 | `expect.no_changes` | Peer must not change any file |
 | `expect.unchanged_paths` | Paths that must stay untouched |
 | `expect.full_suite_ran` | Detected from `target/surefire-reports/*DmsAnalyzeProcessApplicationTests*` |
-| `expect.handoff_regex` | Text that must appear in the handoff |
 
 Scenarios `s1`–`s8` target `fastair-analyze-process`: honest unit tests, reproducible bug fix,
 fix outside owned scope, missing decision, false premise, missing round, unauthorized full suite,
@@ -72,13 +74,13 @@ Peer challenges the solution with `REOPEN_REQUEST`, or implements it because it 
 
 | Metric | Source |
 |---|---|
-| Match rate per seat | `result.json` → `match` |
+| Match per run, with the mismatches | `result.json` → `match`, `mismatches` |
 | Gate catch: handoffs the gate rejected | `gate == FAIL` on runs where the Peer claimed `complete` |
 | Scope violations | `outside_scope`, `unchanged_paths` |
 | Unauthorized checks | `full_suite_ran` |
 | Turn time | `duration_s` |
-| Handback valid rate, invalid receipts per Peer seat, seats ending valid, body size, turn outcome | `eval/report --receipts`; one seat = one Lead + Peer pair. Older receipts take the outcome from `reasons`, valid ones show `unrecorded` |
-| Valid rate per provider/model, recorded and with the current parser; invalid reason codes | `eval/report --receipts [DIR] --agents <agents.json>`; `DIR` is the receipt store or `eval/extract-receipts` fixtures. Test seats (Peer cwd `/tmp/epistex-live-*`, task `T-<n>`, `MODE-OK`, `NO_SPIKE_TOOL`) are left out unless `--include-test-seats` is given. Older receipts take the codes from `reasons` |
+| Valid and invalid receipts per Peer seat, seats ending valid, body size, turn outcome | `eval/report --receipts`; one seat = one Lead + Peer pair. Older receipts take the outcome from `reasons`, valid ones show `unrecorded` |
+| Valid receipts per provider/model, as recorded; invalid reason codes | `eval/report --receipts [DIR] --agents <agents.json>`; `DIR` is the receipt store or `eval/extract-receipts` fixtures. Test seats (Peer cwd `/tmp/epistex-live-*`, task `T-<n>`, `MODE-OK`, `NO_SPIKE_TOOL`) are left out unless `--include-test-seats` is given. Older receipts take the codes from `reasons` |
 | Catch by mechanism | `real-tasks.csv` → `caught_by`; a gate that no row names over a sample of real tasks is a candidate for removal |
 
 Real tasks are recorded by hand in `eval/results/real-tasks.csv`, template in

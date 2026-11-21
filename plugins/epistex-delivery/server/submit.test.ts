@@ -44,7 +44,6 @@ function setup(overrides: Partial<SubmitDeps> = {}) {
   return { stored, lines, deps };
 }
 
-/** The Python gate the Lead runs on a delivery body. */
 function python(text: string) {
   const dir = mkdtempSync(path.join(tmpdir(), "epistex-submit-"));
   try {
@@ -113,7 +112,6 @@ test("a commit candidate is stored with full SHAs and the changed paths Git repo
 test("a snapshot, no candidate and a stopped turn are valid handoffs without two commit SHAs", async () => {
   const cases: Array<[string, Partial<SubmitInput>, Partial<SubmitDeps>, RegExp, string | null]> = [
     ["snapshot", { candidate: { kind: "snapshot", files: [{ path: "docs/a.md", sha256: SHA256 }] } }, {}, new RegExp(`^Candidate: snapshot: docs/a\\.md sha256 ${SHA256}; base SHA ${HEAD}; worktree /tmp/repo$`, "m"), "snapshot"],
-    // A Codex Peer named its file by absolute path; the Lead then got a false "outside Owned scope" warning.
     ["snapshot by absolute path", { candidate: { kind: "snapshot", files: [{ path: "/tmp/repo/docs/a.md", sha256: SHA256 }] } }, {}, new RegExp(`^Candidate: snapshot: docs/a\\.md sha256 ${SHA256}; `, "m"), "snapshot"],
     ["snapshot outside the worktree", { candidate: { kind: "snapshot", files: [{ path: "/tmp/evidence/a.diff", sha256: SHA256 }] } }, {}, new RegExp(`^Scope: Changed: /tmp/evidence/a\\.diff\\. `, "m"), "snapshot"],
     ["read-only task", { candidate: { kind: "none", reason: "read-only review" } }, {}, new RegExp(`^Candidate: none, no candidate: read-only review; base SHA ${HEAD}; worktree /tmp/repo$`, "m"), null],

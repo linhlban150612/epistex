@@ -1,18 +1,3 @@
-"""Destructive shell forms a Peer seat is denied; shared by `claude-guard` and `droid-guard`.
-
-Denied:
-- `rm` with a recursive flag and a force flag on a path outside the workspace. The workspace is
-  the backend's project directory variable, else the Git top level of the hook's `cwd`, else that
-  `cwd`. A path below `/tmp` or `/var/tmp` is allowed. A path the guard cannot read as text
-  (`$VAR`, `$(…)`, a relative path after a `cd` it cannot follow) is denied.
-- `git push` with `--force`, `-f`, `--force-with-lease`, `--mirror` or a `+refspec`.
-- `git reset --hard`.
-
-This is a guard, not a sandbox: it matches the command text. It stops the usual forms, not a seat
-that hides the command (a script file, `xargs`, `find -delete`, another tool). All seats run as the
-same Unix user.
-"""
-
 import os
 import pathlib
 import re
@@ -25,7 +10,6 @@ OPAQUE = re.compile(r"[$`]")
 
 
 def segments(command: str):
-    """The simple commands of a shell line as word lists; None when the line cannot be split."""
     lexer = shlex.shlex(command.replace("\n", " ; "), posix=True, punctuation_chars=";&|()")
     lexer.whitespace_split = True
     try:
@@ -34,7 +18,7 @@ def segments(command: str):
         return None
     out, current = [], []
     for word in words:
-        if word in ("{", "}") or set(word) <= set(";&|()"):  # `;`, `&&`, `||`, `|`, `&`, grouping
+        if word in ("{", "}") or set(word) <= set(";&|()"):
             out.append(current)
             current = []
         else:
@@ -44,7 +28,6 @@ def segments(command: str):
 
 
 def program(words):
-    """A simple command without assignments and wrappers such as `sudo` and `env`."""
     index = 0
     while index < len(words) and (re.fullmatch(r"\w+=.*", words[index]) or words[index] in PREFIXES):
         index += 1
@@ -56,7 +39,6 @@ def inside(path: pathlib.Path, root: pathlib.Path) -> bool:
 
 
 def resolve(text: str, directory):
-    """An absolute path without `..`, or None when the text does not name one path."""
     if OPAQUE.search(text):
         return None
     if text == "~" or text.startswith("~/"):
@@ -92,7 +74,7 @@ def rm_reason(words, directory, workspace):
 def git_reason(words):
     args = words[1:]
     index = 0
-    while index < len(args) and args[index].startswith("-"):  # `-C dir`, `-c k=v`, `--opt[=v]`
+    while index < len(args) and args[index].startswith("-"):
         index += 2 if args[index] in ("-C", "-c") else 1
     if index >= len(args):
         return None
@@ -107,10 +89,8 @@ def git_reason(words):
 
 
 def denied(command: str, cwd: str, workspace: pathlib.Path):
-    """The reason a Peer shell command is denied, or None."""
     parts = segments(command)
     if parts is None:
-        # Unbalanced quotes: fall back to the text.
         if re.search(r"\brm\s+(?:-\w+\s+)*-\w*[rR]", command) and re.search(r"\brm\b.*\s-\w*f", command):
             return "rm -rf in a command the guard cannot split"
         parts = [command.split()]
@@ -139,7 +119,6 @@ def denied(command: str, cwd: str, workspace: pathlib.Path):
 
 
 def workspace_of(cwd: str, project_variable: str) -> pathlib.Path:
-    """The backend's project directory, else the Git top level of `cwd`, else `cwd`."""
     project = os.environ.get(project_variable)
     if project:
         return pathlib.Path(os.path.normpath(project))
@@ -153,7 +132,6 @@ def workspace_of(cwd: str, project_variable: str) -> pathlib.Path:
 
 
 def peer_reason(call: dict, tool: str, project_variable: str):
-    """The reason a Peer seat's PreToolUse call is denied, or None. `tool` is the backend's shell tool."""
     command = call.get("tool_input", {}).get("command") if isinstance(call.get("tool_input"), dict) else None
     if call.get("tool_name") != tool or not isinstance(command, str):
         return None

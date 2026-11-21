@@ -1,13 +1,4 @@
 #!/usr/bin/env bash
-# Standard verification entry point for a Java/Spring Boot target repository.
-#
-#   ./verify quick            compile + unit tests; no Docker, no ports, no shared DB
-#   ./verify it               integration tests (Testcontainers); needs Docker and VERIFY_ALLOW_IT=1
-#   ./verify full             quick + it
-#   ./verify <group> --dry-run   print the commands only
-#
-# Exit codes: 0 pass; 1 a check failed; 2 usage; 3 group not authorized (BLOCKED, not skipped).
-# Every command and its exit status is printed, so the Peer can quote them in the handoff.
 set -u
 
 group="${1:-}"; shift || true
@@ -18,10 +9,21 @@ for arg in "$@"; do
     *) echo "unknown option: $arg" >&2; exit 2 ;;
   esac
 done
-case "$group" in quick|it|full) ;; *) sed -n '2,10p' "$0" >&2; exit 2 ;; esac
+usage() {
+  cat >&2 <<'USAGE'
+Standard verification entry point for a Java/Spring Boot target repository.
 
-# One port and one DB name per worktree. Paseo sets PASEO_WORKTREE_PORT and PASEO_BRANCH_NAME
-# for worktree setup/teardown/service scripts; outside Paseo they fall back to deterministic values.
+  ./verify quick            compile + unit tests; no Docker, no ports, no shared DB
+  ./verify it               integration tests (Testcontainers); needs Docker and VERIFY_ALLOW_IT=1
+  ./verify full             quick + it
+  ./verify <group> --dry-run   print the commands only
+
+Exit codes: 0 pass; 1 a check failed; 2 usage; 3 group not authorized (BLOCKED, not skipped).
+Every command and its exit status is printed, so the Peer can quote them in the handoff.
+USAGE
+}
+case "$group" in quick|it|full) ;; *) usage; exit 2 ;; esac
+
 branch="${PASEO_BRANCH_NAME:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo local)}"
 slug="$(printf '%s' "$branch" | tr -c 'a-zA-Z0-9\n' '_' | tr 'A-Z' 'a-z' | cut -c1-40)"
 hash=$(( 0x$(printf '%s' "$branch" | cksum | cut -d' ' -f1 | xargs printf '%x') % 1000 ))

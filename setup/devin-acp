@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-"""Start a Devin seat through devin ACP, inject role instructions and keep Fast mode off.
-
-Devin ACP has a `speed` config option (`standard`, `fast`). The seat sets `standard` on every new,
-loaded or resumed session, refuses a client request for another value, and refuses prompts for a
-session whose speed the backend did not confirm as `standard`.
-"""
 
 import importlib.machinery
 import json
@@ -30,7 +24,6 @@ def parse(line: bytes):
 
 
 def speed_of(options) -> str | None:
-    """The current value of the `speed` option in a configOptions list, or None when it is absent."""
     for option in options if isinstance(options, list) else []:
         if isinstance(option, dict) and option.get("id") == "speed":
             return option.get("currentValue")
@@ -39,16 +32,16 @@ def speed_of(options) -> str | None:
 
 def run(role: str, args: list[str]) -> int:
     role_agent = importlib.machinery.SourceFileLoader("role_agent", str(ROOT / "setup/role-agent")).load_module()
-    role_agent.load_prompt(role)  # Fail before starting a backend if the contract is unavailable.
+    role_agent.load_prompt(role)
     if shutil.which("devin") is None:
         raise SystemExit("agent executable not found: devin")
     child = subprocess.Popen(["devin", "acp", *args], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     assert child.stdin is not None and child.stdout is not None
     to_child, to_client = threading.Lock(), threading.Lock()
-    starts: dict = {}  # Request id of a session start -> the session id it named, if any.
-    sets: dict = {}  # Request id of a client config request -> its session id.
-    fast: set = set()  # Sessions whose speed is not confirmed as standard.
-    pending: dict = {}  # Session id -> event set when the backend answers the seat's own speed request.
+    starts: dict = {}
+    sets: dict = {}
+    fast: set = set()
+    pending: dict = {}
     state = threading.Lock()
     counter = 0
 
@@ -71,7 +64,6 @@ def run(role: str, args: list[str]) -> int:
                 continue
             ident, result = message.get("id"), message.get("result")
             if "method" not in message and isinstance(ident, str) and ident.startswith(OWN_ID):
-                # Reply to the seat's own speed request: never shown to the client.
                 sid = ident.split(":", 1)[1]
                 confirmed = isinstance(result, dict) and speed_of(result.get("configOptions")) == "standard"
                 with state:
@@ -95,7 +87,6 @@ def run(role: str, args: list[str]) -> int:
                         pending[sid] = threading.Event()
                         counter += 1
                         own = f"{OWN_ID}{counter}:{sid}"
-                    # Sent before the client learns the session exists, so it runs before any prompt.
                     send((json.dumps({"jsonrpc": "2.0", "id": own, "method": "session/set_config_option", "params": {
                         "sessionId": sid, "configId": "speed", "value": "standard"}}) + "\n").encode())
             params = message.get("params")
@@ -108,7 +99,7 @@ def run(role: str, args: list[str]) -> int:
             emit(line)
         with state:
             waiting = list(pending.values())
-        for answered in waiting:  # The backend exited: release a prompt that waits; it is then refused.
+        for answered in waiting:
             answered.set()
 
     forwarding = threading.Thread(target=output)
@@ -139,7 +130,6 @@ def run(role: str, args: list[str]) -> int:
                 with state:
                     answered = pending.get(params.get("sessionId"))
                 if answered:
-                    # The client can prompt as soon as it has the session; the speed answer may still be on its way.
                     answered.wait(timeout=40)
                 with state:
                     blocked = params.get("sessionId") in fast

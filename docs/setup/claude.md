@@ -55,13 +55,15 @@ topology and the seat does not create schedules/heartbeats. Check the tool list 
 For the Peer seat only, `claude-sdk` adds `--settings` with one `PreToolUse` hook for `Bash`:
 `setup/claude-guard`. The hook rejects (exit 2) three command forms: `rm` with recursive and force flags on a path
 outside the workspace (`$CLAUDE_PROJECT_DIR`, or the Git top level of `cwd`; `/tmp/<x>` and
-`/var/tmp/<x>` are allowed; a path with `$VAR` or `$(…)` is rejected), `git push` with `--force`,
+`/var/tmp/<x>` are allowed; a path with `$VAR` or `$(…)`, or a relative path after a `cd` the guard cannot follow, is rejected), `git push` with `--force`,
 `-f`, `--force-with-lease`, `--mirror` or `+refspec`, and `git reset --hard`. If Paseo already passed
 `--settings`, the launcher keeps that content and adds the hook; an unreadable value stops the launch.
 This is a per-backend guard, not a sandbox: the hook matches the command text, in Claude only the Peer seat has
 the hook (Droid Peer uses the same rule set `setup/seat_guard.py` through `setup/droid-guard`),
 and it does not block hidden commands (script files, `xargs`, `find -delete`, other tools). All seats still run as the same
-Unix user. Check the hook with a real launch: ask Peer to run `git reset --hard` in a test repo.
+Unix user. A hook that cannot run denies nothing, so `setup-seats.sh --check` fails for an enabled
+`claude-peer` when `setup/claude-guard` is not executable, does not allow `git status`, or does not
+deny `git reset --hard` with exit 2. Check the hook with a real launch: ask Peer to run `git reset --hard` in a test repo.
 
 After `paseo reload`, create a new session with the model, `thinking=low` and the mode from discovery.
 Ask the agent to print the role heading **from the active system instructions**; do not let it read the prompt file

@@ -1,8 +1,3 @@
-// epistex_assign: the Lead's typed way to give a task to a new Peer. The brief fields are a schema,
-// so a brief without a task, a scope, an authority or a baseline, or with a round above the rework
-// limit, cannot be sent; the baseline is compared with the worktree before the Peer starts.
-// The Peer is created through the plugin API, which has no finish notification: the delivery
-// receipt is the only report the Lead gets.
 import { execFile } from "node:child_process";
 import { readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -13,9 +8,7 @@ import { checkBrief } from "./brief.ts";
 import { describe, type Logger } from "./plugin.ts";
 
 export const ASSIGN_TOOL = "epistex_assign";
-/** A Peer seat's provider id, e.g. `droid-peer`, `droid-peer-2`. A Lead cannot create another role with this tool. */
 export const PEER_PROVIDER = /^[a-z]+-peer(-\d+)?$/;
-/** First candidate plus two rework rounds (agents/LEAD.md § Acceptance). */
 const REWORK_LIMIT = 3;
 const commitSha = z.string().regex(/^[0-9a-f]{7,40}$/, "a commit SHA: 7 to 40 lower-case hex digits");
 
@@ -45,7 +38,6 @@ export interface PeerProfile {
 }
 
 export interface AssignDeps {
-  /** HEAD commit of a worktree, or null when the directory is not a Git checkout. */
   head(worktree: string): Promise<string | null>;
   isDirectory(directory: string): Promise<boolean>;
   profiles(): Promise<PeerProfile[]>;
@@ -64,7 +56,6 @@ interface AssignPaseo {
   };
 }
 
-/** The brief a Peer receives: the template fields of agents/LEAD.md, then the Lead's text. It passes setup/check-brief. */
 export function renderBrief(input: AssignInput): string {
   const baseline = input.baseline.kind === "commit" ? `base ${input.baseline.base_sha}` : `baseline snapshot sha256 ${input.baseline.sha256} path ${input.baseline.path}`;
   return [
@@ -82,7 +73,6 @@ export function renderBrief(input: AssignInput): string {
 
 const refuse = (code: string, text: string) => ({ isError: true, text: `${code}: ${text}; no Peer was created` });
 
-/** Check the assignment against the machine state and create the Peer. Every refusal names its code and creates nothing. */
 export async function assign(input: AssignInput, lead: { id: string }, paseo: AssignPaseo, deps: AssignDeps): Promise<{ text: string; isError?: boolean }> {
   const profile = (await deps.profiles()).find((candidate) => candidate.id === input.profile);
   if (!profile) return refuse("PROFILE_UNKNOWN", `no agent profile '${input.profile}'; read the ids with list_profiles`);
@@ -94,7 +84,6 @@ export async function assign(input: AssignInput, lead: { id: string }, paseo: As
     if (!head.startsWith(input.baseline.base_sha)) return refuse("BASELINE_STALE", `base_sha ${input.baseline.base_sha} is not HEAD ${head} of ${input.worktree}; read the state again`);
   }
   const prompt = renderBrief(input);
-  // The fields above pass by construction; this catches a handoff format redefined in the Lead's text.
   const codes = checkBrief(prompt);
   if (codes.length) return refuse(codes.join(", "), "the brief text fails setup/check-brief; refer to § Handoff in the Peer prompt instead of defining cells");
   let peerId: string | undefined;
@@ -121,7 +110,6 @@ function paseoHome(env: NodeJS.ProcessEnv): string {
   return path.resolve(home === "~" || home.startsWith("~/") ? path.join(homedir(), home.slice(1)) : home);
 }
 
-/** Dependencies on the daemon host: Git, the file system and `daemon.agentProfiles` of the live config. */
 export function hostDeps(log: Logger, env: NodeJS.ProcessEnv = process.env): AssignDeps {
   return {
     log,

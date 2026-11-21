@@ -1,4 +1,4 @@
-# Epistex delivery plugin (Paseo >=0.16.0 <0.17)
+# Epistex delivery plugin (Paseo >=0.17.0 <0.18)
 
 `plugins/epistex-delivery/` is a required Paseo **server plugin** and the only report channel
 from a Peer to the Lead that created it. [OVERVIEW.md](../../plugins/epistex-delivery/OVERVIEW.md)
@@ -50,7 +50,8 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
   `setup/check-handoff`. `check-handoff --parse-only <file> --json` is the parity oracle:
   `tests/fixtures/handoffs/` runs through both (`node --test` in the plugin, driven by
   `tests/test_kit_tools.py`, which also runs `tsc --noEmit`; so `setup/verify` covers the plugin); `expected.json` there holds the reason codes of each accepted
-  markup form (`ok-*`) and each rejection (`bad-*`). Real receipts stay outside Git:
+  markup form (`ok-*`) and each rejection (`bad-*`). Both parsers accept Unicode spaces (em space,
+  no-break space) between a cell name and its text, because Codex writes them. Real receipts stay outside Git:
   `eval/extract-receipts --out .amp/in/receipts` writes them and the parity test reads
   `$EPISTEX_RECEIPTS` (default `.amp/in/receipts`), skipped when the folder is absent. An invalid
   receipt carries `codes` (`HEADER_MISSING`, `CELL_MISSING:<name>`, `CANDIDATE_IDENTITY`,
@@ -88,7 +89,9 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
   without delivered agent messages. When
   the sum for one Peer reaches 150 (`TOOL_CALL_LIMIT`), the receipt carries `warning: peer session
   at <n> tool calls (limit 150); context-reset or a new Peer advised`. A first turn longer than
-  the 200-entry tail is counted from the tail only, so the count is a lower bound.
+  the 200-entry tail is counted from the tail only, so the count is a lower bound. The reason for
+  150: in 179 Peer sessions over seven days the 95th percentile was 168 calls, and the sessions
+  above it lost the brief's rules.
 - **Receipt store** (`server/outbox.ts`, under `${PASEO_HOME:-~/.paseo}/epistex-delivery/`):
   `<leadAgentId>.jsonl` is append-only with `fsync`; a `sent` update is a second line for the same
   `deliveryId`, folded on load; a torn last line is skipped with a warning. `cursors.json` is
@@ -135,7 +138,8 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
   is not `running` `after` its cursor, then flushes every Lead with `pending` records. Watched
   Peers are those with a stored cursor, so a fresh install does not replay old handbacks. A Peer
   that is gone, archived or `closed` gets that one attempt and is then unwatched (cursor removed,
-  receipts kept). A Peer whose timeline read fails is skipped so the others still catch up; a
+  receipts kept). A Peer whose timeline read fails (Paseo rejects the read when the Peer's cwd
+  was deleted; seen live on 0.14.0) is skipped so the others still catch up; a
   reconcile that fails as a whole runs again on the next hook. A Peer turn
   that ended while the plugin was down and that the plugin never saw is a missing handoff for the
   Lead ([Lead monitoring](../../agents/LEAD.md#monitoring)).
@@ -185,7 +189,7 @@ bash <KIT>/setup/setup-seats.sh --check            # range, path, pluginsEnabled
 A daemon started with `pluginsEnabled: false` shows the new entry as `disabled` until
 `paseo reload`.
 
-`setup-seats.sh` shares the `>=0.16.0 <0.17` range with `paseo-plugin.json` and `server/plugin.ts`
+`setup-seats.sh` shares the `>=0.17.0 <0.18` range with `paseo-plugin.json` and `server/plugin.ts`
 and fails when they drift; a prerelease counts as its stable core. It refuses to install under
 `--check`, when `paseo --version` is outside the range, or when `pluginsEnabled` is not `true`; it
 never edits `config.json` itself. With the plugin installed, `--check` fails when the entry is not
@@ -207,13 +211,13 @@ Human decisions; Git history holds their dates and earlier variants.
 5. The plugin is **required**: the role prompts carry no workaround for
    [#6346](https://github.com/getpaseo/paseo/issues/6346), so a host without the plugin has no
    mitigation and `setup-seats.sh --check` fails until it is installed.
-6. Paseo requirement `>=0.16.0 <0.17`; the dev dependency is `@getpaseo/plugin` 0.16.1. A daemon
+6. Paseo requirement `>=0.17.0 <0.18`; the dev dependency is `@getpaseo/plugin` 0.17.0. A daemon
    outside the range refuses to load the plugin, so each new Paseo minor needs a new SDK check
    (typecheck, tests, one live Lead and Peer run) before the range moves. The plugin types follow
    the 0.16 SDK (no `timeline` in the `agent.turn.after` payload; `background` and `metadata` on
-   the hook agent); 0.15 is no longer in the range. 0.16.1 is a fix release with the same SDK:
-   `@getpaseo/plugin` and `@getpaseo/protocol` change only their version, and `@getpaseo/client`
-   changes only the text of its request-timeout error.
+   the hook agent); the 0.17 SDK only adds to it (`appendSystemPrompt` on the `agent.open.before`
+   request, `registerWorktreeManager`), and the plugin uses neither. 0.16 is no longer in the
+   range: the deny-lists name the three tools that 0.17 adds to the catalog.
 7. `agents.resumeOnStartup` stays off: when on, a Peer cut by a daemon restart gets "Resume
    working." and keeps writing its round while the Lead treats it as `was closed` and reassigns it.
 8. One report channel: the Lead calls `send_agent_prompt` for a Peer with
@@ -230,9 +234,16 @@ Human decisions; Git history holds their dates and earlier variants.
 
 ## Verification status
 
-Live runs used real role seats; their logs stay outside Git in the local
-`eval/results/delivery-plugin-live-runs.md`.
+Live runs used real role seats; their logs stay outside Git.
 
+- **Paseo 0.17.0** (2026-11-21, Droid 1.17.0, the live daemon): with `@getpaseo/plugin` 0.17.0,
+  `tsc --noEmit` and the plugin tests pass. The plugin was `running` with its three hooks. A
+  `droid-lead` (Sonnet 5.5) created a `droid-peer` (Haiku 5.5) with `epistex_assign` (T-1, round 1,
+  commit baseline); the Peer committed and called `epistex_submit_handoff`; the Lead got one
+  `HANDBACK_VALID` delivery (`submitted`), and `setup/check-handoff` on that body printed
+  `READY_FOR_REVIEW`. Ten Peer seats (Claude, Codex, Kiro, Cursor, Antigravity, Devin, Amp, Droid,
+  Pi, OMP) each started with the role prompt, the requested cwd, and `epistex_submit_handoff` as
+  the only Paseo-channel tool. `copilot-peer` is disabled in the live config and was not run.
 - **Paseo 0.16.0** (2026-11-16, Droid 1.12.1, a separate daemon with a copy of the live seat
   config): the plugin loaded as `running` and registered its three hooks. A `droid-lead`
   (Sonnet 5.5) listed seven Paseo tools and `epistex_assign`, had no `create_agent`, and created a
@@ -265,8 +276,8 @@ Live runs used real role seats; their logs stay outside Git in the local
 - **Fault injection** (a busy Lead, missed turns plus reconcile, a crash between fsync and send, a
   Peer cut mid-turn): Paseo 0.14.0 only, below the required range.
 
-Not covered live: on 0.16.0, every behavior above except the first item and on backends other
-than Droid; the snapshot baseline of `epistex_assign`, a round above 1 for a replacement Peer, and
+Not covered live: on 0.17.0, every behavior except the 0.17.0 item; on 0.16.0, every behavior above except the 0.16.0
+item and on backends other than Droid; the snapshot baseline of `epistex_assign`, a round above 1 for a replacement Peer, and
 a Lead that chooses the tool without a prompt that names it; `epistex_submit_handoff` on
 `pi-peer`, `omp-peer`, `droid-peer-3` and `copilot-peer`, a tool refusal and a rework
 round; a real missed `notifyOnFinish` (#6346) on a background completion; native

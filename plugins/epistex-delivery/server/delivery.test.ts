@@ -17,7 +17,6 @@ interface Sent {
   options: Record<string, unknown>;
 }
 
-/** Fake of the PaseoApi slice: per-agent snapshots, timeline pages served in order, recorded sends. */
 function fakePaseo(agents: Record<string, AgentSnapshot | null>, pages: Record<string, TimelinePage[] | Error> = {}) {
   const sent: Sent[] = [];
   const refetches: Array<{ agentId: string; options: unknown }> = [];
@@ -156,9 +155,9 @@ test("round above the rework limit and a task reused across Peers add warnings; 
     const records = outbox.records();
     assert.deepEqual(records.map((r) => [r.peerAgentId, r.round, r.kind, r.warnings]), [
       ["peer-1", "1", "HANDBACK_VALID", undefined],
-      ["peer-2", "1", "HANDBACK_VALID", undefined], // two lanes on one round are not reuse
-      ["peer-1", "2", "HANDBACK_VALID", undefined], // rework by the same Peer
-      ["peer-3", "4", "HANDBACK_VALID", [limit, "task reused across peers"]], // a new Peer at a higher round
+      ["peer-2", "1", "HANDBACK_VALID", undefined],
+      ["peer-1", "2", "HANDBACK_VALID", undefined],
+      ["peer-3", "4", "HANDBACK_VALID", [limit, "task reused across peers"]],
     ]);
     assert.match(fake.sent[3].text, /round: 4\nwarning: round 4 exceeds rework limit 3; REOPEN or context-reset required\nwarning: task reused across peers\n---\n/);
     assert.equal(fake.sent[2].text, formatDelivery({ ...records[2], warnings: undefined }), "no warning line without a warning");
@@ -223,12 +222,10 @@ test("a replayed hook for the same message adds no record and no second send", a
     const page: TimelinePage = { epoch: "e1", entries: [assistant(VALID, 5, { messageId: "m5" })] };
     const fake = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [page] });
     await delivery.onTurnEnded(peerTurn(), fake.paseo);
-    // Replay after the cursor moved: `after` returns nothing and the turn is already recorded.
     const replay = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [{ epoch: "e1", entries: [] }] });
     await delivery.onTurnEnded(peerTurn(), replay.paseo);
     assert.deepEqual(replay.refetches.map((r) => r.options), [{ direction: "after", cursor: { epoch: "e1", seq: 5 }, limit: 200 }]);
     assert.ok(lines.some((l) => /turn t1 of peer-1 already recorded; replay ignored/.test(l)));
-    // Replay before the cursor moved: the same page yields the same delivery-id.
     const again = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [page] });
     await outbox.setCursor("peer-1", { epoch: "e1", seq: 0 });
     await delivery.onTurnEnded(peerTurn(), again.paseo);
@@ -272,7 +269,6 @@ test("the same turnId reopened with a different last message yields two distinct
 
 test("reconcile on the first event: watched peers are caught up, pending records resent, unseen peers untouched", async () => {
   await scratch(async (first, outbox) => {
-    // Session 1: peer-1 delivered; peer-2 recorded but the Lead was busy, so it stays pending.
     const session1 = fakePaseo(
       { "lead-1": leadIdle },
       { "peer-1": [{ epoch: "e1", entries: [assistant(VALID, 1, { messageId: "a" })] }], "peer-2": [{ epoch: "e2", entries: [assistant(VALID, 1, { messageId: "b" })] }] },
@@ -282,8 +278,6 @@ test("reconcile on the first event: watched peers are caught up, pending records
     await first.onTurnEnded(peerTurn({ agent: { ...peerTurn().agent, id: "peer-2" } }), session1.paseo);
     assert.equal(outbox.pendingFor("lead-1").length, 1);
 
-    // Session 2: new plugin process, same outbox. peer-1 finished another turn while the plugin was
-    // down; peer-2 is mid-turn; peer-9 was never seen; lead-1 is idle again.
     const lines: string[] = [];
     const log: Logger = { info: (m) => lines.push(`info ${m}`), error: (m) => lines.push(`error ${m}`) };
     const second = new Delivery({ outbox: new Outbox(outbox.directory), log, now: () => "2026-11-02T01:00:00.000Z" });
@@ -299,7 +293,6 @@ test("reconcile on the first event: watched peers are caught up, pending records
         "peer-9": [{ epoch: "e9", entries: [assistant(VALID, 1, { messageId: "z" })] }],
       },
     );
-    // The triggering event is an unrelated root agent; reconcile still runs first.
     await second.onTurnEnded(peerTurn({ agent: { ...peerTurn().agent, id: "root", parentAgentId: null } }), session2.paseo);
 
     assert.deepEqual(session2.refetches.map((r) => [r.agentId, r.options]), [["peer-1", { direction: "after", cursor: { epoch: "e1", seq: 1 }, limit: 200 }]]);
@@ -318,7 +311,6 @@ test("reconcile on the first event: watched peers are caught up, pending records
     assert.equal(reloaded.cursor("peer-9"), null);
     assert.ok(lines.some((l) => /reconciled 2 watched peer\(s\), 1 recipient\(s\) with pending deliveries/.test(l)));
 
-    // Reconcile is once per process: a later event does not repeat it.
     await second.onTurnEnded(peerTurn({ agent: { ...peerTurn().agent, id: "root", parentAgentId: null } }), session2.paseo);
     assert.equal(session2.refetches.length, 1);
   });
@@ -326,7 +318,6 @@ test("reconcile on the first event: watched peers are caught up, pending records
 
 test("reconcile skips a watched peer whose timeline read fails and still delivers the live event", async () => {
   await scratch(async (first, outbox) => {
-    // Session 1: peer-1 and peer-2 delivered, so both have stored cursors.
     const session1 = fakePaseo(
       { "lead-1": leadIdle },
       { "peer-1": [{ epoch: "e1", entries: [assistant(VALID, 1, { messageId: "a" })] }], "peer-2": [{ epoch: "e2", entries: [assistant(VALID, 1, { messageId: "b" })] }] },
@@ -335,8 +326,6 @@ test("reconcile skips a watched peer whose timeline read fails and still deliver
     await first.onTurnEnded(peerTurn({ agent: { ...peerTurn().agent, id: "peer-2" } }), session1.paseo);
     assert.equal(session1.sent.length, 2);
 
-    // Session 2: peer-1's scratch clone was deleted, so Paseo rejects its timeline read (seen live on
-    // 0.14.0); peer-2 finished another turn while the plugin was down; peer-3 ends a turn now.
     const lines: string[] = [];
     const log: Logger = { info: (m) => lines.push(`info ${m}`), error: (m) => lines.push(`error ${m}`) };
     const second = new Delivery({ outbox: new Outbox(outbox.directory), log, now: () => "2026-11-02T01:00:00.000Z" });
@@ -363,7 +352,6 @@ test("reconcile skips a watched peer whose timeline read fails and still deliver
     assert.ok(lines.some((l) => /^error reconcile: peer peer-1 skipped: Invalid params: Working directory does not exist/.test(l)));
     assert.ok(lines.some((l) => /reconciled 1 watched peer\(s\), 1 recipient\(s\)/.test(l)), "reconcile completed despite the failing peer");
 
-    // Reconcile completed, so a later event does not repeat it.
     const refetches = session2.refetches.length;
     await second.onTurnEnded(peerTurn({ agent: { ...peerTurn().agent, id: "root", parentAgentId: null } }), session2.paseo);
     assert.equal(session2.refetches.length, refetches);
@@ -416,7 +404,6 @@ test("a replaced timeline (new epoch) is re-anchored: the old handoff is not rec
     await delivery.onTurnEnded(peerTurn({ agent: peer2 }), fake.paseo);
     assert.equal(outbox.records().length, 2);
 
-    // The same history comes back under new message IDs; peer-2 also wrote a new handoff after it.
     const pages = {
       "peer-1": replaced([{ item: { type: "user_message", text: "brief" }, seqEnd: 1 }, assistant(VALID, 2, { messageId: "b" }), { item: { type: "tool_call" }, turnId: "t2", seqEnd: 4 }]),
       "peer-2": replaced([assistant(VALID, 2, { messageId: "b2" }), assistant(round2, 5, { messageId: "c2", turnId: "t2" })]),
@@ -471,7 +458,6 @@ test("permission request: sent to the Lead's Supervisor with its IDs, recorded o
     assert.equal(fake.sent.length, 0, "a running Supervisor is not disturbed");
     assert.ok(lines.some((l) => /recipient sup-1 is running; 1 delivery\(ies\) stay pending/.test(l)));
 
-    // A replayed hook adds nothing; the Supervisor's own turn end flushes the record.
     await delivery.onPermission(permission(), fake.paseo);
     assert.equal(outbox.records().length, 1);
     fake.agents["sup-1"] = { id: "sup-1", provider: "claude-supervisor", status: "idle" };
@@ -516,7 +502,6 @@ test("first receipt of a Peer checks the Lead's brief: a failed brief warns the 
   const good =
     "Task ID: T-1\nRound: 1\nBaseline: base 3f2a9c1d4e5b6a7f8091a2b3c4d5e6f708192a3b\nOwned scope: src/** &amp; docs\nAuthority: edit files in owned scope\n";
   await scratch(async (delivery, outbox) => {
-    // The tail does not reach the first prompt: the start of the timeline is read once.
     const fake = fakePaseo(
       { "lead-1": leadIdle },
       { "peer-1": [{ epoch: "e1", hasOlder: true, entries: [assistant(VALID, 300, { messageId: "m9" })] }, { epoch: "e1", entries: [user("Fix the login bug. Round: 1", 1)] }] },
@@ -543,7 +528,6 @@ test("first receipt of a Peer checks the Lead's brief: a failed brief warns the 
     assert.doesNotMatch(fake.sent[0].text, /warning:/);
   });
   await scratch(async (delivery, outbox) => {
-    // Paseo 0.15.4 and 0.16.0: a first prompt that is only the Lead's message is a tool_call row with agentMessage.
     const row = (id: string): TimelineEntry => ({
       item: { type: "tool_call", agentMessage: { event: "message", sender: { id }, text: "Task ID: T-1 | Round: 1. Read a.txt." } },
       seqEnd: 1,
@@ -557,7 +541,6 @@ test("first receipt of a Peer checks the Lead's brief: a failed brief warns the 
     assert.equal(outbox.records()[1].briefCodes, undefined);
   });
   await scratch(async (delivery, outbox) => {
-    // A first prompt that is not this Lead's agent-message (a Human prompt) is not checked.
     const fake = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [{ epoch: "e1", entries: [{ item: { type: "user_message", text: "hello" }, seqEnd: 1 }, assistant(VALID, 9)] }] });
     await delivery.onTurnEnded(peerTurn(), fake.paseo);
     assert.equal(outbox.records()[0].briefCodes, undefined);
@@ -573,7 +556,6 @@ test("tool calls are counted per Peer across receipts; at the limit the receipt 
     assert.equal(outbox.records()[0].toolCalls, 100);
     assert.doesNotMatch(first.sent[0].text, /tool calls/);
 
-    // Another Peer of the same Lead has its own count.
     const other = fakePaseo({ "lead-1": leadIdle }, { "peer-2": [{ epoch: "e2", entries: [...calls(1, 49, "t1"), assistant(VALID.replace("T-1", "T-2"), 50, { messageId: "n1" })] }] });
     await delivery.onTurnEnded(peerTurn({ agent: { ...peerTurn().agent, id: "peer-2" } }), other.paseo);
     assert.doesNotMatch(other.sent[0].text, /tool calls/);
@@ -606,13 +588,11 @@ test("Lead turn end: a new Peer's failed brief is delivered at once as BRIEF_INV
     );
     assert.equal(outbox.cursor("peer-1"), null, "the early check does not move the Peer's cursor");
 
-    // The Lead's next turn end: peer-1 and peer-2 are not read again; peer-3 (no prompt yet) is.
     const before = fake.refetches.length;
     await delivery.onTurnEnded(leadTurn, fake.paseo);
     assert.deepEqual(fake.refetches.slice(before).map((r) => r.agentId), ["peer-3"]);
     assert.equal(fake.sent.length, 1);
 
-    // First handback of peer-1: briefCodes are stored, the warning is not sent a second time.
     pages["peer-1"] = [{ epoch: "e1", entries: [row("Project / Task ID: demo / T-1 | Round: 1. Read a.txt."), assistant(VALID, 9)] }];
     await delivery.onTurnEnded(peerTurn(), fake.paseo);
     const handback = outbox.records().at(-1)!;
@@ -622,7 +602,6 @@ test("Lead turn end: a new Peer's failed brief is delivered at once as BRIEF_INV
     assert.ok(!lines.some((line) => line.startsWith("error")), lines.join("\n"));
   });
   await scratch(async (delivery, outbox, lines) => {
-    // A daemon whose agent list fails: logged, and the pending deliveries are still flushed.
     const fake = fakePaseo({ "lead-1": leadIdle });
     fake.paseo.agents.list = async () => {
       throw new Error("no list");
@@ -637,27 +616,23 @@ test("declared changes outside the brief's Owned scope warn the Lead; the newest
   const row = (text: string, seqEnd: number): TimelineEntry => ({ item: { type: "tool_call", agentMessage: { event: "message", sender: { id: "lead-1" }, text } }, seqEnd });
   const brief = (scope: string) => `Task ID: T-1\nRound: 1\nBaseline: base 3f2a9c1d4e5b6a7f8091a2b3c4d5e6f708192a3b\nOwned scope:\n${scope}\nAuthority: edit files in owned scope\n`;
   await scratch(async (delivery, outbox) => {
-    // valid.txt declares `Changed: src/a.py src/b.py`.
     const fake = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [{ epoch: "e1", entries: [row(brief("- `src/a.py`\n- docs/"), 1), assistant(VALID, 9)] }] });
     await delivery.onTurnEnded(peerTurn(), fake.paseo);
     assert.equal(outbox.records()[0].kind, "HANDBACK_VALID", "a scope warning does not change the kind");
     assert.deepEqual(outbox.records()[0].ownedScope, ["src/a.py", "docs/"]);
     assert.match(fake.sent[0].text, /^warning: declared change outside the brief's Owned scope: src\/b\.py$/m);
 
-    // A later turn with no new brief reuses the stored scope.
     const second = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [{ epoch: "e1", entries: [row("rework the parser", 10), assistant(VALID.replace("Round: 1", "Round: 2"), 12, { messageId: "m2", turnId: "t2" })] }] });
     await delivery.onTurnEnded(peerTurn({ turnId: "t2" }), second.paseo);
     assert.equal(outbox.records()[1].ownedScope, undefined);
     assert.match(second.sent[0].text, /Owned scope: src\/b\.py$/m);
 
-    // A new brief widens the scope: no warning.
     const third = fakePaseo({ "lead-1": leadIdle }, { "peer-1": [{ epoch: "e1", entries: [row(brief("  src/**"), 13), assistant(VALID.replace("Round: 1", "Round: 3"), 15, { messageId: "m3", turnId: "t3" })] }] });
     await delivery.onTurnEnded(peerTurn({ turnId: "t3" }), third.paseo);
     assert.deepEqual(outbox.records()[2].ownedScope, ["src/**"]);
     assert.doesNotMatch(third.sent[0].text, /Owned scope/);
   });
   await scratch(async (delivery, outbox) => {
-    // A directory name owns the files below it; a scope in prose (no path) is never compared.
     for (const [peer, scope] of [["peer-1", "- src/"], ["peer-2", "- the parser only"]] as const) {
       const fake = fakePaseo({ "lead-1": leadIdle }, { [peer]: [{ epoch: "e1", entries: [row(brief(scope), 1), assistant(VALID, 9)] }] });
       await delivery.onTurnEnded(peerTurn({ agent: { ...peerTurn().agent, id: peer } }), fake.paseo);
@@ -667,7 +642,6 @@ test("declared changes outside the brief's Owned scope warn the Lead; the newest
   });
 });
 
-// Texts of real receipts that reached a Lead as TURN_ENDED_INVALID_HANDOFF with seven missing-cell codes.
 const QUOTA = "Error: Agent turn ended: model_usage_exhausted";
 const JOB_RUNS = "The benchmark is still running in the background, so I'll wait for it to finish.";
 const MID_WORK = "Node tests pass (27 of 27). Next I'll run a live headless check of the JS helper.";
@@ -756,7 +730,6 @@ test("a handoff given to epistex_submit_handoff is delivered at the turn end in 
     );
     await delivery.ready();
     await outbox.setSubmission("peer-1", { id: "s-1", taskId: "T-1", round: "1", candidate: "snapshot", body: VALID, submittedAt: "2026-11-15T00:00:00.000Z" });
-    // The submission is durable: a plugin restart between the tool call and the turn end keeps it.
     const reloaded = new Outbox(outbox.directory);
     await reloaded.load();
     assert.equal(reloaded.submission("peer-1")?.id, "s-1");
@@ -777,7 +750,6 @@ test("a handoff given to epistex_submit_handoff is delivered at the turn end in 
     assert.equal(fake.sent[0].agentId, "lead-1");
     assert.ok(fake.sent[0].text.endsWith(`---\n${VALID}`));
 
-    // The next turn has no submission: the Peer's message is judged again, and the Peer is reminded.
     await delivery.onTurnEnded(peerTurn({ turnId: "t2" }), fake.paseo);
     assert.deepEqual(outbox.records().map((r) => r.kind), ["HANDBACK_VALID", "PEER_REMINDED"]);
     assert.match(PEER_REMINDER, /call epistex_submit_handoff/);

@@ -1,23 +1,4 @@
 #!/usr/bin/env python3
-"""Mechanical handoff gate: compare a Peer handoff with its brief and the Git candidate.
-
-Usage: check-handoff <brief.json> <handoff.txt> [--repo <path>] [--rerun]
-       check-handoff --parse-only <handoff.txt> [--json]
-
-Prints READY_FOR_REVIEW or FAIL with reasons; exit 0/1. Never prints ACCEPTED:
-behaviour, tests, public contract, open findings and cessation stay with the Lead.
-
-Commit mode (brief commit_allowed=true): base and candidate commits, the diff between them, and
-no uncommitted or untracked file left in the worktree while its HEAD is the candidate.
-Snapshot mode (commit_allowed=false): each sha256 checksum in the Candidate cell must match a file
-the cell names, the worktree HEAD must still be the base, and the changed files are the worktree
-changes against the base (tracked and untracked). A named Git diff file must list the same files.
-Without a base commit the file list comes from the diff file; without both the gate reports UNSUPPORTED.
-
---parse-only runs the parser without a brief or repository and reports the handoff shape
-(header, cells, hex tokens in Candidate, checksum snapshot, reason codes). plugins/epistex-delivery/server/handoff.ts
-ports the same parser; tests/fixtures/handoffs/ keeps both in parity.
-"""
 
 import argparse
 import hashlib
@@ -28,26 +9,17 @@ import subprocess
 import sys
 
 CELLS = ("Outcome", "Candidate", "Scope", "Verification", "Unknown / risk", "Ownership")
-# Markup a Peer may put before a cell name or the header: quote, heading and table marks, a bullet,
-# a number ("1.", "1)", "(1)") and Markdown emphasis, in any order.
 PREFIX = r"(?:[ \t|>#]|[-+*][ \t]+|[0-9]+[.)][ \t]*|\([0-9]+\)[ \t]*|\*\*|__|[*_`])*"
 EMPH = r"(?:\*\*|__|[*_`])"
-# Codex writes Unicode spaces (em space, no-break space) between a cell name and its text.
 WS = " \t\u00a0\u2000-\u200b\u202f\u205f\u3000"
 
 
 def ws(pattern):
-    """The pattern with every `[ \\t…]` class widened to the Unicode spaces of WS."""
     return pattern.replace(r"[ \t", "[" + WS)
 
 
-# Round is the first token after "Round:"; a trailing note such as "(not changed by me)" is tolerated.
 HEADER = re.compile(ws(r"^%sTask ID%s?[ \t]*:%s?[ \t]*(?P<task>.+?)[ \t]*\|[ \t]*%s?Round%s?[ \t]*:%s?[ \t]*(?P<round>[^\s|]+)"
                        % (PREFIX, EMPH, EMPH, EMPH, EMPH, EMPH)))
-# Cell name at line start after optional markup. The name is exact (any case, free spacing around
-# "/"), then: closing emphasis, one parenthesised note, and a colon, a table bar, two spaces, one
-# space after closing emphasis, or the end of the line. One plain space does not end the name, so a
-# renamed cell ("Candidate identity:", "Scope / coverage", "Risks") and a sentence do not match.
 CELL_START = re.compile(ws(
     r"^%s(?P<name>%s)%s?(?:[ \t]*\([^()\n]*\))?%s?"
     r"(?:[ \t]*:%s?[ \t]*|[ \t]*\|[ \t]*|[ \t]{2,}|(?<=[*_`])[ \t]+|[ \t]*$)"
@@ -60,20 +32,15 @@ PATH = re.compile(r"[\w.~-]*/[\w.-]+|\b[\w-]+\.[A-Za-z][A-Za-z0-9]{0,7}\b")
 SNAPSHOT = re.compile(r"snapshot|checksum|uncommitted|no candidate SHA", re.I)
 NO_CANDIDATE = re.compile(r"\b(?:none|n/a|no (?:candidate|commits?|writes?|changes?|diff)|not committed|nothing (?:written|committed|changed))\b"
                           r"|không (?:có )?(?:candidate|commit|ghi|thay đổi)", re.I)
-# Written by epistex_submit_handoff when the Peer's directory has no Git HEAD: there is no base SHA to name.
 NO_CHECKOUT = re.compile(r"\bno Git checkout\b")
-# Sub-label of the Verification cell: how far the Peer's own evidence goes.
 PROOF_CLASSES = ("observed", "e2e", "tests-only", "none")
 PROOF = re.compile(ws(r"\bProof class%s?[ \t]*:%s?[ \t]*[*_`]*(%s)\b" % (EMPH, EMPH, "|".join(PROOF_CLASSES))), re.I)
 STOPPED = re.compile(r"\b(?:BLOCKED|REOPEN_REQUEST|DEPENDENCY_REQUEST)\b")
 EXIT = re.compile(r"\b(?:exit(?:\s+(?:status|code))?|rc|status)\s*[:=]?\s*(\d+)\b", re.I)
-# A reported run is a deliberate baseline run when its line names the base, a stash or a
-# regression check. Such runs may fail; the candidate run must still report exit 0.
 BASELINE = re.compile(r"\b(?:base|baseline|stash(?:ed)?|regression|before the fix|without the fix)\b", re.I)
 
 
 def clean(text):
-    """Cell text without the table bar that closes a Markdown table row."""
     return re.sub(r"[ \t]*\|[ \t]*$", "", text.strip())
 
 
@@ -87,7 +54,7 @@ def parse_handoff(text):
             continue
         match = CELL_START.match(line)
         name = CANONICAL.get(re.sub(ws(r"[ \t]"), "", match["name"]).lower()) if match else None
-        if name and name not in cells:  # a later line that repeats a cell name is text of the current cell
+        if name and name not in cells:
             current = name
             cells[current] = clean(line[match.end():])
         elif current and line.strip() and not re.fullmatch(r"[ \t|:-]+", line):
@@ -96,13 +63,6 @@ def parse_handoff(text):
 
 
 def classify_handoff(text):
-    """Shape check without a brief or repository: the delivery plugin's HANDBACK_VALID test.
-
-    `shas` are the hex tokens in the Candidate cell; they are not resolved to commits here,
-    so `valid` means "looks like a complete handback", not READY_FOR_REVIEW. `codes` are the
-    machine-readable form of `reasons`: HEADER_MISSING, CELL_MISSING:<name>, CANDIDATE_IDENTITY,
-    PROOF_CLASS.
-    """
     header, cells = parse_handoff(text)
     reasons, codes = [], []
     if header is None:
@@ -114,16 +74,12 @@ def classify_handoff(text):
         codes += ["CELL_MISSING:" + c for c in missing]
     candidate = cells.get("Candidate", "")
     shas = SHA.findall(candidate)
-    # Candidate identity, one of: two commit SHAs; a sha256 checksum with a path; a turn that stopped
-    # (BLOCKED, REOPEN_REQUEST, DEPENDENCY_REQUEST), where any non-empty cell is enough; or a base SHA
-    # (or the words "no Git checkout") with a clear statement that there is no candidate.
     snapshot = SHA256.search(candidate) is not None and PATH.search(SHA256.sub("", candidate)) is not None
     stopped = STOPPED.search(cells.get("Outcome", "")) is not None
     base_only = (len(shas) >= 1 or NO_CHECKOUT.search(candidate) is not None) and NO_CANDIDATE.search(candidate) is not None
     if header is not None and not missing and len(shas) < 2 and not snapshot and not stopped and not base_only:
         reasons.append(f"Candidate cell needs base SHA and candidate SHA (found {len(shas)})")
         codes.append("CANDIDATE_IDENTITY")
-    # A handoff with a candidate states its proof class; a stopped turn or one without a candidate has none.
     proof = PROOF.search(cells.get("Verification", ""))
     proof = proof[1].lower() if proof else None
     if header is not None and not missing and (len(shas) >= 2 or snapshot) and not stopped and not base_only and proof is None:
@@ -172,14 +128,12 @@ def diff_paths(repo, base, candidate):
 
 
 def split_paths(text):
-    # Tokens may carry Markdown quotes and sentence punctuation: `path`. or (path),
     def clean(token):
         while True:
             stripped = token.strip("`'\"*()[]").rstrip(".:;,")
             if stripped == token:
                 return token
             token = stripped
-    # Only path-like tokens count: list bullets ("-") and notes such as "(new file)" are ignored.
     return {clean(token) for token in re.split(r"[\s,;]+", text)
             if clean(token) and re.search(r"[/.]", clean(token)) and not re.search(r"[()]", clean(token))}
 
@@ -190,7 +144,6 @@ def is_commit(repo, sha):
 
 
 def worktree_changes(worktree, base):
-    """Paths that differ between a commit and the worktree: staged, unstaged and untracked (not ignored)."""
     paths = set()
     for line in git(worktree, "diff", "--name-status", "-M", base).splitlines():
         paths.update(line.split("\t")[1:])
@@ -202,15 +155,8 @@ DIFF_HEADER = re.compile(r"(?m)^diff --git a/(.+?) b/(.+)$")
 
 
 def snapshot_identity(cell, worktree):
-    """Verify the checksum + path identities of a Candidate cell.
-
-    Returns (reasons, paths in a named Git diff or None, verified snapshot files inside the worktree).
-    A sandboxed Peer can write only inside its worktree, so its snapshot file may be there: such a
-    file is evidence, not a change.
-    """
     reasons, files, diff_files, inside = [], {}, None, set()
     for token in re.split(r"\s+", cell):
-        # Markup and sentence marks in any order: "`candidate.diff`," and "(candidate.diff)."
         token = token.strip("`'\"*()[]<>,;:").rstrip(".").rstrip("`'\"*()[]<>,;:")
         if "/" not in token and "." not in token:
             continue
@@ -243,8 +189,6 @@ def snapshot_identity(cell, worktree):
 
 
 def check_snapshot(brief, cells, repo, reasons):
-    """Changed files of an uncommitted candidate (None when they cannot be established), where to
-    rerun, and the snapshot files inside the worktree."""
     cell = cells["Candidate"]
     worktree = pathlib.Path(brief.get("worktree") or repo)
     identity, diff_files, evidence = snapshot_identity(cell, worktree)
@@ -279,9 +223,7 @@ def check_snapshot(brief, cells, repo, reasons):
 
 
 def check_commits(brief, cells, repo, reasons):
-    """Changed files between the base and candidate commits, or None when the identity fails."""
     candidate_cell = cells["Candidate"]
-    # Keep only hex tokens that resolve to commits: branch names, timestamps and checksums also look like hex.
     shas = [sha for sha in SHA.findall(candidate_cell) if is_commit(repo, sha)]
     if len(shas) < 2:
         if SNAPSHOT.search(candidate_cell) or SHA256.search(candidate_cell):
@@ -300,7 +242,6 @@ def check_commits(brief, cells, repo, reasons):
     for key in ("branch", "worktree"):
         if brief.get(key) and brief[key] not in candidate_cell:
             reasons.append(f"Candidate cell does not name brief {key} {brief[key]!r}")
-    # Work that is not in the candidate commit: uncommitted or untracked files, or later commits.
     worktree = pathlib.Path(brief.get("worktree") or repo)
     head = git(worktree, "rev-parse", "HEAD", check=False).strip()
     if head == candidate:
@@ -342,7 +283,6 @@ def check(brief, handoff, repo, rerun):
         declared = split_paths(match.group(1))
     for path in sorted(actual - declared):
         reasons.append(f"changed but not declared in Scope/Changed: {path}")
-    # A Peer may list its own snapshot file as changed: it is evidence, not part of the diff.
     for path in sorted(declared - actual - evidence):
         reasons.append(f"declared in Scope/Changed but not in diff: {path}")
     owned = brief.get("owned_scope") or []
@@ -366,7 +306,6 @@ def check(brief, handoff, repo, rerun):
         elif not any(code == "0" for _, code in runs):
             reasons.append(f"required check reported non-zero exit: {command}")
         elif any(code != "0" and not base for base, code in runs):
-            # Non-zero exits are tolerated only on lines that name a baseline run.
             reasons.append(f"required check reported non-zero exit: {command}")
 
     if rerun:
@@ -383,7 +322,7 @@ def check(brief, handoff, repo, rerun):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description="Mechanical handoff gate: compare a Peer handoff with its brief and the Git candidate.")
     parser.add_argument("brief", nargs="?")
     parser.add_argument("handoff", nargs="?")
     parser.add_argument("--repo", help="git repo to resolve SHAs (default: brief.repo_root or worktree)")
@@ -397,7 +336,7 @@ def main(argv=None):
         except OSError as error:
             print(f"FAIL\n- {error}")
             return 1
-        if args.json:  # the JSON is the report; only a read error is a failure
+        if args.json:
             print(json.dumps(result, ensure_ascii=False))
             return 0
         print("VALID" if result["valid"] else "FAIL")

@@ -1,4 +1,5 @@
 import hashlib
+import importlib.util
 import json
 import os
 import pathlib
@@ -21,7 +22,6 @@ def git(repo, *args):
 CHECK_BRIEF = ROOT / "setup" / "check-brief"
 BASE = "3f2a9c1d4e5b6a7f8091a2b3c4d5e6f708192a3b"
 SHA256 = "0a184d9dc3b8fa90d6a48f5cc8ce41074537be65a5e848a714844125a55aeb01"
-# The assignment template of agents/LEAD.md, filled in.
 BRIEF = f"""Project / Task ID: demo / T-1
 Round (assigned by Lead): 1
 Repository root + workspace: /tmp/repo, branch main, base {BASE}
@@ -74,7 +74,6 @@ class CheckBriefTest(unittest.TestCase):
                 self.assertEqual(codes(BRIEF.replace(line, "")), [code])
         self.assertEqual(codes(BRIEF.replace("Owned scope        src/**", "Owned scope")), ["OWNED_SCOPE_MISSING"])
         self.assertEqual(codes(BRIEF.replace("by Lead): 1", "by Lead): R2-V1")), ["ROUND_NOT_NUMBER"])
-        # A base word without an identity, a checksum without a path, and prose that only mentions the words.
         self.assertEqual(codes(BRIEF.replace(f"base {BASE}", "base is the current main")), ["BASELINE_MISSING"])
         root = f"Repository root + workspace: /tmp/repo, branch main, base {BASE}"
         self.assertEqual(codes(BRIEF.replace(root, f"Baseline: sha256 {SHA256}")), ["BASELINE_MISSING"])
@@ -107,7 +106,6 @@ class CheckBriefTest(unittest.TestCase):
                          ["ROUND_MISSING", "OWNED_SCOPE_MISSING"])
 
     def test_brief_fixtures_report_the_expected_codes(self):
-        # Shapes of real Lead briefs, project text replaced: accepted label forms (ok-*) and rejections (bad-*).
         fixtures = ROOT / "tests/fixtures/briefs"
         expected = json.loads((fixtures / "expected.json").read_text())
         self.assertEqual(sorted(expected), sorted(path.name for path in fixtures.glob("*.txt")))
@@ -239,7 +237,6 @@ class CheckHandoffTest(unittest.TestCase):
         self.assertIn("rerun exit 1: false", result.stdout)
 
     def snapshot(self, diff_untracked=True):
-        """An uncommitted candidate on top of the work commit, frozen as a diff file outside the repo."""
         (self.repo / "src/a.py").write_text("a3\n")
         (self.repo / "src/new.py").write_text("n\n")
         if diff_untracked:
@@ -264,12 +261,10 @@ class CheckHandoffTest(unittest.TestCase):
         self.assertIn("changed file outside owned_scope: other.txt", result.stdout)
         self.assertIn("worktree change not in the candidate diff file (not frozen): other.txt", result.stdout)
         (self.repo / "other.txt").unlink()
-        # A sandboxed Peer keeps its diff file inside the worktree: evidence, not a change.
         inside = self.repo / "candidate.diff"
         inside.write_bytes(path.read_bytes())
         result = self.run_check(self.handoff(candidate=cell.replace(str(path), "candidate.diff"), changed="src/a.py src/new.py"), brief)
         self.assertEqual(result.stdout.strip(), "READY_FOR_REVIEW", result.stdout + result.stderr)
-        # Live Codex form: the path in backticks with a comma after it.
         result = self.run_check(self.handoff(candidate=cell.replace(f"path {path}", "snapshot: `candidate.diff`, no commit"),
                                              changed="src/a.py src/new.py candidate.diff"), brief)
         self.assertEqual(result.stdout.strip(), "READY_FOR_REVIEW", result.stdout + result.stderr)
@@ -293,7 +288,6 @@ class CheckHandoffTest(unittest.TestCase):
                 result = self.run_check(handoff, case_brief)
                 self.assertEqual(result.returncode, 1)
                 self.assertIn(message, result.stdout)
-        # Without Git the file list comes from the diff file; without both it is UNSUPPORTED.
         plain = pathlib.Path(self.folder.name) / "plain"
         plain.mkdir()
         outside = {**brief, "repo_root": str(plain), "worktree": str(plain), "base_sha": None, "branch": None}
@@ -345,7 +339,6 @@ class CheckHandoffTest(unittest.TestCase):
                 self.assertEqual(as_text.returncode, 1)
                 self.assertIn(reason, as_text.stdout)
         self.assertEqual(parse_only("valid.txt").stdout.strip(), "VALID")
-        # One fixture per accepted markup form (ok-*) and per rejection (bad-*), with its reason codes.
         expected = json.loads((fixtures / "expected.json").read_text())
         self.assertEqual(sorted(expected), sorted(path.name for path in fixtures.glob("*.txt")))
         for name, codes in expected.items():
@@ -421,7 +414,6 @@ class FailOnBaseTest(unittest.TestCase):
 class ClassifyTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        import importlib.util
         spec = importlib.util.spec_from_loader("fail_on_base", loader=None)
         cls.module = importlib.util.module_from_spec(spec)
         exec(compile(FAIL_ON_BASE.read_text(), str(FAIL_ON_BASE), "exec"), cls.module.__dict__)
@@ -476,7 +468,6 @@ class ClassifyTest(unittest.TestCase):
             ],
             "UNKNOWN": [
                 ("", "something else"),
-                # the word "expected" alone is not an assertion failure
                 "the non-numeric case logged the expected NumberFormatException",
             ],
         }

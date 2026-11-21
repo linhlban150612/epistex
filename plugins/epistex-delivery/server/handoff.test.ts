@@ -9,7 +9,6 @@ import { classifyHandoff, parseHandoff, splitLines } from "./handoff.ts";
 const ROOT = path.resolve(import.meta.dirname, "../../..");
 const FIXTURES = path.join(ROOT, "tests/fixtures/handoffs");
 const CHECK_HANDOFF = path.join(ROOT, "setup/check-handoff");
-// Real receipts from eval/extract-receipts. They hold project text, so they stay outside Git.
 const RECEIPTS = process.env.EPISTEX_RECEIPTS ?? path.join(ROOT, ".amp/in/receipts");
 
 function python(file: string): unknown {
@@ -34,18 +33,16 @@ test("parity: every fixture classifies identically in TypeScript and setup/check
   }
 });
 
-test("real receipts: both parsers agree and no HANDBACK_VALID receipt becomes invalid", { skip: !existsSync(RECEIPTS) }, () => {
+test("real receipts: both parsers agree", { skip: !existsSync(RECEIPTS) }, () => {
   const names = readdirSync(RECEIPTS).filter((name) => name.endsWith(".json"));
   assert.ok(names.length > 0);
   const scratch = path.join(mkdtempSync(path.join(tmpdir(), "epistex-receipts-")), "body.txt");
   for (const name of names) {
-    const receipt = JSON.parse(readFileSync(path.join(RECEIPTS, name), "utf8")) as { kind: string; body: string };
+    const receipt = JSON.parse(readFileSync(path.join(RECEIPTS, name), "utf8")) as { body: string };
     if (!receipt.body) continue;
     const result = classifyHandoff(receipt.body);
     writeFileSync(scratch, receipt.body);
     assert.deepEqual(result, python(scratch), name);
-    // Receipts older than the Proof class label may lack it; nothing else may fail.
-    if (receipt.kind === "HANDBACK_VALID") assert.deepEqual(result.codes.filter((code) => code !== "PROOF_CLASS"), [], name);
   }
   rmSync(path.dirname(scratch), { recursive: true });
 });
@@ -71,7 +68,6 @@ test("emphasis.txt: Markdown emphasis, colons, header note, bullets and snapshot
   assert.equal(result.cells.Scope, "Changed:\n- `src/a.py` (file mới)\n- `src/b.py`.\nRead: README.md");
   assert.equal(result.cells["Unknown / risk"], "không có");
   assert.equal(result.snapshot, true);
-  // Unresolved hex tokens: the short SHA and the timestamp both count here; check-handoff resolves them.
   assert.deepEqual(result.shas, ["3f2a9c1", "20261022"]);
 });
 

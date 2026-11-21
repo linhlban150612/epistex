@@ -28,7 +28,10 @@ and disables `agents.enabled`, `features.multi_agent`, and `features.multi_agent
 removes the MCP server named `paseo` from runtime config. Canonical config is not modified. Sync
 preserves private sessions/logs/database, rejects runtime or ancestor symlinks, and preflights
 conflicts; replacing each of `config.toml` and `role-instructions.md` is atomic, not the
-entire sync. Instructions are resolved from the kit, not the project CWD; missing sources
+entire sync. When the canonical TOML does not parse, `setup/codex-room` prints a fixed message
+without the parser error, because that error can contain canonical configuration values. The
+generated TOML keeps non-BMP characters literal: JSON surrogate escapes are not valid TOML.
+Instructions are resolved from the kit, not the project CWD; missing sources
 or common + role text over 16 KiB block sync before runtime changes.
 
 UUID resume can find the same-role runtime in both the `epistex` and `seatworks` namespaces; it

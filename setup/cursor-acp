@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Start a Cursor seat through cursor-agent ACP and inject role instructions into each ACP session."""
 
 import importlib.machinery
 import json
@@ -17,8 +16,6 @@ import uuid
 sys.dont_write_bytecode = True
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ROLES = ("supervisor", "lead", "peer")
-# Seat model ID -> the native ACP parameters the launcher sets, in this order, and confirms.
-# A parameter that a model does not have (Composer: effort, context; Gemini: fast, context) is absent.
 GROK = {"model": "grok-4.7", "fast": "false"}
 MODELS = {
     "grok-4.7-medium-500k": {**GROK, "context": "500k", "reasoning_effort": "medium"},
@@ -35,7 +32,6 @@ NAMES = {
     "composer-2.5": "Composer 2.5 (Fast off)",
     "grok-4.7-low": "Grok 4.7 low (Fast off)", "grok-4.7-medium": "Grok 4.7 medium (Fast off)",
 }
-# The models each role may select; the first is selected for a new or loaded session.
 ROLE_MODELS = {
     "supervisor": ("grok-4.7-medium-500k", "grok-4.7-high-500k"),
     "lead": ("gemini-4-carbon-medium", "gemini-4-carbon-high"),
@@ -44,25 +40,17 @@ ROLE_MODELS = {
 
 
 def paseo_allow(role):
-    """Permission tokens for the Paseo tools this role keeps; for a Peer, the handoff tool only.
-
-    Run Everything auto-approves MCP calls unless a team admin blocks MCP auto-run; then
-    without them a seat stops on a permission request at each Paseo call. The kept tools are the `@paseo/<tool>` entries of the Kiro agent file of the role.
-    """
     tools = json.loads((ROOT / f"setup/kiro-{role}.json").read_text())["tools"]
     return [f"Mcp(paseo:{tool.removeprefix('@paseo/')})" for tool in tools if tool.startswith("@paseo/")]
 
 
 def run(role, args):
-    """Translate the seat model IDs of this role into confirmed native ACP parameters."""
     allowed = ROLE_MODELS[role]
     role_agent = importlib.machinery.SourceFileLoader("role_agent", str(ROOT / "setup/role-agent")).load_module()
     role_agent.load_prompt(role)
     source = pathlib.Path(os.environ.get("CURSOR_CONFIG_DIR") or
                           (pathlib.Path(os.environ["XDG_CONFIG_HOME"]) / "cursor"
                            if os.environ.get("XDG_CONFIG_HOME") else pathlib.Path.home() / ".cursor"))
-    # Cursor persists ACP model parameters in cli-config.json. Isolate that file,
-    # but retain the original auth, MCP configuration and durable session stores.
     source.mkdir(parents=True, exist_ok=True)
     (source / "acp-sessions").mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="epistex-cursor-") as folder:
@@ -73,16 +61,13 @@ def run(role, args):
         if (source / "cli-config.json").exists():
             shutil.copyfile(source / "cli-config.json", local / "cli-config.json")
             (local / "cli-config.json").chmod(0o600)
-        # Only in the seat's private copy: the user's cli-config.json is not changed.
         try:
             config = json.loads((local / "cli-config.json").read_text())
         except (OSError, ValueError):
             config = {}
         if not isinstance(config, dict) or not isinstance(config.get("permissions", {}), dict):
             raise SystemExit("Cursor cli-config.json: permissions must be an object")
-        # Run Everything (the --force/--yolo of the CLI), which `cursor-agent acp` reads only from this file.
         config["approvalMode"] = "unrestricted"
-        # The Paseo tokens still apply when a team admin blocks MCP auto-run.
         permissions = config.setdefault("permissions", {})
         current = permissions.get("allow") if isinstance(permissions.get("allow"), list) else []
         permissions["allow"] = current + [token for token in paseo_allow(role) if token not in current]
@@ -151,7 +136,6 @@ def run(role, args):
                                     confirmed.pop(sid, None)
                                     if selected == model:
                                         selected = None
-                        # Keep native model/config updates internal; selection confirmation is the public state.
                     else:
                         emit(message)
             for waiter in list(pending.values()):
@@ -189,7 +173,7 @@ def run(role, args):
             nonlocal selected
             with selection_lock:
                 confirmed.pop(sid, None)
-                selected = None  # A partial or rejected selection must never allow a prompt.
+                selected = None
             if model not in allowed:
                 raise ValueError(f"Cursor {role} seat requires one of: " + ", ".join(allowed))
             expected = MODELS[model]

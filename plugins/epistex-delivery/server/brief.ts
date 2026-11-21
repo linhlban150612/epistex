@@ -1,18 +1,13 @@
-// Port of check_text from setup/check-brief, for the brief a Lead sends as a Peer's first prompt.
-// Keep both in step: brief.test.ts runs the same texts through both and the codes must be identical.
 import { CELLS, EMPH, PATH, PREFIX, SHA, SHA256, splitLines } from "./handoff.ts";
 
 const W = "\\p{L}\\p{N}_";
 const B = `(?:(?<=[${W}])(?![${W}])|(?<![${W}])(?=[${W}]))`;
 const NOTE = "(?:[ \\t]*\\([^()\\n]*\\))?";
-// A Lead also writes the labels as constants: `TASK_ID:`, `OWNED_SCOPE:`.
 const LABELS = {
   "Task ID": "(?:Project[ \\t]*/[ \\t]*)?Task[ _]ID",
   "Owned scope": "Owned[ _]scope",
   Authority: "Authority",
 } as const;
-// Label at line start after optional markup, an optional note in parentheses, then the value; or
-// label with a colon inside a line, after a sentence or segment mark.
 const field = (label: string) =>
   new RegExp(
     `(?:^${PREFIX}(?:${label})${EMPH}?${NOTE}${EMPH}?[ \\t]*[:|=]?|[.;,/|—–(-][ \\t]+${EMPH}?(?:${label})${EMPH}?[ \\t]*:)${EMPH}?[ \\t]*(.*)$`,
@@ -25,22 +20,18 @@ const BASELINE = new RegExp(`${B}base(?:line)?${B}`, "iu");
 const HANDOFF = new RegExp(`^${PREFIX}Handoff${B}.*(?:\\n(?![ \\t]*$).*)*`, "gimu");
 const PEER_PROMPT = /§[ \t]*Handoff|(?:Peer|role) prompt|PEER\.md|Peer Handoff|six-cell handoff/iu;
 const CELL_NAMES = CELLS.map((cell) => new RegExp(`(?<![${W}])${cell.replace(" / ", "[ \\t]*/[ \\t]*")}(?![${W}])`, "iu"));
-// Paseo wraps a message from another agent: <paseo-system … kind="agent-message" source-agent-id="…">, body XML-escaped.
 const ENVELOPE = /<paseo-system((?:\s+[a-z-]+="[^"<>]*")+)>\n([\s\S]*?)\n<\/paseo-system>/g;
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
 
-/** Value of a template field: the rest of its line, else its continuation on the next line. */
 function fieldValue(text: string, label: string): string | null {
   const match = field(label).exec(text);
   if (!match) return null;
   const value = match[1].replace(/^[ \t|]+|[ \t|]+$/g, "");
   if (value) return value;
   const following = text.slice(match.index + match[0].length).split("\n")[1];
-  // A continuation is indented or a list item ("- x", "1. x"); a line at the margin is the next field.
   return following !== undefined && CONTINUATION.test(following) ? following.trim() : "";
 }
 
-/** A base/baseline line with a commit SHA, or a sha256 checksum with a path; the identity may be on the next line. */
 function hasBaseline(text: string): boolean {
   const lines = splitLines(text);
   return lines.some((line, index) => {
@@ -51,16 +42,13 @@ function hasBaseline(text: string): boolean {
   });
 }
 
-/** Task ID and Round number a brief states, each null when the brief does not state it. */
 export function briefIdentity(brief: string): { taskId: string | null; round: string | null } {
   const text = brief.replace(/\r\n?/g, "\n");
   const value = fieldValue(text, LABELS["Task ID"])?.split(/[ \t]*[|;,][ \t]*/)[0];
-  // `Project / Task ID: demo / T-1`: the handoff header carries the task part only.
   const task = /Project[ \t]*\/[ \t]*Task[ _]ID/i.test(text) ? value?.split(/[ \t]+\/[ \t]+/).pop() : value;
   return { taskId: task?.replace(/^[*_`]+|[*_`.]+$/g, "") || null, round: ROUND_NUMBER.exec(text)?.[1] ?? null };
 }
 
-/** Shape codes of a text brief, as `setup/check-brief - --json` reports them; empty when the brief passes. */
 export function checkBrief(brief: string): string[] {
   const text = brief.replace(/\r\n?/g, "\n");
   const codes: string[] = [];
@@ -78,11 +66,6 @@ export function checkBrief(brief: string): string[] {
   return codes;
 }
 
-/**
- * The brief inside a Peer's first user message: the body of the first Paseo agent-message envelope
- * from this Lead. Role instructions an ACP launcher put before it are left out. Null when the
- * message has no such envelope, so text that is not a Lead brief is never checked.
- */
 export function briefOf(userMessage: string, leadAgentId: string): string | null {
   for (const [, attributes, body] of userMessage.matchAll(ENVELOPE)) {
     if (/\skind="agent-message"/.test(attributes) && attributes.includes(` source-agent-id="${leadAgentId}"`)) {
@@ -92,9 +75,7 @@ export function briefOf(userMessage: string, leadAgentId: string): string | null
   return null;
 }
 
-/** Python's split_paths in setup/check-handoff: path-like tokens without Markdown quotes and sentence marks. */
 function splitPaths(text: string, globs = false): string[] {
-  // A glob keeps its stars: `src/**` is not Markdown emphasis.
   const quotes = globs ? /^[`'"()[\]]+|[`'"()[\]]+$/g : /^[`'"*()[\]]+|[`'"*()[\]]+$/g;
   const clean = (token: string) => {
     for (;;) {
@@ -107,10 +88,6 @@ function splitPaths(text: string, globs = false): string[] {
   return [...new Set(paths)];
 }
 
-/**
- * Path globs of the brief's `Owned scope` field: its line and the indented or list lines after it.
- * Empty when the field is absent or is prose without a path, so such a brief is never compared.
- */
 export function ownedScope(brief: string): string[] {
   const text = brief.replace(/\r\n?/g, "\n");
   const match = field(LABELS["Owned scope"]).exec(text);
@@ -123,7 +100,6 @@ export function ownedScope(brief: string): string[] {
   return splitPaths(lines.join("\n"), true);
 }
 
-/** glob_to_regex of setup/check-handoff, plus: a pattern that names a directory owns the files below it. */
 function inScope(file: string, pattern: string): boolean {
   const norm = (value: string) => value.replace(/^\.\//, "");
   const glob = norm(pattern).replace(/\/+$/, "");
@@ -140,10 +116,6 @@ function inScope(file: string, pattern: string): boolean {
   return new RegExp(`^${source}(?:/.*)?$`, "u").test(norm(file));
 }
 
-/**
- * Paths the handoff's Scope cell declares as changed that no Owned scope glob covers. This compares
- * text with text: what the Peer really changed is checked by setup/check-handoff against Git.
- */
 export function outsideScope(scopeCell: string, owned: string[]): string[] {
   const changed = /Changed:([\s\S]*?)(?:Read:|$)/.exec(scopeCell);
   if (!changed || !owned.length) return [];

@@ -1,0 +1,279 @@
+#!/usr/bin/env python3
+import io
+import json
+import re
+import subprocess
+import sys
+import tokenize
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+BASELINE = ROOT / "setup" / "comment-baseline.json"
+HASH_SUFFIXES = {".sh", ".jq", ".yml", ".yaml"}
+TS_SUFFIXES = {".ts", ".tsx", ".js", ".mjs", ".cjs"}
+DIRECTIVE = re.compile(
+    r"^(#\s*(shellcheck\s+[a-z-]+=\S+|type:\s*ignore(\[[\w, -]+\])?|noqa(:\s*[A-Z]+[0-9]+(,\s*[A-Z]+[0-9]+)*)?"
+    r"|pragma:\s*no\s+(cover|branch)|pylint:\s*[a-z-]+=\S+)"
+    r"|//\s*(@ts-(expect-error|ignore|nocheck|check)|(eslint-(disable|enable)(-next-line|-line)?|biome-ignore)(\s+[\w@/-]+(,\s*[\w@/-]+)*)?)"
+    r"|/\*\s*eslint-(disable|enable)(\s+[\w@/-]+(,\s*[\w@/-]+)*)?\s*\*/)\s*$"
+)
+REGEX_BEFORE = set("(,=:[!&|?{};+-*%<>~^")
+USAGE = """usage: setup/lint-comments [--list | --update]
+
+No option: compare the comment lines of each tracked source file with
+setup/comment-baseline.json. A file that is not in the baseline has a limit of zero.
+Exit status 1 when a file has more comment lines than its limit, or fewer
+(then run --update to lower the limit).
+--list    print each comment line as path:line:text, then the total.
+--update  write the baseline again. A limit can only go down."""
+HEREDOC = re.compile(r"<<(?!<)-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
+
+
+def tracked_files():
+    listed = subprocess.run(
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], cwd=ROOT, capture_output=True, text=True
+    )
+    if listed.returncode != 0:
+        sys.exit(f"setup/lint-comments: git ls-files failed in {ROOT}: {listed.stderr.strip()}")
+    out = listed.stdout
+    return sorted(name for name in out.split("\0") if name and (ROOT / name).is_file())
+
+
+def language(name, text):
+    suffix = Path(name).suffix
+    first = text.split("\n", 1)[0]
+    if suffix == ".py" or (first.startswith("#!") and "python" in first):
+        return "python"
+    if suffix in TS_SUFFIXES:
+        return "ts"
+    if suffix == ".sh" or (first.startswith("#!") and re.search(r"\b(ba|z|da)?sh\b", first)):
+        return "shell"
+    if suffix in HASH_SUFFIXES or Path(name).name == ".gitignore":
+        return "hash"
+    return None
+
+
+def python_comments(text):
+    found = {}
+    tokens = list(tokenize.generate_tokens(io.StringIO(text).readline))
+    for token in tokens:
+        if token.type == tokenize.COMMENT:
+            found[token.start[0]] = token.string
+    code = [token for token in tokens if token.type not in (tokenize.NL, tokenize.COMMENT)]
+    starts = (tokenize.NEWLINE, tokenize.INDENT, tokenize.DEDENT)
+    ends = (tokenize.NEWLINE, tokenize.ENDMARKER)
+    for index, token in enumerate(code):
+        if token.type != tokenize.STRING:
+            continue
+        if (index == 0 or code[index - 1].type in starts) and (index + 1 == len(code) or code[index + 1].type in ends):
+            for offset, line in enumerate(token.string.split("\n")):
+                found[token.start[0] + offset] = line.strip()
+    return found
+
+
+def ts_comments(text):
+    found = {}
+    line = 1
+    index = 0
+    last = ""
+    word = ""
+    stack = []
+    size = len(text)
+
+    def add(start_line, body):
+        for offset, part in enumerate(body.split("\n")):
+            found.setdefault(start_line + offset, part.strip())
+
+    while index < size:
+        char = text[index]
+        pair = text[index:index + 2]
+        if char == "\n":
+            line += 1
+            index += 1
+        elif pair == "//":
+            end = text.find("\n", index)
+            end = size if end < 0 else end
+            add(line, text[index:end])
+            index = end
+        elif pair == "/*":
+            end = text.find("*/", index + 2)
+            end = size if end < 0 else end + 2
+            body = text[index:end]
+            add(line, body)
+            line += body.count("\n")
+            index = end
+        elif char in "\"'":
+            index += 1
+            while index < size and text[index] != char:
+                index += 2 if text[index] == "\\" else 1
+            index += 1
+            last, word = char, ""
+        elif char == "`" or (char == "}" and stack and stack[-1] == "`"):
+            if char == "}":
+                stack.pop()
+            index += 1
+            while index < size and text[index] != "`":
+                if text[index] == "\\":
+                    index += 2
+                    continue
+                if text[index:index + 2] == "${":
+                    stack.append("`")
+                    index += 2
+                    break
+                if text[index] == "\n":
+                    line += 1
+                index += 1
+            else:
+                index += 1
+            last, word = "`", ""
+        elif char == "/" and (not last or last in REGEX_BEFORE or word in ("return", "typeof", "case")):
+            index += 1
+            in_class = False
+            while index < size and text[index] != "\n":
+                if text[index] == "\\":
+                    index += 2
+                    continue
+                if text[index] == "[":
+                    in_class = True
+                elif text[index] == "]":
+                    in_class = False
+                elif text[index] == "/" and not in_class:
+                    break
+                index += 1
+            index += 1
+            last, word = "/", ""
+        else:
+            if char == "{" and stack:
+                stack.append("{")
+            elif char == "}" and stack:
+                stack.pop()
+            if not char.isspace():
+                word = word + char if (char.isalnum() or char in "_$") and (last.isalnum() or last in "_$") else char
+                last = char
+            index += 1
+    return found
+
+
+def hash_comments(text, shell=False):
+    found = {}
+    quote = None
+    heredoc = None
+    for number, raw in enumerate(text.split("\n"), 1):
+        if not shell:
+            quote = None
+        if heredoc:
+            if raw.strip() == heredoc:
+                heredoc = None
+            continue
+        if number == 1 and raw.startswith("#!"):
+            continue
+        index = 0
+        opened = None
+        while index < len(raw):
+            char = raw[index]
+            if quote:
+                if char == "\\" and quote == '"':
+                    index += 1
+                elif char == quote:
+                    quote = None
+            elif char == "\\":
+                index += 1
+            elif char in "\"'" and (shell or index == 0 or not raw[index - 1].isalnum()):
+                quote = char
+            elif char == "#" and (index == 0 or raw[index - 1].isspace()):
+                found[number] = raw[index:].strip()
+                break
+            elif char == "<" and shell and opened is None and (index == 0 or raw[index - 1] != "<"):
+                match = HEREDOC.match(raw, index)
+                if match:
+                    opened = match.group(2)
+                    index = match.end() - 1
+            index += 1
+        if opened and not quote:
+            heredoc = opened
+    return found
+
+
+def shell_comments(text):
+    return hash_comments(text, shell=True)
+
+
+SCANNERS = {"python": python_comments, "ts": ts_comments, "hash": hash_comments, "shell": shell_comments}
+
+
+def scan():
+    result = {}
+    broken = []
+    for name in tracked_files():
+        try:
+            text = (ROOT / name).read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        kind = language(name, text)
+        if kind is None:
+            continue
+        try:
+            lines = SCANNERS[kind](text)
+        except (tokenize.TokenError, SyntaxError) as error:
+            broken.append(f"{name}: cannot read as {kind}: {error}")
+            continue
+        found = {
+            number: body
+            for number, body in lines.items()
+            if not DIRECTIVE.match(body) and not (number == 1 and body.startswith("#!"))
+        }
+        if found:
+            result[name] = found
+    return result, broken
+
+
+def load_baseline():
+    if not BASELINE.exists():
+        return {}
+    return json.loads(BASELINE.read_text(encoding="utf-8"))
+
+
+def main(argv):
+    if len(argv) > 1 or (argv and argv[0] not in ("--list", "--update")):
+        print(USAGE, file=sys.stderr)
+        return 2
+    found, broken = scan()
+    for line in broken:
+        print(line, file=sys.stderr)
+    if broken:
+        return 1
+    counts = {name: len(lines) for name, lines in found.items()}
+    if argv == ["--list"]:
+        for name, lines in found.items():
+            for number in sorted(lines):
+                print(f"{name}:{number}:{lines[number]}")
+        print(f"total: {sum(counts.values())} comment lines in {len(counts)} files")
+        return 0
+    baseline = load_baseline()
+    if argv == ["--update"]:
+        raised = [name for name, count in counts.items() if count > baseline.get(name, 0)]
+        if raised:
+            for name in raised:
+                print(f"refused: {name} has {counts[name]} comment lines, limit {baseline.get(name, 0)}", file=sys.stderr)
+            return 1
+        BASELINE.write_text(json.dumps(counts, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        print(f"baseline: {sum(counts.values())} comment lines in {len(counts)} files")
+        return 0
+    status = 0
+    for name in sorted(set(counts) | set(baseline)):
+        count, limit = counts.get(name, 0), baseline.get(name, 0)
+        if count > limit:
+            print(f"{name}: {count} comment lines, limit {limit}. Delete the new comments.")
+            for number in sorted(found[name]):
+                print(f"  {name}:{number}:{found[name][number]}")
+            status = 1
+        elif count < limit:
+            print(f"{name}: {count} comment lines, limit {limit}. Run setup/lint-comments --update.")
+            status = 1
+    if status == 0:
+        print(f"comments: {sum(counts.values())} lines, all within the baseline")
+    return status
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

@@ -84,7 +84,6 @@ class CodexRoomTest(unittest.TestCase):
                 self.assertEqual(payload["cwd"], str(self.project))
                 self.assertEqual(payload["home"], str(runtime))
                 self.assertEqual(payload["args"], args)
-        # Prompts and option values are not session IDs.
         for args in (["resume", "--last", session_id], ["resume", "named-session", session_id],
                      ["exec", "--model", "resume", session_id]):
             with self.subTest(args=args):
@@ -106,7 +105,6 @@ class CodexRoomTest(unittest.TestCase):
             self.assertIn("invalid canonical TOML", result.stderr)
 
 
-# Prints CODEX_HOME so tests observe the selected runtime.
 PRINT_HOME = "import os; print(os.environ['CODEX_HOME'])"
 
 

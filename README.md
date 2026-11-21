@@ -7,7 +7,7 @@ backends listed below, with Paseo as the sole control plane.
 |---|---|---|
 | Supervisor | Cross-project observation, opening Leads, helping the Human, and event-triggered interventions (permissions, cancel, mode); writes, receives, and reviews no artifacts | Enabled |
 | Lead | Assigning tasks, requesting rework, and deciding acceptance | Enabled |
-| Peer | Implementing within owned scope, verification, and handoff | Enabled with all 62 catalog tools blocked; sees only the plugin tool `epistex_submit_handoff` |
+| Peer | Implementing within owned scope, verification, and handoff | Enabled with all 65 catalog tools blocked; sees only the plugin tool `epistex_submit_handoff` |
 
 Human implementation requests normally authorize the Lead to assign Peers and review/rework
 within scope, unless the Human limits delegation. The Peer is the sole writer for implementation,
@@ -89,7 +89,8 @@ Runtime layout, resume selection, environment variables and the legacy `seatwork
 | `setup/codex-room` | Select runtime/resume and generate Codex config |
 | `setup/setup-seats.sh`, `setup/normalize-profiles.jq`, `examples/paseo-providers.json` | Seat checker, profile normalizer and provider catalog |
 | `setup/check-brief`, `setup/check-handoff`, `setup/fail-on-base` | Mechanical gates for briefs, handoffs and reproducible-bug fixes |
-| `setup/verify` | The kit's four verification checks in one command; last line `VERIFY OK` |
+| `setup/verify` | The kit's five verification checks in one command; last line `VERIFY OK` |
+| `setup/lint-comments`, `setup/comment-baseline.json` | Comment ban with a ratchet baseline |
 | `.agents/skills/*/SKILL.md` | Lead skills: Dual-Lane review, context reset, seat recovery, rework escalation, handling reopen/dependency requests, proof (acceptance order and external handoffs); Peer skill: waiting on long jobs; installed per project by `setup-seats.sh --project` into `.agents/skills/`, `.claude/skills/` and `.kiro/skills/` |
 | `plugins/epistex-delivery/`, `docs/setup/delivery-plugin.md` | Required Paseo server plugin that relays a Peer's end-of-turn handback to its Lead; installed through `setup-seats.sh --install-plugin` after Human approval |
 | `.pi/settings.json`, `.omp/config.yml` | Checkout-scoped Pi/OMP compaction settings |
@@ -105,9 +106,14 @@ specific constraints to the Peer. Keep logs and receipts outside Git. Use templa
 according to the target repo's hygiene; do not commit process documents into every repo.
 
 Kit verification commands: [AGENTS.md § Verification](AGENTS.md#verification), or `setup/verify`
-for all four. Tests use fixtures
+for all five. `setup/verify` runs every check, also after a failure, and prints one result line per
+check. With `--skip-tests` the unit tests do not run and the last line is `VERIFY PARTIAL`, not
+`VERIFY OK`. In `setup/check-handoff`, a required check passes only when a run reports exit 0; a
+non-zero exit is accepted only on a line that names a baseline run (`base`, `baseline`, `stash`,
+`regression`, `before the fix`, `without the fix`). Tests use fixtures
 and temporary config/state; they do not replace auth, model, backend launch, actual CWD, or live
-recovery checks.
+recovery checks. Passing checks are guards, not a measure of the kit:
+[AGENTS.md § Measures](AGENTS.md#measures-goodhart-rule).
 
 ### Cautions and known limitations
 

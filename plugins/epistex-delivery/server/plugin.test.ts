@@ -80,7 +80,7 @@ test("compatible server: both hooks registered and routed, handler errors logged
   await handlers.get("agent.permission.before")!({ agent: event.agent, request: { id: "req-1" } }, {});
   assert.deepEqual(seen, ["turn peer-1", "turn peer-1", "permission req-1"]);
   assert.deepEqual(lines, [
-    "info registered agent.turn.after, agent.permission.before (Paseo >=0.16.0 <0.17)",
+    "info registered agent.turn.after, agent.permission.before (Paseo >=0.17.0 <0.18)",
     "error agent.turn.after handler failed for peer-1: handler boom",
   ]);
   cleanup();

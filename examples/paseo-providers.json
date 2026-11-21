@@ -30,6 +30,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -52,14 +53,12 @@
             "delete_heartbeat",
             "delete_schedule",
             "get_agent_activity",
-            "get_agent_status",
             "inspect_provider",
             "inspect_schedule",
             "kill_agent",
             "kill_terminal",
             "list_agents",
             "list_hosts",
-            "list_pending_permissions",
             "list_schedules",
             "list_terminals",
             "list_workspace_scripts",
@@ -73,6 +72,8 @@
             "set_agent_mode",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -121,6 +122,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -170,6 +172,8 @@
             "set_agent_mode",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -264,6 +268,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -299,6 +304,8 @@
             "send_terminal_keys",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -378,6 +385,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -413,6 +421,8 @@
             "send_terminal_keys",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -477,6 +487,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -512,6 +523,8 @@
             "send_terminal_keys",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -541,6 +554,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -563,14 +577,12 @@
             "delete_heartbeat",
             "delete_schedule",
             "get_agent_activity",
-            "get_agent_status",
             "inspect_provider",
             "inspect_schedule",
             "kill_agent",
             "kill_terminal",
             "list_agents",
             "list_hosts",
-            "list_pending_permissions",
             "list_schedules",
             "list_terminals",
             "list_workspace_scripts",
@@ -584,6 +596,8 @@
             "set_agent_mode",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -627,6 +641,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -676,6 +691,8 @@
             "set_agent_mode",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -761,6 +778,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -810,6 +828,8 @@
             "set_agent_mode",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -855,6 +875,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -877,14 +898,12 @@
             "delete_heartbeat",
             "delete_schedule",
             "get_agent_activity",
-            "get_agent_status",
             "inspect_provider",
             "inspect_schedule",
             "kill_agent",
             "kill_terminal",
             "list_agents",
             "list_hosts",
-            "list_pending_permissions",
             "list_schedules",
             "list_terminals",
             "list_workspace_scripts",
@@ -898,6 +917,8 @@
             "set_agent_mode",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -1046,6 +1067,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -1095,6 +1117,8 @@
             "set_agent_mode",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -1243,6 +1267,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -1292,6 +1317,8 @@
             "set_agent_mode",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -1341,6 +1368,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -1390,6 +1418,8 @@
             "set_agent_mode",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -1507,6 +1537,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -1556,6 +1587,8 @@
             "set_agent_mode",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -1603,6 +1636,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -1652,6 +1686,8 @@
             "set_agent_mode",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -1682,6 +1718,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -1717,6 +1754,8 @@
             "send_terminal_keys",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -1783,6 +1822,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -1832,6 +1872,8 @@
             "set_agent_mode",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -1897,6 +1939,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -1919,14 +1962,12 @@
             "delete_heartbeat",
             "delete_schedule",
             "get_agent_activity",
-            "get_agent_status",
             "inspect_provider",
             "inspect_schedule",
             "kill_agent",
             "kill_terminal",
             "list_agents",
             "list_hosts",
-            "list_pending_permissions",
             "list_schedules",
             "list_terminals",
             "list_workspace_scripts",
@@ -1940,6 +1981,8 @@
             "set_agent_mode",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -2006,6 +2049,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -2055,6 +2099,8 @@
             "set_agent_mode",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -2116,6 +2162,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -2138,14 +2185,12 @@
             "delete_heartbeat",
             "delete_schedule",
             "get_agent_activity",
-            "get_agent_status",
             "inspect_provider",
             "inspect_schedule",
             "kill_agent",
             "kill_terminal",
             "list_agents",
             "list_hosts",
-            "list_pending_permissions",
             "list_schedules",
             "list_terminals",
             "list_workspace_scripts",
@@ -2159,6 +2204,8 @@
             "set_agent_mode",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -2200,6 +2247,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -2222,14 +2270,12 @@
             "delete_heartbeat",
             "delete_schedule",
             "get_agent_activity",
-            "get_agent_status",
             "inspect_provider",
             "inspect_schedule",
             "kill_agent",
             "kill_terminal",
             "list_agents",
             "list_hosts",
-            "list_pending_permissions",
             "list_schedules",
             "list_terminals",
             "list_workspace_scripts",
@@ -2243,6 +2289,8 @@
             "set_agent_mode",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -2359,6 +2407,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -2394,6 +2443,8 @@
             "send_terminal_keys",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -2494,6 +2545,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -2543,6 +2595,8 @@
             "set_agent_mode",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -2791,6 +2845,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -2826,6 +2881,8 @@
             "send_terminal_keys",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -2867,6 +2924,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -2902,6 +2960,8 @@
             "send_terminal_keys",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]
@@ -2943,6 +3003,7 @@
             "browser_forward",
             "browser_hover",
             "browser_keypress",
+            "browser_list_hosts",
             "browser_list_tabs",
             "browser_logs",
             "browser_navigate",
@@ -2965,14 +3026,12 @@
             "delete_heartbeat",
             "delete_schedule",
             "get_agent_activity",
-            "get_agent_status",
             "inspect_provider",
             "inspect_schedule",
             "kill_agent",
             "kill_terminal",
             "list_agents",
             "list_hosts",
-            "list_pending_permissions",
             "list_schedules",
             "list_terminals",
             "list_workspace_scripts",
@@ -2986,6 +3045,8 @@
             "set_agent_mode",
             "start_workspace_script",
             "stop_workspace_script",
+            "subscribe_change_request",
+            "unsubscribe_change_request",
             "update_agent",
             "update_schedule"
           ]

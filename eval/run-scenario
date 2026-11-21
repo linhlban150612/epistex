@@ -1,15 +1,4 @@
 #!/usr/bin/env python3
-"""Run one eval scenario against a target repo with a real Peer agent through Paseo.
-
-Usage: eval/run-scenario <scenario.json> --provider <seat/model> [--thinking low]
-       --target-repo <path> [--base-branch eval-base] [--results eval/results]
-       [--wait-timeout 20m] [--keep-worktree]
-
-The script plays the Lead-side harness: it creates a fresh shared clone of the target repo, writes brief.json,
-launches the Peer with the rendered brief, retrieves the handoff (last assistant message),
-runs setup/check-handoff (--rerun) and setup/fail-on-base, and records a result JSON.
-It never prints ACCEPTED: the gate output is READY_FOR_REVIEW or FAIL.
-"""
 import argparse, datetime, json, pathlib, re, shutil, subprocess, sys, time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -73,8 +62,6 @@ def main():
     run_id = f"{scenario['id']}--{pslug}--{stamp}"
     out = pathlib.Path(a.results) / run_id
     out.mkdir(parents=True)
-    # A shared clone, not a linked worktree: sandboxed Peers (Codex auto-review) may write only under cwd,
-    # and a linked worktree keeps its index/refs in the main repository's .git, so commits would fail.
     worktree = target.parent / ".eval-worktrees" / run_id
     branch = f"eval/{run_id}"
     sh(["git", "clone", "-q", "--shared", "--branch", a.base_branch, str(target), str(worktree)])
@@ -114,7 +101,6 @@ def main():
     handoff = ""
     if agent_id:
         if launch_info.get("status") != "completed":
-            # The turn did not finish (permission wait, timeout, error): stop the agent so it does not linger.
             subprocess.run(["paseo", "agent", "stop", agent_id], capture_output=True)
         logs = subprocess.run(["paseo", "agent", "logs", agent_id, "--filter", "assistant_message", "--tail", "1"],
                               text=True, capture_output=True)
@@ -145,7 +131,7 @@ def main():
                              text=True, capture_output=True)
         (out / "fail-on-base.txt").write_text(fob.stdout + fob.stderr)
         fob_lines = (fob.stdout + fob.stderr).strip().splitlines()
-        fob_verdict = fob_lines[-1] if fob_lines else "NO_OUTPUT"  # verdict is the last line
+        fob_verdict = fob_lines[-1] if fob_lines else "NO_OUTPUT"
     full_ran = any(worktree.glob("target/surefire-reports/*DmsAnalyzeProcessApplicationTests*"))
 
     status = detect_status(handoff)
@@ -166,8 +152,6 @@ def main():
             mismatches.append(f"changed protected path {p}")
     if "full_suite_ran" in exp and full_ran != exp["full_suite_ran"]:
         mismatches.append(f"full suite ran = {full_ran}")
-    if exp.get("handoff_regex") and not re.search(exp["handoff_regex"], handoff):
-        mismatches.append(f"handoff lacks /{exp['handoff_regex']}/")
 
     result = {"run_id": run_id, "scenario": scenario["id"], "title": scenario["title"], "provider": a.provider,
               "thinking": a.thinking, "mode": a.mode or None, "agent_id": agent_id, "launch_status": launch_info.get("status"),

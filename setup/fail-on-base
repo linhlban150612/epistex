@@ -1,14 +1,4 @@
 #!/usr/bin/env python3
-"""Prove a regression test fails on the baseline for the right reason and passes on the candidate.
-
-Usage: fail-on-base <brief.json> [--repo <path>] [--base SHA] [--candidate SHA] [--timeout SECONDS]
-
-Brief fields: bug_reproducible (true to run), regression_check (command run in both worktrees),
-regression_test_paths (globs of test files copied from candidate onto the baseline;
-default: **/test/**, **/tests/**, **/*test*). SHAs default to brief.base_sha and the
-worktree HEAD. Prints FAIL_ON_BASE_OK, FAIL_ON_BASE_INVALID or SKIPPED; exit 0/1/2.
-Supplementary evidence only: the Lead still reads the test.
-"""
 
 import argparse
 import json
@@ -21,23 +11,19 @@ import tempfile
 
 DEFAULT_TEST_GLOBS = ["**/test/**", "**/tests/**", "**/*test*"]
 INVALID = [
-    # Maven/Gradle/javac, Python, TypeScript/esbuild/Node syntax errors.
     ("COMPILE", r"COMPILATION ERROR|cannot find symbol|compileJava FAILED|compileTestJava FAILED|"
                 r"SyntaxError|error: incompatible types|\berror: .*expected|"
                 r"\berror TS\d+:|Transform failed with \d+ error|Unexpected token|"
                 r"ReferenceError: .* is not defined|Type error:"),
-    # Maven/Gradle artifacts, Python modules, Node modules and npm/pnpm/yarn resolution.
     ("MISSING_DEP", r"Could not resolve dependencies|Could not find artifact|ModuleNotFoundError|"
                     r"package [\w.]+ does not exist|Could not resolve all (files|dependencies)|"
                     r"Cannot find module|ERR_MODULE_NOT_FOUND|Cannot find package|"
                     r"npm ERR! (missing|404|ERESOLVE)|ERR_PNPM_|Couldn't find package"),
-    # Missing files/classes, empty test selection in Surefire, pytest, Jest, Vitest, Mocha, node --test.
     ("MISSING_FILE", r"No such file or directory|ClassNotFoundException|No tests (were executed|found|matching)|"
                      r"can't open file|Could not find class|ENOENT|No test files found|"
                      r"Error: Could not find (config|test)|Error: No test suites found|"
                      r"Pattern: .* - 0 matches|Cannot find test file"),
 ]
-# JUnit/Hamcrest, Python assert/unittest, Node assert, Jest/Vitest, Mocha, tap/node --test.
 ASSERTION = re.compile(r"AssertionError|AssertionFailedError|ComparisonFailure|expected:\s*<|expected: .* but was|"
                        r"Tests run: \d+, Failures: [1-9]|FAILED \(failures=|\bassert\b|"
                        r"ERR_ASSERTION|expect\(received\)|Expected:.*Received:|Expected .* to (be|equal|have)|"
@@ -155,7 +141,7 @@ def check(brief, repo, base, candidate, timeout):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description="Prove a regression test fails on the baseline for the right reason and passes on the candidate.")
     parser.add_argument("brief")
     parser.add_argument("--repo")
     parser.add_argument("--base")

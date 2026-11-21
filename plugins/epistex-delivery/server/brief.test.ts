@@ -6,7 +6,6 @@ import { test } from "node:test";
 import { briefIdentity, briefOf, checkBrief, outsideScope, ownedScope } from "./brief.ts";
 
 const ROOT = path.resolve(import.meta.dirname, "../../..");
-// Real seat logs hold project text, so they stay outside Git.
 const FIXTURES = path.join(ROOT, "tests/fixtures/briefs");
 const LOGS = process.env.EPISTEX_SEAT_LOGS ?? path.join(ROOT, ".amp/in/paseo7d/logs");
 const BASE = "3f2a9c1d4e5b6a7f8091a2b3c4d5e6f708192a3b";
@@ -23,7 +22,7 @@ function python(text: string): string[] {
   try {
     return JSON.parse(execFileSync("python3", [path.join(ROOT, "setup/check-brief"), "-", "--json"], { input: text, encoding: "utf8" })).codes;
   } catch (error) {
-    return JSON.parse((error as { stdout: string }).stdout).codes; // exit 1 on FAIL
+    return JSON.parse((error as { stdout: string }).stdout).codes;
   }
 }
 
@@ -62,7 +61,6 @@ test("parity: every brief fixture has the expected codes in TypeScript and setup
     assert.deepEqual(checkBrief(fixture(name)), codes, name);
     assert.deepEqual(python(fixture(name)), codes, name);
   }
-  // The delivery names the task and compares the scope from the same labels.
   assert.deepEqual(briefIdentity(fixture("ok-upper-snake-labels.txt")), { taskId: "T-15", round: "2" });
   assert.deepEqual(ownedScope(fixture("ok-upper-snake-note-and-list.txt")), ["workspace/api_desc.xlsx", "workspace/analysis/review.md"]);
   assert.deepEqual(ownedScope(fixture("ok-numbered-scope.txt")).slice(0, 2), ["skills/devpost/SKILL.md", "skills/luma/scripts/helper.js"]);

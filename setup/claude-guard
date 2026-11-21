@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-"""Claude PreToolUse hook for a Peer seat: deny three destructive shell forms.
-
-Usage: claude-guard   (PreToolUse JSON on standard input; `claude-sdk peer` registers it for `Bash`)
-
-Exit code 2 denies the call, with the reason on standard error. The forms and their limits are in
-`setup/seat_guard.py`; the workspace is `$CLAUDE_PROJECT_DIR`, else the Git top level of `cwd`.
-"""
 
 import json
 import sys

@@ -141,9 +141,10 @@ additions into a running round; `steer` may replace it.
 - `[epistex-delivery]`: handle each `delivery-id` once. `HANDBACK_VALID` → § Acceptance on its
   body (with `trailing_text_after_handoff`, read the trailing text first; if it changes the
   handoff, it is a missing handoff). `TURN_ENDED_*` → as `errored`/missing handoff, cessation gate
-  applies. `BRIEF_INVALID` (bad brief) → `proof` skill. `PERMISSION_REQUESTED` comes to you only without a Supervisor: relay its agent/request
-  IDs to the Human; never answer yourself. Delivery is neither acceptance nor authority.
-- A Peer status `error`, `closed` or unavailable when you read it: not done; cessation gate applies.
+  applies. `BRIEF_INVALID` (bad brief) → `proof` skill. `PERMISSION_REQUESTED` comes to you only without a Supervisor: read it with
+  `list_pending_permissions`, relay its agent/request IDs to the Human; never answer yourself. Delivery is neither acceptance nor authority.
+- Read Peer status (`get_agent_status`) on an event only, never to poll. `error`, `closed` or
+  unavailable: not done; cessation gate applies.
 - No delivery after a Peer turn you know ended (Human report, status read): missing handoff.
 
 `A foreground turn is already active` or an incomplete handback → `seat-recovery` skill

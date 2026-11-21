@@ -1,5 +1,3 @@
-// Plugin entry logic. Kept apart from index.server.ts so `node --test` can load it without the
-// host-provided `@getpaseo/plugin` package.
 import type { PluginServerContext } from "@getpaseo/plugin/server";
 import type { PluginHookContext, PluginHookPayload } from "@getpaseo/plugin/server";
 
@@ -8,7 +6,6 @@ export type TurnEndedHandler = (event: TurnEndedEvent, context: PluginHookContex
 export type PermissionEvent = PluginHookPayload<"agent.permission.before">;
 export type PermissionHandler = (event: PermissionEvent, context: PluginHookContext) => Promise<void>;
 export type OpenRequest = PluginHookPayload<"agent.open.before">["request"];
-/** Returns the session request to use, or nothing to leave it as it is. */
 export type OpenHandler = (request: OpenRequest) => OpenRequest | void;
 
 export interface Logger {
@@ -18,17 +15,13 @@ export interface Logger {
 
 export interface ContributeOptions {
   log?: Logger;
-  /** Handler for every `agent.turn.after` hook. */
   onTurnEnded?: TurnEndedHandler;
-  /** Handler for every `agent.permission.before` hook. */
   onPermission?: PermissionHandler;
-  /** Handler for every `agent.open.before` hook: it may add agent tools to a session. */
   onOpen?: OpenHandler;
 }
 
 export const PLUGIN_ID = "epistex-delivery";
-/** The Paseo releases the plugin was verified on. `paseo-plugin.json` carries the same range. */
-export const PASEO_RANGE = ">=0.16.0 <0.17";
+export const PASEO_RANGE = ">=0.17.0 <0.18";
 
 export const consoleLogger: Logger = {
   info: (message) => console.log(`[${PLUGIN_ID}] ${message}`),
@@ -37,15 +30,9 @@ export const consoleLogger: Logger = {
 
 const noop = () => {};
 
-/** The hooks the plugin needs, all or none: the Lead relies on both once native notifications are off. */
 export const HOOKS = ["agent.turn.after", "agent.permission.before"] as const;
 const OPEN_HOOK = "agent.open.before";
 
-/**
- * Register the delivery hooks. Fail closed: when the server context lacks the lifecycle API
- * (`server.addHook`) or rejects one of the hooks, log the reason, unregister what was registered
- * and return a no-op cleanup. The plugin then stays loaded but inert; it never guesses another API.
- */
 export function contribute(server: unknown, options: ContributeOptions = {}): () => void {
   const log = options.log ?? consoleLogger;
   const onTurnEnded = options.onTurnEnded ?? (async () => {});
@@ -85,7 +72,6 @@ export function contribute(server: unknown, options: ContributeOptions = {}): ()
     unsubscribes.push(unsubscribe as () => void);
   }
   log.info(`registered ${HOOKS.join(", ")} (Paseo ${PASEO_RANGE})`);
-  // The tool hook is apart from the delivery pair: delivery must not stop when a tool cannot be offered.
   const { onOpen } = options;
   if (onOpen) {
     try {

@@ -52,16 +52,17 @@ In `~/.paseo/config.json`, make sure:
 {"daemon":{"mcp":{"enabled":true,"injectIntoAgents":true}}}
 ```
 
-Permissions by role live in the provider: Lead sets `paseoTools.enabled=true`, Peer sets `false`. Do not
+Permissions by role live in the provider: every seat sets `paseoTools.enabled=true` and the
+`paseoTools.disabledTools` deny-list of its role (below). Do not
 use `injectIntoProviders`; that field is not the current provider policy mechanism.
 
 ### Paseo tools policy for Lead and Supervisor
 
-Lead uses `paseoTools.disabledTools` to block the catalog and keeps exactly 7 tools (55 blocked):
+Lead uses `paseoTools.disabledTools` to block the catalog and keeps exactly 9 tools (56 blocked):
 `list_workspaces`, `list_providers`, `list_models`, `list_profiles`, `send_agent_prompt`,
-`cancel_agent`, `archive_agent`. A Lead creates a Peer only with `epistex_assign`, the tool of the [delivery plugin](docs/setup/delivery-plugin.md); `create_agent` is blocked for it. Supervisor also keeps `create_agent` (it opens Leads), `create_workspace`, `get_agent_activity`, `list_agents`, `list_hosts`,
-`list_pending_permissions`, `respond_to_permission` and `set_agent_mode` (15 tools kept; 47 blocked). Lead does not have `get_agent_activity`, `get_agent_status` and `list_agents`, so Lead waits for deliveries instead of polling or reading the Peer timeline; nor `list_hosts`, so Lead does not discover connected hosts; nor the permission and mode tools, because a Lead relays a permission request and never answers it. Supervisor reads an agent's status with `list_agents`; `get_agent_status` is blocked for both. Kiro and Droid Supervisor/Lead use the same policy.
-Peer keeps no Paseo tool: `paseoTools.enabled: true` with all 62 catalog tools in `disabledTools`. The channel is on only for `epistex_submit_handoff`, the handoff tool of the delivery plugin; a seat with `enabled: false` cannot see a plugin tool. `--check` enforces the three deny-lists.
+`cancel_agent`, `archive_agent`, `get_agent_status`, `list_pending_permissions`. A Lead creates a Peer only with `epistex_assign`, the tool of the [delivery plugin](docs/setup/delivery-plugin.md); `create_agent` is blocked for it. Supervisor also keeps `create_agent` (it opens Leads), `create_workspace`, `get_agent_activity`, `list_agents`, `list_hosts`,
+`respond_to_permission` and `set_agent_mode`, and does not keep `get_agent_status` (15 tools kept; 50 blocked). Lead does not have `get_agent_activity` and `list_agents`, so Lead waits for deliveries and does not read the Peer timeline or sweep agents; Lead reads one Peer's status with `get_agent_status` only on an event (cessation gate, missing delivery); nor `list_hosts`, so Lead does not discover connected hosts; nor `respond_to_permission` and `set_agent_mode`, because a Lead relays a permission request and never answers it; `list_pending_permissions` lets the Lead read the request that it relays. Supervisor reads an agent's status with `list_agents`; `get_agent_status` is blocked for it. Kiro and Droid Supervisor/Lead use the same policy.
+Peer keeps no Paseo tool: `paseoTools.enabled: true` with all 65 catalog tools in `disabledTools`. The channel is on only for `epistex_submit_handoff`, the handoff tool of the delivery plugin; a seat with `enabled: false` cannot see a plugin tool. `--check` enforces the three deny-lists.
 Lead runs without approval waits: Lead profiles use a bypass mode (`claude-lead` `bypassPermissions`, `agy-lead` `default` (`agy acp` asks no permission for shell or Paseo calls in it; verified live), `droid-lead` `auto-high` (also `droid-supervisor`), `codex-lead` `full-access`: approval `never`, sandbox `danger-full-access`); `kiro-lead` auto-approves through agent `permissions.rules` (V3). `amp-lead` uses `local`: amp-acp has no bypass mode. `devin-supervisor` uses `bypass`. `cursor-lead` and `cursor-supervisor` use `agent`: Cursor ACP has no bypass mode, so `setup/cursor-acp` turns on Run Everything (`approvalMode: unrestricted`) and allows exactly the role's Paseo tools in the seat's private `cli-config.json` ([cursor.md](docs/setup/cursor.md)).
 Codex Peer profiles use `modeId: auto-review` ([why](docs/setup/codex-runtime.md#peer-sandbox-and-worktrees)); `setup-seats.sh --check` rejects `codex-peer` profiles without it. Claude Peer profiles use `modeId: bypassPermissions`: `acceptEdits` stops a non-interactive Peer on its first Bash permission request; `--check` rejects other modes.
 Paseo does not inherit a Lead's mode into a Peer of another provider: `create_agent` without `modeId` fails with `cannot inherit mode`
@@ -70,10 +71,10 @@ unless the Lead runs in an unattended mode. So every Peer profile of a provider 
 Kiro Lead and Supervisor profiles carry their fixed seat mode the same way (`epistex_lead`, `epistex_supervisor`).
 Verified live: a Claude Lead or Supervisor in mode `default` gets that error for a profile without `modeId` and
 creates the agent in the profile's mode when the profile carries one.
-Groups blocked for Lead: 11 schedule/heartbeat, 22 browser, 5 terminal, 17 workspace/agent/provider/host/permission;
-for Supervisor that last group is down to 9 (see the list in the
+Groups blocked for Lead: 11 schedule/heartbeat, 23 browser, 5 terminal, 2 change-request watch, 15 workspace/agent/provider/host/permission;
+for Supervisor that last group has 9 (see the list in the
 [provider example](examples/paseo-providers.json)). The required Paseo range is the one the mandatory [delivery plugin](docs/setup/delivery-plugin.md) is verified on; the daemon and CLI must be the same version.
-`speak` cannot be blocked and is outside the catalog. A test pins the 62-name catalog to force a review
+`speak` cannot be blocked and is outside the catalog. A test pins the 65-name catalog to force a review
 when Paseo is upgraded. The `--check` script confirms the exact deny-list on every enabled provider.
 
 ## 4. Merge provider seats
@@ -183,6 +184,7 @@ outside the range. `--check` also fails when `agents.resumeOnStartup` (0.15+) is
 `--check` also fails when an active Paseo workspace or project (`projects/workspaces.json`, `projects/projects.json`
 next to the config) names a directory that no longer exists, and prints the `paseo workspace archive` or
 `paseo project delete` command for it: a live test that removes its scratch directory must also remove its Paseo records.
+Otherwise the daemon logs `Git worktree discovery failed` for that directory every minute. Archived records are history and pass.
 Install is a Human-approved change to the live config: set `"pluginsEnabled": true` in `config.json`, run
 `setup-seats.sh --install-plugin`, then `paseo reload`. Details, the install transcript and `--remove-plugin` are
 in that doc.
@@ -243,7 +245,7 @@ backend that is on Paseo's PATH; the registry version is not a pin of the seat.
 
 - **Merge:** back up, then merge into `.agents.providers`. Do not replace the original backend or its
   credential/config home.
-- **MCP:** keep injection enabled in the daemon (§3). Every seat has `paseoTools.enabled=true` with the deny-list of its role (§3); a Peer seat blocks all 62 catalog tools.
+- **MCP:** keep injection enabled in the daemon (§3). Every seat has `paseoTools.enabled=true` with the deny-list of its role (§3); a Peer seat blocks all 65 catalog tools.
 - **Schema entry:** `extends: "acp"`, `enabled: true`, `env: {}`, `command` of the form
   `["<KIT>/setup/role-agent","<role>","<backend>"]`; `models: [{"id":"<MODEL>","label":"<LABEL>","isDefault":true}]`,
   add `thinkingOptions: [{"id":"<EFFORT>","label":"<LABEL>","isDefault":true}]` when the backend has effort.

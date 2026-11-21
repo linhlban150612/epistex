@@ -1,5 +1,3 @@
-"""Load the kit's common contract and role instructions, independent of session CWD."""
-
 import pathlib
 import sys
 
@@ -22,16 +20,9 @@ def load_prompt(role: str) -> str:
 
 
 class Primer:
-    """Add the role to each session's first prompt in this ACP proxy process.
-
-    A session restored with session/load or session/resume already holds the role in its
-    history, e.g. after Paseo releases an idle runtime and resumes it in a new proxy, so its
-    first prompt here gets only the cwd pin, if any.
-    """
-
     def __init__(self, role: str):
         self.role = role
-        self.sessions: dict[str, bool] = {}  # session -> role already in this proxy's prompts
+        self.sessions: dict[str, bool] = {}
 
     def restore(self, session: str) -> None:
         self.sessions.setdefault(session, False)

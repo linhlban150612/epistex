@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Seat-local Claude launcher. Append role instructions to the SDK initialize request."""
 import json
 import os
 import pathlib
@@ -13,19 +12,12 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from role_prompt import load_prompt
 
 ROLES = ("supervisor", "lead", "peer")
-# Paseo owns topology; AGENTS.md forbids schedules and heartbeats. Paseo's initialize carries no tool
-# fields, so this CLI deny-list survives the SDK handshake.
 DISALLOWED = ("Agent", "Task", "Workflow", "CronCreate", "CronDelete", "CronList", "ScheduleWakeup", "RemoteTrigger")
 
 GUARD = pathlib.Path(__file__).resolve().parent / "claude-guard"
 
 
 def guard_settings(args: list[str]) -> list[str]:
-    """Claude arguments with the Peer guard as a PreToolUse hook for Bash, through `--settings`.
-
-    A `--settings` value already in the arguments (a file path or JSON text) keeps its content; the
-    hook is added to it. A value that is not a JSON object stops the launch: no guess.
-    """
     hook = {"matcher": "Bash", "hooks": [{"type": "command", "command": shlex.quote(str(GUARD)), "timeout": 10}]}
     settings: dict = {}
     args = list(args)
@@ -73,10 +65,8 @@ def main() -> int:
         raise SystemExit("agent executable not found: claude")
     deny = ["--disallowed-tools", ",".join(DISALLOWED)]
     if role == "peer" and args != ["--version"]:
-        # A guard for this backend, not a sandbox: see setup/claude-guard.
         args = guard_settings(args)
     if not stream:
-        # The SDK initialize request replaces a CLI prompt, so this path serves only plain CLI use.
         command = ["claude", *args] if args == ["--version"] else ["claude", "--append-system-prompt", instructions, *deny, *args]
         os.execvp(command[0], command)
     child = subprocess.Popen(["claude", *deny, *args], stdin=subprocess.PIPE, stdout=subprocess.PIPE)

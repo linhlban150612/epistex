@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Launch Codex for a room role with an isolated, project-scoped CODEX_HOME."""
 
 import datetime
 import hashlib
@@ -39,9 +38,7 @@ def link(runtime: pathlib.Path, name: str, target: pathlib.Path) -> None:
 
 
 def toml_value(value) -> str:
-    """Encode tomllib values; inline tables avoid table-ordering ambiguity."""
     if isinstance(value, str):
-        # Keep non-BMP Unicode literal (JSON surrogate escapes are not valid TOML).
         return json.dumps(value, ensure_ascii=False).replace("\x7f", "\\u007f")
     if isinstance(value, bool):
         return "true" if value else "false"
@@ -59,7 +56,6 @@ def toml_value(value) -> str:
 
 
 def same_values(left, right) -> bool:
-    """Compare the complete round trip, including NaN and signed zero."""
     if type(left) is not type(right):
         return False
     if isinstance(left, dict):
@@ -92,7 +88,6 @@ def render_config(text: str, role: str, prompt: pathlib.Path) -> str:
 
 
 def preflight(runtime: pathlib.Path, canonical: pathlib.Path) -> None:
-    """Reject predictable destination conflicts before changing any runtime entry."""
     if runtime.exists() and not runtime.is_dir():
         raise SystemExit(f"runtime is not a directory: {runtime}")
     for name in ("config.toml", "role-instructions.md"):
@@ -117,7 +112,6 @@ def atomic_write(path: pathlib.Path, content: str) -> None:
 
 
 def project_identity(project: pathlib.Path) -> pathlib.Path:
-    """Use Git's shared directory so subdirectories and linked worktrees agree."""
     try:
         result = subprocess.run(
             ["git", "-C", str(project), "rev-parse", "--path-format=absolute", "--git-common-dir"],
@@ -127,7 +121,6 @@ def project_identity(project: pathlib.Path) -> pathlib.Path:
         return project
     if result.returncode == 0 and result.stdout.strip():
         common = pathlib.Path(result.stdout.strip()).resolve(strict=True)
-        # Preserve the old main-checkout hash while sharing it with worktrees.
         return common.parent if common.name == ".git" else common
     return project
 
@@ -180,7 +173,6 @@ def sync(role: str, project: pathlib.Path, session_id: str) -> pathlib.Path:
     try:
         config = render_config(base_config.read_text(encoding="utf-8"), role, runtime / "role-instructions.md")
     except ValueError:
-        # Parser exceptions may contain canonical configuration values.
         raise SystemExit("invalid canonical TOML or unsupported configuration values") from None
     preflight(runtime, canonical)
     runtime.mkdir(parents=True, exist_ok=True)
@@ -190,17 +182,12 @@ def sync(role: str, project: pathlib.Path, session_id: str) -> pathlib.Path:
     for name in SHARED_DIRS:
         link(runtime, name, canonical / name)
 
-    # Each replacement is atomic, not the whole sync; preserve private runtime state.
     atomic_write(runtime / "role-instructions.md", instructions)
     atomic_write(runtime / "config.toml", config)
     return runtime
 
 
 def resume_session(args: list[str]) -> str:
-    """Only the documented direct UUID forms select a runtime across projects.
-
-    Do not interpret prompts or option values as session IDs.
-    """
     candidate = ""
     if args[:1] == ["resume"]:
         candidate = args[1] if len(args) > 1 else ""

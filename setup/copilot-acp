@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Start a Copilot seat through copilot ACP and inject role instructions into each ACP session."""
 
 import importlib.machinery
 import pathlib

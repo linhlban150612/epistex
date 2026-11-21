@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Seat-local Kiro CLI V3 ACP proxy. Never acknowledge unconfirmed mode, model, effort or tools."""
 import json
 import os
 import pathlib
@@ -19,26 +18,21 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 ROLE = "peer"
 NAME = "Kiro Peer"
 MODE = "epistex_peer"
-# Exact Paseo injection: {"type":"http","name":"paseo","url":"http://<loopback>:<port>
-# /mcp/agents?callerAgentId=<id>","headers":[] or one Bearer Authorization header}.
 PASEO_HOSTS = ("127.0.0.1", "localhost", "::1")
 MODELS = ("claude-opus-5.5", "claude-sonnet-5.5")
 EFFORTS = ("low", "medium")
-# Standard V3 config options this seat exposes; every other option is hidden and immutable.
 CHOICES = {"mode": (MODE,), "model": MODELS, "effortLevel": EFFORTS}
-# Advertised V3 extensions the seat relays; workflows, memory, export etc. stay disabled.
 EXTENSIONS = ("_kiro/session/context", "_kiro/session/compact")
 
 
 def mcp_error(servers):
-    """Every role accepts a [] probe or Paseo's injected loopback server, and nothing else."""
     if ROLE == "peer" and not servers:
-        return None  # A Peer session without the Paseo channel has native tools only.
+        return None
     if (not isinstance(servers, list) or len(servers) > 1
             or (servers and not isinstance(servers[0], dict))):
         return f"{NAME} requires an injected Paseo MCP server list"
     if not servers:
-        return None  # Paseo probe session; prompts stay refused.
+        return None
     server = servers[0]
     if (set(server) != {"type", "name", "url", "headers"} or server["type"] != "http"
             or server["name"] != "paseo" or not isinstance(server["url"], str)):
@@ -82,12 +76,10 @@ def runtime_error(cwd):
 
 
 def selected(options):
-    """Current backend values of the options this seat controls."""
     return {o["id"]: o.get("currentValue") for o in options or [] if o.get("id") in CHOICES}
 
 
 def visible(options):
-    """Expose only the seat's mode/model/effort choices; hide autopilot, memory and other options."""
     shown = []
     for option in options or []:
         if option.get("id") in CHOICES:
@@ -104,12 +96,11 @@ def main():
     ROLE = sys.argv[1]
     NAME, MODE = "Kiro " + ROLE.title(), "epistex_" + ROLE
     CHOICES = {**CHOICES, "mode": (MODE,)}
-    load_prompt(ROLE)  # Fail before starting the backend if the contract is unavailable.
+    load_prompt(ROLE)
     primer = Primer(ROLE)
     failure = runtime_error(str(pathlib.Path.cwd()))
     if failure:
         raise SystemExit(failure)
-    # V3 rejects --agent/--model/--effort/--trust-*: mode goes in session/new, the rest via config options.
     child = subprocess.Popen(["kiro-cli", "acp", "--agent-engine=v3", "--auth-method=cli"],
                              stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     def stop(signum, _frame):
@@ -138,10 +129,9 @@ def main():
     sessions = {}
     tags = {}
     mcp = {}
-    stale = set()  # Sessions whose tag list predates their latest MCP snapshot.
+    stale = set()
     client_caps = {}
     agent_caps = {}
-    # V3 advertises visible tools as tags: builtin categories plus "@paseo/<tool>" for MCP tools.
     declared = json.loads((ROOT / f"setup/kiro-{ROLE}.json").read_text())["tools"]
     required = {t for t in declared if t.startswith("@paseo/")}
     prefix = "epistex-" + uuid.uuid4().hex + "-"
@@ -180,7 +170,6 @@ def main():
         return all(current.get(key) in choices for key, choices in CHOICES.items())
 
     def inventory(sid):
-        """"ok", "bad", or "wait" while Paseo's MCP server is still connecting."""
         advertised = tags.get(sid)
         if advertised is None:
             return "wait"
@@ -188,7 +177,6 @@ def main():
             return "bad"
         if sessions.get(sid, {}).get("paseo") and not required <= set(advertised):
             status = [s.get("status") for s in mcp.get(sid, []) if s.get("name") == "paseo"]
-            # Kiro reports "connected" before the didChange that carries the new @paseo/ tags.
             return "wait" if status in ([], ["connecting"]) or sid in stale else "bad"
         return "ok"
 
@@ -196,7 +184,6 @@ def main():
         return any(s.get("sid") == sid for s in pending.values())
 
     def finish(state):
-        """Answer a session/selection request only after mode/model/effort/tools are confirmed."""
         sid, request = state["sid"], state["request"]
         verdict = inventory(sid)
         if verdict == "wait":
@@ -219,16 +206,14 @@ def main():
         emit({"jsonrpc": "2.0", "id": request["id"], "result": result})
 
     def settle(state):
-        """Validate a new/loaded session's model, then pin effort if it is outside the seat's choices."""
         sid = state["sid"]
         current = sessions[sid]["current"]
         if "model" not in current or "effortLevel" not in current:
-            # Kiro can answer before its model catalog loads; the options arrive in config_option_update.
             state["stage"] = "options"
             pending[prefix + "options-" + sid] = state
         elif current["model"] not in MODELS:
             error(state["request"], "Kiro restored an unsupported mode/model", -32603)
-        elif current["effortLevel"] not in EFFORTS:  # V3 defaults to "high"; pin the cheapest seat effort.
+        elif current["effortLevel"] not in EFFORTS:
             set_option(state, "effortLevel", EFFORTS[0])
         else:
             finish(state)
@@ -275,7 +260,6 @@ def main():
                         error(request, "Kiro exited before responding", -32603)
                     return child.wait()
                 child.stdin.close()
-                # Continue draining backend responses after client EOF.
                 continue
             try:
                 message = json.loads(line)
@@ -305,7 +289,7 @@ def main():
                     else:
                         if method == "session/load":
                             drop_sid(sid)
-                        else:  # The seat agent is selected per session in V3, not by launch flag.
+                        else:
                             meta = params.setdefault("_meta", {}).setdefault("kiro", {})
                             meta["modeId"] = MODE
                         internal(method, params, {"request": message, "stage": "session",
@@ -322,7 +306,6 @@ def main():
                                  "effort": sessions[sid]["current"].get("effortLevel")}
                         set_option(state, config_id, value)
                 elif method in ("session/set_mode", "session/set_model"):
-                    # V3 has no session/set_model; Paseo falls back to the advertised "model" option.
                     error(message, f"{NAME} has a fixed mode; select model/effort with session/set_config_option", -32601)
                 elif method in EXTENSIONS:
                     if method not in agent_caps.get("_meta", {}).get("kiro", {}).get("extensionMethods", []):
@@ -368,7 +351,7 @@ def main():
                 elif method in ("_kiro/tools/didChange", "_kiro/mcp/status"):
                     sid = params.get("sessionId")
                     if method == "_kiro/mcp/status":
-                        mcp[sid] = params.get("servers", [])  # Full snapshot, not an event.
+                        mcp[sid] = params.get("servers", [])
                         stale.add(sid)
                     else:
                         tags[sid] = [t.get("tag") for t in params.get("tags", [])]
@@ -378,7 +361,6 @@ def main():
                         if state.get("stage") == "tools" and state["sid"] == sid and inventory(sid) != "wait":
                             del pending[ident]
                             finish(state)
-                    # An unsafe inventory update after confirmation revokes the session.
                     if sid in sessions and sessions[sid].get("ready") and inventory(sid) == "bad":
                         revoke(sid)
                 elif method == "session/update" and params.get("update", {}).get("sessionUpdate") in (
@@ -431,12 +413,11 @@ def main():
                         current = sessions[sid]["current"]
                         if not state["response"]:
                             state["response"] = message["result"]
-                        # V3 answers success while ignoring unknown values: confirm currentValue.
                         if current.get(state["option"]) != state["value"]:
                             error(request, f"Kiro did not confirm selected {state['option']}", -32603)
                         elif (state["option"] == "model" and state["effort"] in EFFORTS
                                 and current.get("effortLevel") != state["effort"]):
-                            set_option(state, "effortLevel", state["effort"])  # Keep effort across model changes.
+                            set_option(state, "effortLevel", state["effort"])
                         else:
                             finish(state)
                 else:
@@ -444,7 +425,7 @@ def main():
                     if request and request.get("method") == "initialize" and "result" in message:
                         agent_caps = message["result"].get("agentCapabilities", {})
                         kiro = agent_caps.get("_meta", {}).get("kiro", {})
-                        if "extensionMethods" in kiro:  # Advertise only the extensions this seat relays.
+                        if "extensionMethods" in kiro:
                             message = json.loads(json.dumps(message))
                             visible_caps = message["result"]["agentCapabilities"]["_meta"]["kiro"]
                             visible_caps["extensionMethods"] = [m for m in kiro["extensionMethods"] if m in EXTENSIONS]

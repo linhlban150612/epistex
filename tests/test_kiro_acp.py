@@ -11,8 +11,6 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
-# Independent V3 protocol backend modeled on live Kiro CLI 2.33.1 (--agent-engine=v3):
-# config options report backend state, unknown values are ignored with success, tools arrive as tags.
 BACKEND = r'''
 import json, os, sys
 assert sys.argv[1:] == ['acp', '--agent-engine=v3', '--auth-method=cli'], sys.argv
@@ -101,8 +99,8 @@ for line in sys.stdin:
 
 PASEO = {'type': 'http', 'name': 'paseo', 'url': 'http://127.0.0.1:6767/mcp/agents?callerAgentId=lead-1', 'headers': []}
 LEAD_POLICY = ['list_workspaces', 'list_providers', 'list_models', 'list_profiles',
-               'send_agent_prompt', 'cancel_agent', 'archive_agent']
-# epistex_assign is the delivery plugin tool: the only way a Lead creates a Peer, so its tag is required.
+               'send_agent_prompt', 'cancel_agent', 'archive_agent', 'get_agent_status',
+               'list_pending_permissions']
 LEAD_TAGS = ','.join('@paseo/' + t for t in LEAD_POLICY + ['epistex_assign'])
 PEER_TAG = '@paseo/epistex_submit_handoff'
 
@@ -205,7 +203,6 @@ class KiroACPTest(unittest.TestCase):
     def test_model_effort_role_cwd_cancel_load_and_unknown_metadata(self):
         c = self.client()
         created = self.new(c)
-        # V3 defaults to effort "high"; the seat pins "low" and exposes only its own choices.
         self.assertEqual(self.current(created, 'effortLevel'), 'low')
         self.assertEqual({o['id']: [v['value'] for v in o['options']] for o in created['result']['configOptions']},
                          {'mode': ['epistex_peer'], 'model': ['claude-opus-5.5', 'claude-sonnet-5.5'],
@@ -233,7 +230,6 @@ class KiroACPTest(unittest.TestCase):
         loaded = c.call('session/load', sessionId='seat', cwd=str(self.cwd), mcpServers=[])
         self.assertEqual(loaded['result']['_meta'], {'future':'retain'})
         self.assertEqual((self.current(loaded, 'model'), self.current(loaded, 'effortLevel')), ('claude-opus-5.5', 'low'))
-        # The loaded history already holds the role; Paseo idle release resumes sessions this way.
         observed = self.prompt(c, 'after load')['result']['observed']
         self.assertEqual(observed['prompt'], [{'type': 'text', 'text': 'after load'}])
 
@@ -247,7 +243,7 @@ class KiroACPTest(unittest.TestCase):
             self.assertEqual(self.new(c)['error'], {'code':-32001,'message':'backend rejected','data':{'why':'quota'}})
             self.assertIn('error', self.prompt(c))
         with self.subTest('ignored effort on confirmed session refuses prompts'):
-            c = self.client(IGNORE_VALUE='medium')  # V3 answers success but keeps the old value.
+            c = self.client(IGNORE_VALUE='medium')
             self.assertIn('result', self.new(c))
             self.assertIn('result', self.prompt(c))
             self.assertEqual(self.effort(c, 'medium')['error']['message'], 'Kiro did not confirm selected effortLevel')
@@ -308,7 +304,7 @@ class KiroACPTest(unittest.TestCase):
                     self.assertNotEqual(r['error']['message'], 'unknown')
             with self.subTest(role=role, servers=[]):
                 r = c.call('session/resume', sessionId='seat', cwd=str(self.cwd), mcpServers=[])
-                self.assertEqual(r['error']['message'], 'unknown')  # forwarded to backend
+                self.assertEqual(r['error']['message'], 'unknown')
         with self.subTest('lead resume rejects bad cwd and forwarded resume clears session'):
             c = self.client('lead', EXTRA_TOOLS=LEAD_TAGS)
             self.assertIn('result', self.new(c, [PASEO]))
@@ -322,11 +318,10 @@ class KiroACPTest(unittest.TestCase):
     def test_peer_tool_inventory_and_mcp_rejection(self):
         with self.subTest('seat-owned Peer config'):
             peer = json.loads((ROOT / 'setup/kiro-peer.json').read_text())
-            # The one Paseo-channel tool of a Peer is the delivery plugin's handoff tool; no Paseo catalog tool.
             self.assertEqual([t for t in peer['tools'] if t.startswith('@') or t in ('subagent', '*')], [PEER_TAG])
             self.assertEqual([r['match'] for r in peer['permissions']['rules'] if r['capability'] == 'mcp'],
                              [['paseo/epistex_submit_handoff']])
-            self.assertNotIn('allowedTools', peer)  # V3 skips profiles with allowedTools but no permissions.
+            self.assertNotIn('allowedTools', peer)
             self.assertEqual((peer['name'], peer['mcpServers'], peer['includeMcpJson']), ('epistex_peer', {}, False))
         other = {**PASEO, 'name': 'other'}
         c = self.client()
@@ -457,7 +452,7 @@ class KiroACPTest(unittest.TestCase):
             self.assertEqual([r for r in lead['permissions']['rules'] if r['capability'] != 'mcp'],
                              [r for r in peer['permissions']['rules'] if r['capability'] != 'mcp'])
             self.assertEqual((lead['name'], lead['mcpServers'], lead['includeMcpJson']), ('epistex_lead', {}, False))
-        missing_one = LEAD_TAGS.rsplit(',', 1)[0]  # connected Paseo server missing one policy tool
+        missing_one = LEAD_TAGS.rsplit(',', 1)[0]
         for tool in ('@paseo/kill_agent', 'list_workspaces', '@other/list_agents', 'subagent', missing_one):
             with self.subTest(tool=tool):
                 c = self.client('lead', EXTRA_TOOLS=tool)

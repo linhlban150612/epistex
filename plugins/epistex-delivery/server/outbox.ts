@@ -1,6 +1,3 @@
-// Delivery receipt store: `${PASEO_HOME:-~/.paseo}/epistex-delivery/<leadAgentId>.jsonl` (append-only,
-// fsync before send) plus `cursors.json` and `submissions.json` (temp file + rename). It records what was delivered; it
-// holds no authority or decisions, and every seat can read or write it (same Unix user).
 import { createHash } from "node:crypto";
 import { mkdir, open, readdir, readFile, rename } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -11,10 +8,6 @@ export interface OutboxCursor {
   seq: number;
 }
 
-/**
- * `TURN_ENDED_FAILED` and `TURN_ENDED_CANCELED`: the turn did not complete and left no valid handoff,
- * so its last message is not judged as a handoff. `PEER_REMINDED` goes to the Peer, not the Lead.
- */
 export type DeliveryKind =
   | "HANDBACK_VALID"
   | "TURN_ENDED_INVALID_HANDOFF"
@@ -29,10 +22,8 @@ export interface DeliveryRecord {
   deliveryId: string;
   peerAgentId: string;
   leadAgentId: string;
-  /** Who receives the message when it is not the Lead: the Lead's Supervisor for a permission request, the Peer for a reminder. */
   recipientAgentId?: string;
   kind: DeliveryKind;
-  /** How the Peer turn ended; "unknown" for a restart catch-up. Absent on permission requests and older receipts. */
   outcome?: "completed" | "failed" | "canceled" | "unknown";
   turnId: string | null;
   taskId: string | null;
@@ -41,20 +32,13 @@ export interface DeliveryRecord {
   messageId: string | null;
   cursor: OutboxCursor | null;
   reasons: string[];
-  /** Machine-readable reasons: HEADER_MISSING, CELL_MISSING:<name>, CANDIDATE_IDENTITY, PROOF_CLASS, TURN_FAILED, TURN_CANCELED, NO_MESSAGE. Absent on older receipts. */
   codes?: string[];
-  /** Notes for the Lead that do not change `kind`: round above the rework limit, task reused across Peers. */
   warnings?: string[];
-  /** check-brief codes of the Lead's brief, on the Peer's first receipt only; empty when the brief passes. Absent when no brief was read. */
   briefCodes?: string[];
-  /** Path globs of the `Owned scope` field in the newest Lead brief read for this receipt; later receipts of the Peer reuse it. */
   ownedScope?: string[];
-  /** Tool calls the Peer made in the timeline read for this receipt; summed per Peer for the session warning. Absent on older receipts. */
   toolCalls?: number;
   body: string;
-  /** Assistant text the Peer wrote after the delivered handoff in the same turn (warning, not failure). */
   trailing?: string[];
-  /** True when the body is the text of an `epistex_submit_handoff` call, not a Peer message. */
   submitted?: boolean;
   state: "pending" | "sent";
   createdAt: string;
@@ -62,17 +46,11 @@ export interface DeliveryRecord {
   sendReceipt?: string;
 }
 
-/**
- * A handoff a Peer gave to `epistex_submit_handoff`, kept until its turn ends. It is stored before the
- * tool answers, so a plugin restart between the call and the turn end does not lose it.
- */
 export interface Submission {
-  /** Identity of this call: a second call in the same turn replaces the first and is a new delivery. */
   id: string;
   taskId: string;
   round: string;
   candidate: string | null;
-  /** The six-cell text the Lead gets. */
   body: string;
   submittedAt: string;
 }
@@ -84,10 +62,6 @@ interface SentUpdate {
   sendReceipt: string;
 }
 
-/**
- * Stable identity of one handback: the Lead dedupes on it, so a replayed hook or a restart
- * reconcile for the same Peer message yields the same id. Unknown fields are written as "?".
- */
 export function deliveryId(parts: {
   peerAgentId: string;
   taskId: string | null;
@@ -128,7 +102,6 @@ async function syncDirectory(directory: string): Promise<void> {
   try {
     await handle.sync();
   } catch {
-    // Some filesystems reject fsync on directories; the rename itself is still atomic.
   } finally {
     await handle.close();
   }
@@ -145,7 +118,6 @@ export class Outbox {
     this.directory = directory;
   }
 
-  /** Read every receipt file and cursors.json. Tolerates a torn last line from a crash mid-append. */
   async load(): Promise<string[]> {
     this.byId.clear();
     this.cursors = {};
@@ -206,26 +178,22 @@ export class Outbox {
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 
-  /** Peers with a stored cursor: the ones the plugin has already delivered for. */
   watchedPeers(): string[] {
     return Object.keys(this.cursors).sort();
   }
 
-  /** The newest record for a Peer, which names the Lead it reports to. */
   latestFor(peerAgentId: string): DeliveryRecord | undefined {
     return this.records()
       .filter((record) => record.peerAgentId === peerAgentId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
   }
 
-  /** The newest record for a Peer turn, used to recognise a replayed hook. */
   forTurn(peerAgentId: string, turnId: string): DeliveryRecord | undefined {
     return this.records()
       .filter((record) => record.peerAgentId === peerAgentId && record.turnId === turnId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
   }
 
-  /** Append a new receipt and fsync it. Resolves only when the record is durable. */
   async append(record: DeliveryRecord): Promise<void> {
     if (this.byId.has(record.deliveryId)) throw new Error(`duplicate delivery ${record.deliveryId}`);
     await mkdir(this.directory, { recursive: true });
@@ -251,14 +219,12 @@ export class Outbox {
     await this.writeCursors({ ...this.cursors, [peerAgentId]: cursor });
   }
 
-  /** Stop watching a Peer: drop its cursor so reconcile no longer reads it. Receipts are kept. */
   async unwatch(peerAgentId: string): Promise<void> {
     if (!(peerAgentId in this.cursors)) return;
     const { [peerAgentId]: _dropped, ...next } = this.cursors;
     await this.writeCursors(next);
   }
 
-  /** The handoff a Peer submitted through the tool and whose turn has not ended yet. */
   submission(peerAgentId: string): Submission | null {
     return this.submissions[peerAgentId] ?? null;
   }
@@ -269,7 +235,6 @@ export class Outbox {
     this.submissions = next;
   }
 
-  /** Drop a Peer's submission once its receipt is durable; a newer submission is kept. */
   async clearSubmission(peerAgentId: string, id: string): Promise<void> {
     if (this.submissions[peerAgentId]?.id !== id) return;
     const { [peerAgentId]: _dropped, ...next } = this.submissions;
@@ -282,7 +247,6 @@ export class Outbox {
     this.cursors = next;
   }
 
-  /** Replace a JSON file atomically: write a temp file, fsync, rename, fsync the directory. */
   private async replace(file: string, value: unknown): Promise<void> {
     await mkdir(this.directory, { recursive: true });
     const temp = `${file}.${process.pid}.tmp`;

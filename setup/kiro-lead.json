@@ -14,6 +14,8 @@
     "@paseo/send_agent_prompt",
     "@paseo/cancel_agent",
     "@paseo/archive_agent",
+    "@paseo/get_agent_status",
+    "@paseo/list_pending_permissions",
     "@paseo/epistex_assign"
   ],
   "permissions": {
@@ -48,6 +50,8 @@
           "paseo/send_agent_prompt",
           "paseo/cancel_agent",
           "paseo/archive_agent",
+          "paseo/get_agent_status",
+          "paseo/list_pending_permissions",
           "paseo/epistex_assign"
         ],
         "effect": "allow"

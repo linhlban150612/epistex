@@ -21,6 +21,11 @@ def load_script(name, path):
     return module
 
 
+def role_prompt(role):
+    return ((ROOT / "agents/contract/COMMON.md").read_text().rstrip() + "\n\n"
+            + (ROOT / "agents" / f"{role.upper()}.md").read_text())
+
+
 proxy = load_script("role_agent", ROOT / "setup" / "role-agent")
 DROID_SETTINGS = {"hooks": {"PreToolUse": [{"matcher": "*", "hooks": [
     {"type": "command", "command": str(ROOT / "setup/droid-guard") + " peer", "timeout": 10}]}]}}
@@ -33,13 +38,11 @@ class ProfilesTest(unittest.TestCase):
             for backend, binary, acp_args, role, launchers in (
                 ("devin", "devin", ["acp"], "peer", (["role-agent", "peer", "devin"], ["devin-acp", "peer"])),
                 ("copilot", "copilot", ["--acp"], "peer", (["role-agent", "peer", "copilot"], ["copilot-acp", "peer"])),
-                # Launch arguments and environment of the ACP registry entry for Droid, plus the guard file.
                 ("droid", "droid", ["exec", "--output-format", "acp-daemon", "--settings", DROID_SETTINGS,
                                     "DROID_DISABLE_AUTO_UPDATE=true", "FACTORY_DROID_AUTO_UPDATE_ENABLED=false"],
                  "peer", (["role-agent", "peer", "droid"],)),
             ):
                 executable = pathlib.Path(folder) / binary
-                # Print argv with a --settings file replaced by its content, read while the seat runs.
                 executable.write_text(f"#!{sys.executable}\nimport json, os, sys\n"
                                       "args = sys.argv[1:]\n"
                                       "if '--settings' in args:\n"
@@ -67,14 +70,10 @@ class ProfilesTest(unittest.TestCase):
                         args, first, second = map(json.loads, result.stdout.splitlines())
                         self.assertEqual(args, [*acp_args, "--extra"])
                         expected = json.loads(raw)
-                        instructions = ((ROOT / "agents/contract/COMMON.md").read_text().rstrip() + "\n\n"
-                                        + (ROOT / "agents" / f"{role.upper()}.md").read_text())
                         expected["params"]["prompt"].insert(0, {
-                            "type": "text", "text": "Role instructions for this session:\n" + instructions})
+                            "type": "text", "text": "Role instructions for this session:\n" + role_prompt(role)})
                         self.assertEqual(first, expected)
                         self.assertEqual(second, prompt)
-                        # A new proxy process resuming the session (Paseo idle release) must not
-                        # add the role again: the loaded history already holds it.
                         for method in ("session/load", "session/resume"):
                             restore = json.dumps({"jsonrpc": "2.0", "id": 8, "method": method,
                                                   "params": {"sessionId": "seat", "cwd": folder, "mcpServers": []}}) + "\n"
@@ -93,7 +92,6 @@ class ProfilesTest(unittest.TestCase):
                 result = subprocess.run([str(ROOT / "setup/droid-guard")], input=payload, text=True,
                                         capture_output=True, timeout=10)
                 self.assertEqual(result.returncode, code, result.stderr)
-        # A Lead or Supervisor seat does not run the write actions it must route to a Peer.
         for role, command, code in (
                 ("lead", "git commit -m x", 2), ("lead", "cd /repo && git -C /x -c user.name=a push origin main", 2),
                 ("supervisor", "git merge --ff-only topic", 2), ("lead", "git worktree remove ../wt", 2),
@@ -181,11 +179,10 @@ for line in sys.stdin:
                             "model": "grok-4.7", "reasoning_effort": "medium", "fast": "false", "context": "500k"})
                         self.assertEqual(replies[4]["result"]["state"], {
                             "model": "grok-4.7", "reasoning_effort": "high", "fast": "false", "context": "500k"})
-                        self.assertIn("# Supervisor", replies[2]["result"]["prompt"][0]["text"])
+                        self.assertIn(role_prompt("supervisor"), replies[2]["result"]["prompt"][0]["text"])
                         self.assertEqual(replies[4]["result"]["prompt"], [{"type": "text", "text": "task"}])
                     for i in (5, 6):
                         self.assertIn("error", replies[i])
-            # Each role selects only its own models; a parameter the model does not have is not set.
             for role, default, state, foreign in (
                     ("peer", "composer-2.5",
                      {"model": "composer-2.5", "fast": "false", "reasoning_effort": "xhigh", "context": "256k"},
@@ -209,13 +206,12 @@ for line in sys.stdin:
                         env={**os.environ, "PATH": folder, "HOME": folder, "CURSOR_CONFIG_DIR": str(config), "FAULT": ""})
                     replies = {r["id"]: r for r in map(json.loads, result.stdout.splitlines()) if "id" in r}
                     self.assertEqual(replies[1]["result"]["models"]["currentModelId"], default, result.stderr)
-                    # Every seat runs in Run Everything; a Lead is also allowed exactly its Paseo tools and
-                    # epistex_assign, a Peer only the handoff tool, and only in the seat's private cli-config.json.
                     self.assertEqual(replies[0]["result"]["approvalMode"], "unrestricted")
                     self.assertEqual(replies[0]["result"]["allow"], ["Mcp(paseo:epistex_submit_handoff)"] if role == "peer" else [
                         f"Mcp(paseo:{tool})" for tool in (
                             "list_workspaces", "list_providers", "list_models", "list_profiles",
-                            "send_agent_prompt", "cancel_agent", "archive_agent", "epistex_assign")])
+                            "send_agent_prompt", "cancel_agent", "archive_agent", "get_agent_status",
+                            "list_pending_permissions", "epistex_assign")])
                     self.assertEqual((config / "cli-config.json").read_text(), original)
                     self.assertEqual(replies[2]["result"]["state"], state)
                     self.assertIn(f"Cursor {role} seat requires one of", replies[3]["error"]["message"])
@@ -234,8 +230,6 @@ for line in sys.stdin:
                     env={**os.environ, "PATH": folder, "HOME": folder, "CURSOR_CONFIG_DIR": str(config), "FAULT": ""})
                 replies = {r["id"]: r for r in map(json.loads, result.stdout.splitlines()) if "id" in r}
                 self.assertEqual(replies[2]["result"]["prompt"], [{"type": "text", "text": "rework"}], result.stderr)
-        # Native drift, either after a prompt or right after the final confirmation, blocks the
-        # next prompt until an explicit reselection confirms every parameter again.
         for at, drift in (("prompt", "model"), ("prompt", "fast"), ("prompt", "reasoning_effort"),
                           ("prompt", "context"), ("confirm", "fast")):
             with self.subTest(at=at, drift=drift), tempfile.TemporaryDirectory() as folder:
@@ -315,7 +309,6 @@ for line in sys.stdin:
                 self.assertIn("error", response(4))
                 send(5, "session/set_model", {"sessionId":"seat", "modelId":"grok-4.7-high-500k"})
                 self.assertIn("result", response(5))
-                # Reselection may emit the same harmless in-flight update, then confirms all parameters.
                 send(6, "session/prompt", {"sessionId":"seat", "prompt":[{"type":"text", "text":"after reselection"}]})
                 self.assertEqual(response(6)["result"]["accepted"], True)
                 proc.stdin.close()
@@ -364,7 +357,7 @@ for line in sys.stdin:
                 for ident, (method, params) in enumerate(requests):
                     proc.stdin.write(json.dumps({"jsonrpc": "2.0", "id": ident, "method": method, "params": params}) + "\n")
                     proc.stdin.flush()
-                    while ident not in replies:  # One request at a time: a drift update precedes its reply.
+                    while ident not in replies:
                         message = json.loads(proc.stdout.readline())
                         self.assertNotIn("epistex-devin", str(message.get("id")), "own request leaked to the client")
                         if "id" in message:
@@ -379,8 +372,8 @@ for line in sys.stdin:
                 with self.subTest(role=role):
                     replies = run(role, [start, prompt("task"), speed("fast"), prompt("again"), speed("standard")])
                     self.assertEqual(replies[1]["result"]["speed"], "standard")
-                    heading = f"# {role.capitalize()}"
-                    self.assertEqual(heading in str(replies[1]["result"]["prompt"]), start[0] == "session/new")
+                    primed = any(role_prompt(role) in item["text"] for item in replies[1]["result"]["prompt"])
+                    self.assertEqual(primed, start[0] == "session/new")
                     self.assertIn("Fast mode off", replies[2]["error"]["message"])
                     self.assertEqual(replies[3]["result"]["speed"], "standard")
                     self.assertIn("result", replies[4])
@@ -448,7 +441,7 @@ for line in sys.stdin:
                 self.assertEqual(replies[3]["result"]["ran"], "gemini-4-argon-low")
                 text = replies[3]["result"]["prompt"][0]["text"]
                 self.assertTrue(text.startswith("Session working directory: /work/project."))
-                self.assertIn("# Lead", text)
+                self.assertIn(role_prompt("lead"), text)
             with self.subTest("the real failure: the login does not offer the model and the backend keeps its default"):
                 replies = run([new, select("gemini-4-argon-low"), prompt, select("gemini-3.8-flash-low"), prompt],
                               offered="gemini-3.8-flash-low")
@@ -461,7 +454,6 @@ for line in sys.stdin:
             with self.subTest("no selection: the session default is not judged"):
                 self.assertEqual(run([new, prompt])[1]["result"]["ran"], "gemini-3.8-flash-high")
             with self.subTest("the backend never reports the state after a selection"):
-                # The seat waits for the report, then refuses: an unconfirmed model does not run.
                 replies = run([("session/load", {"sessionId": "seat", "cwd": "/w", "mcpServers": []}),
                                select("gemini-4-argon-low"), prompt], SILENT="1")
                 self.assertIn("was selected but the backend reports", replies[2]["error"]["message"])
@@ -509,14 +501,12 @@ for line in sys.stdin:
                     args, message = result.stdout.splitlines()
                     parsed_args = json.loads(args)
                     self.assertEqual(parsed_args[0], "--append-system-prompt")
-                    self.assertIn("# Common contract", parsed_args[1])
-                    self.assertIn("# Peer — independent co-worker", parsed_args[1])
+                    self.assertEqual(parsed_args[1], role_prompt("peer"))
                     if agent == "pi":
                         self.assertEqual(parsed_args[2:4], ["--skill", str(ROOT / ".agents/skills")])
                         del parsed_args[2:4]
                     self.assertEqual(parsed_args[2:], ["--mode", "rpc", "--model", "provider/model"])
                     self.assertEqual(message, '{"type":"prompt","message":"unchanged"}')
-        # omp keeps caller append text and file sources.
         with tempfile.TemporaryDirectory() as folder:
             home = pathlib.Path(folder)
             append_file = home / "caller-system.md"
@@ -547,7 +537,7 @@ print(json.dumps({"effective":append, "args":args}))
                 text=True, capture_output=True, env={**os.environ, "PATH": folder}, timeout=10)
             self.assertEqual(result.returncode, 0, result.stderr)
             effective = json.loads(result.stdout)["effective"]
-            self.assertIn("# Peer — independent co-worker", effective)
+            self.assertIn(role_prompt("peer"), effective)
             self.assertIn("CALLER INLINE TEXT", effective)
             self.assertIn("CALLER FILE CONTENT", effective)
 
@@ -566,7 +556,6 @@ print(json.dumps({"effective":append, "args":args}))
         for raw in (b'not json\n', b'[]\n', b'{"type":"user","message":{"content":"task"}}\n',
                     b'{"type":"control_request","request":{"subtype":"interrupt"}}\n'):
             self.assertEqual(claude_sdk.prime_claude(raw, "role"), raw)
-        # Stream launcher injects every role and forwards SDK messages.
         with tempfile.TemporaryDirectory() as folder:
             executable = pathlib.Path(folder) / "claude"
             executable.write_text(f"#!{sys.executable}\nimport json, sys\n"
@@ -588,21 +577,17 @@ print(json.dumps({"effective":append, "args":args}))
                         text=True, capture_output=True, env=env, timeout=10)
                     self.assertEqual(result.returncode, 0, result.stderr)
                     args, first, second = map(json.loads, result.stdout.splitlines())
-                    # Only the Peer seat gets the destructive-command guard, as a settings hook.
                     guard = ["--settings", json.dumps({"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [
                         {"type": "command", "command": str(ROOT / "setup/claude-guard"), "timeout": 10}]}]}})] \
                         if role == "peer" else []
                     self.assertEqual(args, ["--disallowed-tools", ",".join(claude_sdk.DISALLOWED), *guard,
                                             "--input-format", "stream-json", "--output-format", "stream-json"])
-                    instructions = ((ROOT / "agents/contract/COMMON.md").read_text().rstrip() + "\n\n"
-                                    + (ROOT / "agents" / f"{role.upper()}.md").read_text())
-                    self.assertEqual(first["request"]["appendSystemPrompt"], "keep me\n\n" + instructions)
+                    self.assertEqual(first["request"]["appendSystemPrompt"], "keep me\n\n" + role_prompt(role))
                     self.assertEqual(first["request_id"], "init")
                     self.assertEqual(second, user)
 
     def test_claude_guard_denies_destructive_peer_commands_only(self):
         with tempfile.TemporaryDirectory() as folder:
-            # The guard reads the command text only, so the workspace path does not have to exist.
             work = pathlib.Path("/srv/epistex-guard-test/repo")
             env = {**os.environ, "CLAUDE_PROJECT_DIR": str(work)}
             scratch = json.dumps({"tool_name": "Bash", "tool_input": {"command": "rm -rf . ; rm -rf .."}, "cwd": folder})
@@ -622,7 +607,6 @@ print(json.dumps({"effective":append, "args":args}))
                     ("git fetch && git reset --hard origin/main", 2), ('bash -c "git reset --hard"', 2),
                     ("echo 'unbalanced && rm -rf /", 2)):
                 with self.subTest(command=command):
-                    # A Droid Peer seat has the same rule set on its own shell tool and project variable.
                     for guard, tool, variable in ((["setup/claude-guard"], "Bash", "CLAUDE_PROJECT_DIR"),
                                                   (["setup/droid-guard", "peer"], "Execute", "FACTORY_PROJECT_DIR")):
                         payload = json.dumps({"tool_name": tool, "tool_input": {"command": command}, "cwd": str(work)})
@@ -631,7 +615,6 @@ print(json.dumps({"effective":append, "args":args}))
                         self.assertEqual(result.returncode, code, result.stderr)
                         if code:
                             self.assertIn("in a Peer seat", result.stderr)
-            # Without the project variable the workspace is the Git top level of the hook's cwd.
             repo = pathlib.Path(folder) / "repo"
             (repo / "sub").mkdir(parents=True)
             subprocess.run(["git", "init", "-q", str(repo)], check=True, timeout=10)
@@ -645,7 +628,6 @@ print(json.dumps({"effective":append, "args":args}))
                 result = subprocess.run([str(ROOT / "setup/claude-guard")], input=payload, text=True,
                                         capture_output=True, timeout=10, env=env)
                 self.assertEqual(result.returncode, code, result.stderr)
-        # An existing --settings value keeps its content; a value that is not JSON stops the launch.
         merged = claude_sdk.guard_settings(["--model", "x", "--settings", '{"env": {"A": "1"}, "hooks": {"PreToolUse": [{"matcher": "Edit"}]}}'])
         settings = json.loads(merged[1])
         self.assertEqual((merged[0], merged[2:], settings["env"]), ("--settings", ["--model", "x"], {"A": "1"}))
@@ -676,11 +658,10 @@ print(json.dumps({"effective":append, "args":args}))
                 self.assertEqual(json.loads(result.stdout),
                                  ["--append-system-prompt", f"COMMON SENTINEL\n\nROLE {role}\n",
                                   "--skill", str(kit / ".agents/skills")])
-            # Byte boundary: multi-byte text must not be counted as characters.
             common.write_text("é" * 8186, encoding="utf-8")
             command = [sys.executable, str(kit / "setup/role-agent"), "peer", "pi"]
             result = subprocess.run(command, cwd=root, env=env, text=True, capture_output=True)
-            self.assertEqual(result.returncode, 0, result.stderr)  # 16372 + 2 + 10 = 16384
+            self.assertEqual(result.returncode, 0, result.stderr)
             common.write_text("é" * 8187, encoding="utf-8")
             result = subprocess.run(command, cwd=root, env=env, text=True, capture_output=True)
             self.assertNotEqual(result.returncode, 0)
@@ -703,13 +684,12 @@ print(json.dumps({"effective":append, "args":args}))
                                                           {"type": "text", "text": "actual task"}]}}
         raw = (json.dumps(prompt) + "\n").encode()
         primed = json.loads(proxy.prime(raw, primer))
-        self.assertIn("# Peer", primed["params"]["prompt"][0]["text"])
+        self.assertIn(role_prompt("peer"), primed["params"]["prompt"][0]["text"])
         self.assertEqual(primed["params"]["prompt"][1:], prompt["params"]["prompt"])
         self.assertEqual(proxy.prime(raw, primer), raw)
         prompt["params"]["sessionId"] = "b"
-        self.assertIn("# Peer", json.loads(proxy.prime((json.dumps(prompt) + "\n").encode(), primer))["params"]["prompt"][0]["text"])
+        self.assertIn(role_prompt("peer"), json.loads(proxy.prime((json.dumps(prompt) + "\n").encode(), primer))["params"]["prompt"][0]["text"])
         self.assertEqual(proxy.prime(b'{"method":"session/update"}\n', primer), b'{"method":"session/update"}\n')
-        # ACP pins the session cwd when requested.
         for method in ("session/new", "session/load", "session/resume"):
             new = {"jsonrpc": "2.0", "id": 1, "method": method, "params": {"cwd": "/work/project", "mcpServers": []}}
             self.assertEqual(proxy.session_cwd((json.dumps(new) + "\n").encode()), "/work/project")
@@ -719,10 +699,8 @@ print(json.dumps({"effective":append, "args":args}))
         raw = (json.dumps(prompt) + "\n").encode()
         text = json.loads(proxy.prime(raw, proxy.Primer("lead"), "/work/project"))["params"]["prompt"][0]["text"]
         self.assertTrue(text.startswith("Session working directory: /work/project."))
-        self.assertIn("# Lead", text)
+        self.assertIn(role_prompt("lead"), text)
         self.assertNotIn("Session working directory", json.loads(proxy.prime(raw, proxy.Primer("lead")))["params"]["prompt"][0]["text"])
-        # A restored session already holds the role: its first prompt in a new proxy gets the
-        # cwd pin again (Antigravity runs shell commands elsewhere), never a second role copy.
         restored = proxy.Primer("lead")
         load = {"method": "session/resume", "params": {"sessionId": "a", "cwd": "/work/project"}}
         self.assertEqual(proxy.prime((json.dumps(load) + "\n").encode(), restored), (json.dumps(load) + "\n").encode())

@@ -10,9 +10,10 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SKILL_DIRS = (".agents/skills", ".claude/skills", ".kiro/skills")
-CATALOG = set("""archive_agent archive_workspace browser_back browser_click browser_close_tab browser_drag browser_evaluate browser_fill browser_forward browser_hover browser_keypress browser_list_tabs browser_logs browser_navigate browser_new_tab browser_reload browser_resize browser_screenshot browser_scroll browser_select browser_snapshot browser_type browser_upload browser_wait cancel_agent capture_terminal create_agent create_heartbeat create_schedule create_terminal create_workspace delete_heartbeat delete_schedule get_agent_activity get_agent_status inspect_provider inspect_schedule kill_agent kill_terminal list_agents list_hosts list_models list_pending_permissions list_profiles list_providers list_schedules list_terminals list_workspace_scripts list_workspaces pause_schedule rename_workspace respond_to_permission resume_schedule run_schedule_once schedule_logs send_agent_prompt send_terminal_keys set_agent_mode start_workspace_script stop_workspace_script update_agent update_schedule""".split())
-KEEP_LEAD = set("""list_workspaces list_providers list_models list_profiles send_agent_prompt cancel_agent archive_agent""".split())
-KEEP_SUPERVISOR = KEEP_LEAD | {"create_agent", "create_workspace", "get_agent_activity", "list_agents", "list_hosts",
+CATALOG = set("""archive_agent archive_workspace browser_back browser_click browser_close_tab browser_drag browser_evaluate browser_fill browser_forward browser_hover browser_keypress browser_list_hosts browser_list_tabs browser_logs browser_navigate browser_new_tab browser_reload browser_resize browser_screenshot browser_scroll browser_select browser_snapshot browser_type browser_upload browser_wait cancel_agent capture_terminal create_agent create_heartbeat create_schedule create_terminal create_workspace delete_heartbeat delete_schedule get_agent_activity get_agent_status inspect_provider inspect_schedule kill_agent kill_terminal list_agents list_hosts list_models list_pending_permissions list_profiles list_providers list_schedules list_terminals list_workspace_scripts list_workspaces pause_schedule rename_workspace respond_to_permission resume_schedule run_schedule_once schedule_logs send_agent_prompt send_terminal_keys set_agent_mode start_workspace_script stop_workspace_script subscribe_change_request unsubscribe_change_request update_agent update_schedule""".split())
+KEEP_LEAD = set("""list_workspaces list_providers list_models list_profiles send_agent_prompt cancel_agent archive_agent
+get_agent_status list_pending_permissions""".split())
+KEEP_SUPERVISOR = KEEP_LEAD - {"get_agent_status"} | {"create_agent", "create_workspace", "get_agent_activity", "list_agents", "list_hosts",
                                "list_pending_permissions", "respond_to_permission", "set_agent_mode"}
 DENY_LEAD = CATALOG - KEEP_LEAD
 DENY_SUPERVISOR = CATALOG - KEEP_SUPERVISOR
@@ -86,8 +87,6 @@ class SetupSeatsTest(unittest.TestCase):
         return self.run_check("--check")
 
     def test_check_fails_on_an_active_workspace_or_project_whose_directory_is_gone(self):
-        # A live test that removes its scratch directory but leaves the Paseo record: the daemon then
-        # logs "Git worktree discovery failed" for it every minute.
         home = pathlib.Path(self.temporary.name)
         registry = home / "projects"
         registry.mkdir()
@@ -120,11 +119,10 @@ class SetupSeatsTest(unittest.TestCase):
         self.assertIn("workspaces.json: not a JSON list", result.stderr)
 
     def test_example_catalog_passes_without_changing_files(self):
-        self.assertEqual((len(CATALOG), len(KEEP_LEAD), len(DENY_LEAD)), (62, 7, 55))
-        self.assertEqual((len(KEEP_SUPERVISOR), len(DENY_SUPERVISOR)), (15, 47))
+        self.assertEqual((len(CATALOG), len(KEEP_LEAD), len(DENY_LEAD)), (65, 9, 56))
+        self.assertEqual((len(KEEP_SUPERVISOR), len(DENY_SUPERVISOR)), (15, 50))
         for key, provider in self.data["agents"]["providers"].items():
             if provider.get("paseoTools", {}).get("enabled") is True:
-                # A Peer keeps no Paseo tool: its channel is on only for the plugin tool epistex_submit_handoff.
                 expected = DENY_SUPERVISOR if key.endswith("-supervisor") else CATALOG if PEER_SEAT.search(key) else DENY_LEAD
                 self.assertEqual(set(provider["paseoTools"]["disabledTools"]), expected, key)
 
@@ -136,7 +134,6 @@ class SetupSeatsTest(unittest.TestCase):
         self.assertIn("auth, daemon and launch not checked", result.stdout)
         self.assertIn("Devin user-wide agent.compaction_threshold_tokens is absent", result.stdout)
 
-        # Devin compaction is a user-wide observation and never gates setup.
         devin = pathlib.Path(self.temporary.name) / ".config/devin/config.json"
         devin.parent.mkdir(parents=True)
         for value in (100000, 200000):
@@ -189,7 +186,6 @@ class SetupSeatsTest(unittest.TestCase):
         hf_deepseek = "pi-peer--huggingface-deepseek-ai-deepseek-v4-1-flash-1017--low"
         or_deepseek = "omp-peer--openrouter-deepseek-deepseek-v4-1-flash-1017--low"
         cases = [
-            # Paseo tool policy
             ("deny-list missing member", deny("codex-lead", sorted(DENY_LEAD - {"create_heartbeat"})),
              "codex-lead: paseoTools.disabledTools must exactly match"),
             ("deny-list blocks a kept tool", deny("codex-lead", deny_lead + ["cancel_agent"]),
@@ -213,7 +209,6 @@ class SetupSeatsTest(unittest.TestCase):
             ("Claude compaction window", lambda d: seat(d, "claude-lead")["env"].__setitem__(
                 "CLAUDE_CODE_AUTO_COMPACT_WINDOW", "100000"),
              "claude-lead: need env CLAUDE_CODE_AUTO_COMPACT_WINDOW=200000"),
-            # Supervisor seats
             ("supervisor missing", lambda d: d["agents"]["providers"].pop("codex-supervisor"),
              "codex-supervisor: wrong launcher"),
             ("supervisor without tools", lambda d: seat(d, "codex-supervisor")["paseoTools"].__setitem__("enabled", False),
@@ -222,7 +217,6 @@ class SetupSeatsTest(unittest.TestCase):
              "amp-supervisor: wrong launcher"),
             ("supervisor expensive default", default_model("claude-supervisor", "claude-fable-5-1"),
              "claude-supervisor: wrong launcher, tools or model/effort"),
-            # Codex and Claude seats
             ("codex lead with peer model", lambda d: seat(d, "codex-lead")["models"][0].__setitem__("id", "gpt-6-luna"),
              "codex-lead: wrong wrapper"),
             ("codex peer with lead model", lambda d: seat(d, "codex-peer")["models"][0].__setitem__("id", "gpt-6.1-sol"),
@@ -251,7 +245,6 @@ class SetupSeatsTest(unittest.TestCase):
              "kiro-lead: every profile needs modeId epistex_lead"),
             ("kiro supervisor wrong mode", lambda d: profile(d, "kiro-supervisor--claude-opus-5-5--low").__setitem__(
                 "modeId", "epistex_lead"), "kiro-supervisor: every profile needs modeId epistex_supervisor"),
-            # Pi and OMP seats
             ("OMP Luna effort default", lambda d: model(d, "omp-peer", "openai-codex/gpt-6-luna")["thinkingOptions"][0]
              .__setitem__("isDefault", False), "omp-peer: wrong GPT-6 Luna"),
             ("OMP default effort", lambda d: next(m for m in seat(d, "omp-peer")["models"] if m["isDefault"])
@@ -261,7 +254,6 @@ class SetupSeatsTest(unittest.TestCase):
             ("OMP DeepSeek profile missing", lambda d: drop(d, or_deepseek), "omp-peer: wrong DeepSeek 1017 models/profiles"),
             ("OMP Luna profile missing", lambda d: drop(d, "omp-peer--openai-codex-gpt-6-luna--medium"),
              "omp-peer: missing or wrong GPT-6 Luna medium profile"),
-            # Antigravity seats
             ("agy peer skips permissions", lambda d: seat(d, "agy-peer")["env"].__setitem__(
                 "AGY_EXTRA_ARGS", "--dangerously-skip-permissions"), "agy-peer: wrong launcher, permissions or model pins"),
             ("agy peer model missing", lambda d: seat(d, "agy-peer")["models"].remove(
@@ -282,7 +274,6 @@ class SetupSeatsTest(unittest.TestCase):
              "agy-lead: paseoTools.disabledTools must exactly match"),
             ("agy lead old server mode", lambda d: profile(d, "agy-lead--gemini-4-argon-low").__setitem__("modeId", "yolo"),
              "agy-lead: missing or wrong gemini-4-argon-low profile"),
-            # Kiro seats
             ("kiro lead with peer role", lambda d: seat(d, "kiro-lead").__setitem__(
                 "command", [kit + "/role-agent", "peer", "kiro"]), "kiro-lead: wrong launcher, tools or model/effort"),
             ("kiro lead extra env", lambda d: seat(d, "kiro-lead").__setitem__("env", {"KIRO_EXTRA": "1"}),
@@ -297,8 +288,6 @@ class SetupSeatsTest(unittest.TestCase):
              "kiro-peer: wrong launcher, tools or model/effort"),
             ("kiro supervisor expensive default", default_model("kiro-supervisor", "claude-opus-5.5"),
              "kiro-supervisor: wrong launcher, tools or model/effort"),
-            # Droid seats
-            # Devin and Cursor seats
             ("devin peer permission mode", lambda d: profile(d, "devin-peer--swe-2-high--medium").__setitem__(
                 "modeId", "accept-edits"), "devin-peer: every profile needs modeId bypass"),
             ("devin supervisor without Paseo tools", lambda d: seat(d, "devin-supervisor")["paseoTools"].__setitem__(
@@ -352,7 +341,6 @@ class SetupSeatsTest(unittest.TestCase):
                 "thinkingOptionId", "low"), "droid-peer: missing or wrong supported model/effort profile"),
             ("droid profile on plain provider", lambda d: profile(d, "droid-peer--claude-haiku-5-5--low").__setitem__(
                 "provider", "factory-droid"), profiles_error),
-            # Generic profile validation
             ("profile model not on seat", lambda d: d["daemon"]["agentProfiles"][0].__setitem__("model", "not-on-seat"),
              profiles_error),
             ("profile unknown thinking option", lambda d: d["daemon"]["agentProfiles"][0].__setitem__(
@@ -578,8 +566,6 @@ class SetupSeatsTest(unittest.TestCase):
                     self.assertEqual({k: v for k, v in old.items() if k != "notes"},
                                      {k: v for k, v in new.items() if k != "notes"})
                     if new != foreign:
-                        self.assertNotIn("cheap/fast", new["notes"])
-                        # A Lead has no create_agent, so a Peer profile names epistex_assign and no create_agent field.
                         if re.search(r"-peer(-\d+)?$", new["provider"]):
                             self.assertIn("profile id to epistex_assign", new["notes"])
                             self.assertNotIn("create_agent", new["notes"])
@@ -602,7 +588,7 @@ class SetupSeatsTest(unittest.TestCase):
                          f"printf '%s\\n' \"$*\" >> {calls}\n"
                          "[[ \"$1\" == --version ]] && printf '%s\\n' \"$FAKE_PASEO_VERSION\"\nexit 0\n")
         paseo.chmod(0o755)
-        self.env["FAKE_PASEO_VERSION"] = "0.16.0"
+        self.env["FAKE_PASEO_VERSION"] = "0.17.0"
 
         with self.subTest("not installed is an error: the plugin is required"):
             result = self.check_config(bare)
@@ -637,25 +623,25 @@ class SetupSeatsTest(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(message, result.stderr)
 
-        for version in ("0.16.0", "0.16.0-beta.2", "0.16.2"):
+        for version in ("0.17.0", "0.17.0-beta.1", "0.17.3"):
             with self.subTest("daemon version inside the range", version=version):
                 self.env["FAKE_PASEO_VERSION"] = version
                 result = self.check_config({**self.data, **installed})
                 self.assertEqual(result.returncode, 0, result.stderr)
-        for version in ("0.17.0", "0.17.0-beta.1", "0.15.4", "0.15.0", "1.0.0", "unknown"):
+        for version in ("0.18.0", "0.18.0-beta.1", "0.16.2", "0.15.0", "1.0.0", "unknown"):
             with self.subTest("daemon version outside the range", version=version):
                 self.env["FAKE_PASEO_VERSION"] = version
                 result = self.check_config({**self.data, **installed})
                 self.assertNotEqual(result.returncode, 0)
-                self.assertIn(f"requires Paseo >=0.16.0 <0.17 but paseo is {version}", result.stderr)
+                self.assertIn(f"requires Paseo >=0.17.0 <0.18 but paseo is {version}", result.stderr)
         self.assertNotIn("requires Paseo", self.check_config(bare).stderr, "not installed: version is not gated")
-        self.env["FAKE_PASEO_VERSION"] = "0.16.0"
+        self.env["FAKE_PASEO_VERSION"] = "0.17.0"
 
         with self.subTest("paseo absent leaves the pin pending"):
             paseo.unlink()
             result = self.check_config({**self.data, **installed})
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("range >=0.16.0 <0.17 not checked against the daemon (pending)", result.stdout)
+            self.assertIn("range >=0.17.0 <0.18 not checked against the daemon (pending)", result.stdout)
             paseo.write_text("#!/usr/bin/env bash\n"
                              f"printf '%s\\n' \"$*\" >> {calls}\n"
                              "[[ \"$1\" == --version ]] && printf '%s\\n' \"$FAKE_PASEO_VERSION\"\nexit 0\n")
@@ -664,10 +650,10 @@ class SetupSeatsTest(unittest.TestCase):
         with self.subTest("manifest and guard must share the pin"):
             manifest = plugin_dir / "paseo-plugin.json"
             original = manifest.read_text()
-            manifest.write_text(original.replace('"paseo": ">=0.16.0 <0.17"', '"paseo": ">=0.16.0"'))
+            manifest.write_text(original.replace('"paseo": ">=0.17.0 <0.18"', '"paseo": ">=0.17.0"'))
             result = self.check_config(self.data)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("must require Paseo >=0.16.0 <0.17", result.stderr)
+            self.assertIn("must require Paseo >=0.17.0 <0.18", result.stderr)
             manifest.write_text(original)
 
         self.config.write_text(json.dumps(bare))
@@ -675,11 +661,11 @@ class SetupSeatsTest(unittest.TestCase):
         with self.subTest("--install-plugin refuses --check, a wrong daemon and pluginsEnabled off"):
             self.assertEqual(self.run_check("--check", "--install-plugin").returncode, 2)
             self.assertEqual(self.run_check("--install-plugin", "--remove-plugin").returncode, 2)
-            self.env["FAKE_PASEO_VERSION"] = "0.17.0"
+            self.env["FAKE_PASEO_VERSION"] = "0.18.0"
             result = self.run_check("--install-plugin")
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("paseo is 0.17.0; not installing", result.stderr)
-            self.env["FAKE_PASEO_VERSION"] = "0.16.0"
+            self.assertIn("paseo is 0.18.0; not installing", result.stderr)
+            self.env["FAKE_PASEO_VERSION"] = "0.17.0"
             result = self.run_check("--install-plugin")
             self.assertNotEqual(result.returncode, 0)
             self.assertIn('set "pluginsEnabled": true in config.json first', result.stderr)

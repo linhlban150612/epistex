@@ -21,7 +21,7 @@ export interface ContributeOptions {
 }
 
 export const PLUGIN_ID = "epistex-delivery";
-export const PASEO_RANGE = ">=0.17.0 <0.18";
+export const PASEO_RANGE = ">=0.17.2 <0.18";
 
 export const consoleLogger: Logger = {
   info: (message) => console.log(`[${PLUGIN_ID}] ${message}`),

@@ -1,4 +1,4 @@
-# Epistex delivery plugin (Paseo >=0.17.0 <0.18)
+# Epistex delivery plugin (Paseo >=0.17.2 <0.18)
 
 `plugins/epistex-delivery/` is a required Paseo **server plugin** and the only report channel
 from a Peer to the Lead that created it. [OVERVIEW.md](../../plugins/epistex-delivery/OVERVIEW.md)
@@ -128,8 +128,10 @@ scans. Its outbox is a delivery receipt store outside Git; it holds no authority
   `paseo.parent-agent-id` when that is a live `*-supervisor` seat, otherwise to the Lead.
 - **Send.** The record is appended and fsynced and the cursor advanced before sending. A message
   is sent only while its recipient is `idle`/`error`, with `{sourceAgentId: <peer>,
-  activeTurnBehavior: "steer", messageId: <delivery-id>}`; otherwise it stays `pending` and the
-  recipient's own turn end flushes it. This includes a `closed` recipient: its deliveries wait for
+  activeTurnBehavior: "queue", messageId: <delivery-id>}`; otherwise it stays `pending` and the
+  recipient's own turn end flushes it. When the recipient starts a turn between the status read
+  and the send, `queue` holds the message until that turn ends. The `PEER_REMINDED` text has no
+  sender, and Paseo accepts `queue` only from an agent sender, so it goes with `steer`. This includes a `closed` recipient: its deliveries wait for
   the end of the turn that its next prompt starts. `send()` resolves on acceptance only, so delivery is at
   least once and the recipient processes each `delivery-id` once.
 - **Reconcile.** Hooks are not replayed and the plugin is a child process, so the first
@@ -163,7 +165,7 @@ without that prefix is below `server/dist/server/server/` of `@getpaseo/server`,
 | Lead detection | `agent.provider` is the agent-profile id, e.g. `claude-lead`, `droid-lead`. `paseo agent ls --json` prints it as `<id>/<model>`, e.g. `claude-lead/claude-opus-5-5`. | `plugins/lifecycle/index.js`, `paseo agent ls --json` |
 | Agent status | `paseo.agents.ref(id).refresh()` / `agents.list()` give `labels`, `provider`, `status ∈ {initializing, idle, running, error, closed}`. A snapshot has no `parentAgentId` field; read `labels["paseo.parent-agent-id"]`. | `client/dist/index.d.ts`, `protocol/dist/messages.js`, `protocol/dist/agent-lifecycle.js` |
 | Timeline read | `timeline.refetch({direction: tail\|before\|after, cursor?, limit})` → `{entries, endCursor, hasNewer, epoch, reset, staleCursor, ...}`; cursor `{epoch, seq}`; a timeline replacement changes `epoch`. `assistant_message` items carry `text` and `messageId?`. | `protocol/dist/messages.js` |
-| Send | `ref(id).send(text, {sourceAgentId?, messageId?, activeTurnBehavior?})` resolves when the daemon accepts. `ActiveTurnBehavior` is `interrupt`\|`steer`; there is no queue-until-idle value. With `sourceAgentId`, messages coalesce for 2 quiet seconds, then steer into or replace a running turn. Native `notifyOnFinish` uses the same path. | `session.js`, `agent/agent-messages/delivery.js`, `agent/agent-manager.js`, `agent/finish-subscriptions/index.js` |
+| Send | `ref(id).send(text, {sourceAgentId?, messageId?, activeTurnBehavior?})` resolves when the daemon accepts. With `sourceAgentId`, the value is `queue` (default: wait for the running turn to end), `steer` (join the running turn; a provider that cannot steer interrupts it) or `interrupt`; messages coalesce for 2 quiet seconds. Without `sourceAgentId`, `queue` is rejected and the default is `interrupt`. Daemons before 0.17.2 do not know `queue` and read an agent sender's `steer` as wait. Native `notifyOnFinish` sends with `queue`. | `session.js`, `agent/agent-messages/delivery.js`, `agent/agent-manager.js`, `agent/finish-subscriptions/index.js` |
 | Manifest / build | `paseo-plugin.json` with `requirements.paseo`; esbuild cjs `node20`, `@getpaseo/plugin*` and `zod` host-provided, imports outside the plugin directory rejected. | `plugins/manifest.js`, `plugins/compiler-build.js`, `plugins/compiler-esbuild.js` |
 | Install | `paseo plugin install <dir>` writes a `directory` source into `plugins` in `~/.paseo/config.json`; loading requires top-level `pluginsEnabled: true`. | `plugins/index.js`, `cli/dist/commands/plugin/index.js` |
 
@@ -189,7 +191,7 @@ bash <KIT>/setup/setup-seats.sh --check            # range, path, pluginsEnabled
 A daemon started with `pluginsEnabled: false` shows the new entry as `disabled` until
 `paseo reload`.
 
-`setup-seats.sh` shares the `>=0.17.0 <0.18` range with `paseo-plugin.json` and `server/plugin.ts`
+`setup-seats.sh` shares the `>=0.17.2 <0.18` range with `paseo-plugin.json` and `server/plugin.ts`
 and fails when they drift; a prerelease counts as its stable core. It refuses to install under
 `--check`, when `paseo --version` is outside the range, or when `pluginsEnabled` is not `true`; it
 never edits `config.json` itself. With the plugin installed, `--check` fails when the entry is not
@@ -207,11 +209,13 @@ Human decisions; Git history holds their dates and earlier variants.
 2. Root (UI-opened) Peers are out of scope: there is no Lead to deliver to.
 3. Receipts are kept for audit after the Lead is archived, with no compaction, until the Human
    deletes them.
-4. Busy recipient: event-gated send plus `steer` for the residual race (see [Design](#design)).
+4. Busy recipient: event-gated send plus `queue` for the residual race (see [Design](#design)).
+   Until Paseo 0.17.2 this value was `steer`, which meant the same wait for an agent sender.
 5. The plugin is **required**: the role prompts carry no workaround for
    [#6346](https://github.com/getpaseo/paseo/issues/6346), so a host without the plugin has no
    mitigation and `setup-seats.sh --check` fails until it is installed.
-6. Paseo requirement `>=0.17.0 <0.18`; the dev dependency is `@getpaseo/plugin` 0.17.0. A daemon
+6. Paseo requirement `>=0.17.2 <0.18` (0.17.2 adds `queue`); the dev dependency is
+   `@getpaseo/plugin` 0.17.3. A daemon
    outside the range refuses to load the plugin, so each new Paseo minor needs a new SDK check
    (typecheck, tests, one live Lead and Peer run) before the range moves. The plugin types follow
    the 0.16 SDK (no `timeline` in the `agent.turn.after` payload; `background` and `metadata` on
@@ -236,6 +240,13 @@ Human decisions; Git history holds their dates and earlier variants.
 
 Live runs used real role seats; their logs stay outside Git.
 
+- **Paseo 0.17.3** (2026-11-23, the live daemon): with `@getpaseo/plugin` 0.17.3 and the `queue`
+  send, the plugin was `running` with its three hooks. A `droid-lead` (Sonnet 5.5) created a
+  `droid-peer` (Haiku 5.5) with `epistex_assign` (T-1, round 1, commit baseline); the Peer committed
+  and called `epistex_submit_handoff`; the daemon accepted the `queue` send to the idle Lead, and
+  the Lead got one `HANDBACK_VALID` (`submitted: true`, `briefCodes: []`) and no `[Agent finished]`.
+  `setup/check-handoff` on that body printed `READY_FOR_REVIEW`. A Lead that starts a turn between
+  the status read and the send was not produced.
 - **Paseo 0.17.0** (2026-11-21, Droid 1.17.0, the live daemon): with `@getpaseo/plugin` 0.17.0,
   `tsc --noEmit` and the plugin tests pass. The plugin was `running` with its three hooks. A
   `droid-lead` (Sonnet 5.5) created a `droid-peer` (Haiku 5.5) with `epistex_assign` (T-1, round 1,
@@ -276,7 +287,7 @@ Live runs used real role seats; their logs stay outside Git.
 - **Fault injection** (a busy Lead, missed turns plus reconcile, a crash between fsync and send, a
   Peer cut mid-turn): Paseo 0.14.0 only, below the required range.
 
-Not covered live: on 0.17.0, every behavior except the 0.17.0 item; on 0.16.0, every behavior above except the 0.16.0
+Not covered live: on 0.17.3, every behavior except the 0.17.3 item; on 0.17.0, every behavior except the 0.17.0 item; on 0.16.0, every behavior above except the 0.16.0
 item and on backends other than Droid; the snapshot baseline of `epistex_assign`, a round above 1 for a replacement Peer, and
 a Lead that chooses the tool without a prompt that names it; `epistex_submit_handoff` on
 `pi-peer`, `omp-peer`, `droid-peer-3` and `copilot-peer`, a tool refusal and a rework

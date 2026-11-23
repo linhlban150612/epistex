@@ -595,7 +595,7 @@ class SetupSeatsTest(unittest.TestCase):
                          f"printf '%s\\n' \"$*\" >> {calls}\n"
                          "[[ \"$1\" == --version ]] && printf '%s\\n' \"$FAKE_PASEO_VERSION\"\nexit 0\n")
         paseo.chmod(0o755)
-        self.env["FAKE_PASEO_VERSION"] = "0.17.0"
+        self.env["FAKE_PASEO_VERSION"] = "0.17.3"
 
         with self.subTest("not installed is an error: the plugin is required"):
             result = self.check_config(bare)
@@ -630,25 +630,25 @@ class SetupSeatsTest(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(message, result.stderr)
 
-        for version in ("0.17.0", "0.17.0-beta.1", "0.17.3"):
+        for version in ("0.17.2", "0.17.2-beta.1", "0.17.3"):
             with self.subTest("daemon version inside the range", version=version):
                 self.env["FAKE_PASEO_VERSION"] = version
                 result = self.check_config({**self.data, **installed})
                 self.assertEqual(result.returncode, 0, result.stderr)
-        for version in ("0.18.0", "0.18.0-beta.1", "0.16.2", "0.15.0", "1.0.0", "unknown"):
+        for version in ("0.18.0", "0.18.0-beta.1", "0.17.1", "0.17.0", "0.16.2", "0.15.0", "1.0.0", "unknown"):
             with self.subTest("daemon version outside the range", version=version):
                 self.env["FAKE_PASEO_VERSION"] = version
                 result = self.check_config({**self.data, **installed})
                 self.assertNotEqual(result.returncode, 0)
-                self.assertIn(f"requires Paseo >=0.17.0 <0.18 but paseo is {version}", result.stderr)
+                self.assertIn(f"requires Paseo >=0.17.2 <0.18 but paseo is {version}", result.stderr)
         self.assertNotIn("requires Paseo", self.check_config(bare).stderr, "not installed: version is not gated")
-        self.env["FAKE_PASEO_VERSION"] = "0.17.0"
+        self.env["FAKE_PASEO_VERSION"] = "0.17.3"
 
         with self.subTest("paseo absent leaves the pin pending"):
             paseo.unlink()
             result = self.check_config({**self.data, **installed})
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("range >=0.17.0 <0.18 not checked against the daemon (pending)", result.stdout)
+            self.assertIn("range >=0.17.2 <0.18 not checked against the daemon (pending)", result.stdout)
             paseo.write_text("#!/usr/bin/env bash\n"
                              f"printf '%s\\n' \"$*\" >> {calls}\n"
                              "[[ \"$1\" == --version ]] && printf '%s\\n' \"$FAKE_PASEO_VERSION\"\nexit 0\n")
@@ -657,10 +657,10 @@ class SetupSeatsTest(unittest.TestCase):
         with self.subTest("manifest and guard must share the pin"):
             manifest = plugin_dir / "paseo-plugin.json"
             original = manifest.read_text()
-            manifest.write_text(original.replace('"paseo": ">=0.17.0 <0.18"', '"paseo": ">=0.17.0"'))
+            manifest.write_text(original.replace('"paseo": ">=0.17.2 <0.18"', '"paseo": ">=0.17.2"'))
             result = self.check_config(self.data)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("must require Paseo >=0.17.0 <0.18", result.stderr)
+            self.assertIn("must require Paseo >=0.17.2 <0.18", result.stderr)
             manifest.write_text(original)
 
         self.config.write_text(json.dumps(bare))
@@ -672,7 +672,7 @@ class SetupSeatsTest(unittest.TestCase):
             result = self.run_check("--install-plugin")
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("paseo is 0.18.0; not installing", result.stderr)
-            self.env["FAKE_PASEO_VERSION"] = "0.17.0"
+            self.env["FAKE_PASEO_VERSION"] = "0.17.3"
             result = self.run_check("--install-plugin")
             self.assertNotEqual(result.returncode, 0)
             self.assertIn('set "pluginsEnabled": true in config.json first', result.stderr)

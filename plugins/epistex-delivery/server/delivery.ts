@@ -42,7 +42,7 @@ export interface AgentHandle {
   };
   send(
     text: string,
-    options: { sourceAgentId?: string; activeTurnBehavior: "steer"; messageId: string },
+    options: { sourceAgentId?: string; activeTurnBehavior: "queue" | "steer"; messageId: string },
   ): Promise<void>;
 }
 export interface DeliveryPaseo {
@@ -509,8 +509,9 @@ export class Delivery {
     for (const record of pending) {
       try {
         await handle.send(formatDelivery(record), {
-          ...(record.kind === "PEER_REMINDED" ? {} : { sourceAgentId: record.peerAgentId }),
-          activeTurnBehavior: "steer",
+          ...(record.kind === "PEER_REMINDED"
+            ? { activeTurnBehavior: "steer" as const }
+            : { sourceAgentId: record.peerAgentId, activeTurnBehavior: "queue" as const }),
           messageId: record.deliveryId,
         });
       } catch (error) {

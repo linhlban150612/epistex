@@ -136,7 +136,7 @@ Peers must belong to different model families, so the lanes judge independently.
 Call `send_agent_prompt` for a Peer with `notifyOnFinish: false`: the kit
 plugin is the only report channel. Then end the turn and wait for its messages, not progress polls.
 `queued` is not delivery; require the recipient's next event to name the task/round. Do not send
-additions into a running round; `steer` may replace it.
+additions into a running round: omit `activeTurnBehavior`.
 
 - `[epistex-delivery]`: handle each `delivery-id` once. `HANDBACK_VALID` → § Acceptance on its
   body (with `trailing_text_after_handoff`, read the trailing text first; if it changes the

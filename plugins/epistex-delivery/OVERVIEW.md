@@ -31,7 +31,7 @@ How it works:
 A message waits in the receipt store while its recipient is mid-turn and is sent when that
 recipient's turn ends. Delivery is at least once; the recipient processes each `delivery-id` once.
 
-Requirements: Paseo `>=0.17.0 <0.18`. The plugin registers both delivery hooks or none when the daemon does
+Requirements: Paseo `>=0.17.2 <0.18`. The plugin registers both delivery hooks or none when the daemon does
 not expose the lifecycle API it was built against; the tool hook is registered apart, so a failure there leaves delivery on.
 
 Limits: the plugin delivers, reminds, and creates a Peer only inside a Lead's `epistex_assign` call. It stores a handoff only inside a Peer's `epistex_submit_handoff` call. It never

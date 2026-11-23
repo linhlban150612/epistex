@@ -94,7 +94,7 @@ test("root agents and children of non-Lead parents are ignored", async () => {
   });
 });
 
-test("valid handback to an idle Lead: recorded, sent with steer, cursor advanced, message format exact", async () => {
+test("valid handback to an idle Lead: recorded, sent with queue, cursor advanced, message format exact", async () => {
   await scratch(async (delivery, outbox) => {
     const fake = fakePaseo(
       { "lead-1": leadIdle },
@@ -118,7 +118,7 @@ test("valid handback to an idle Lead: recorded, sent with steer, cursor advanced
 
     assert.equal(fake.sent.length, 1);
     assert.equal(fake.sent[0].agentId, "lead-1");
-    assert.deepEqual(fake.sent[0].options, { sourceAgentId: "peer-1", activeTurnBehavior: "steer", messageId: record.deliveryId });
+    assert.deepEqual(fake.sent[0].options, { sourceAgentId: "peer-1", activeTurnBehavior: "queue", messageId: record.deliveryId });
     assert.equal(
       fake.sent[0].text,
       ["[epistex-delivery]", `delivery-id: ${record.deliveryId}`, "kind: HANDBACK_VALID", "peer: peer-1  task: T-1  round: 1", "---", VALID].join("\n"),
@@ -698,6 +698,7 @@ test("a completed turn without a handoff header: the Peer is reminded once, the 
     assert.equal(fake.sent[0].agentId, "peer-1", "the reminder goes to the Peer; the Lead gets nothing for this turn");
     assert.equal(fake.sent[0].text, PEER_REMINDER);
     assert.equal("sourceAgentId" in fake.sent[0].options, false, "the reminder does not pose as a message from an agent");
+    assert.equal(fake.sent[0].options.activeTurnBehavior, "steer", "Paseo accepts queue only from an agent sender");
     assert.match(PEER_REMINDER, /not a new assignment and gives no new scope or authority/);
 
     await delivery.onTurnEnded(turn("peer-1", "t2"), fake.paseo);
